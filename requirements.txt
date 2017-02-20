@@ -1,5 +1,6 @@
 numpy
 scipy
+nosetests
 pandas
 prettytable
 cplex
