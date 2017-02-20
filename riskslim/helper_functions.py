@@ -1,9 +1,10 @@
 import sys
 import time
-import numpy as np
-import pandas as pd
 import os.path
 import warnings
+import numpy as np
+import pandas as pd
+import prettytable as pt
 
 # PRINTING AND LOGGING
 def print_log(msg, print_flag = True):
@@ -118,7 +119,7 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None):
     # setup Y vector and Y_name
     Y_col_idx = [0]
     Y = raw_data[:, Y_col_idx]
-    Y_name = [data_headers[j] for j in Y_col_idx]
+    Y_name = data_headers[Y_col_idx[0]]
     Y[Y == 0] = -1
 
     # setup X and X_names
@@ -164,7 +165,7 @@ def check_data(data):
 
      data can also contain:
 
-     - 'Y_name' string containing the name of the output (optional)
+     - 'outcome_name' string containing the name of the output (optional)
      - 'sample_weights' N x 1 vector of sample weights, must all be positive
 
     Returns
@@ -188,8 +189,8 @@ def check_data(data):
     Y = data['Y']
     variable_names = data['variable_names']
 
-    if 'Y_name' in data.keys():
-        assert type(data['Y_name']) is str, "Y_name should be a str"
+    if 'outcome_name' in data:
+        assert type(data['outcome_name']) is str, "outcome_name should be a str"
 
     # sizes and uniqueness
     N, P = X.shape
@@ -228,4 +229,63 @@ def check_data(data):
                 warnings.warn('note: sample_weights only has <2 unique values')
 
     return True
+
+def print_model(rho, data,  show_omitted_variables = False):
+
+    variable_names = data['variable_names']
+
+    rho_values = np.copy(rho)
+    rho_names = list(variable_names)
+
+    if '(Intercept)' in rho_names:
+        intercept_ind = variable_names.index('(Intercept)')
+        intercept_val = int(rho[intercept_ind])
+        rho_values = np.delete(rho_values, intercept_ind)
+        rho_names.remove('(Intercept)' )
+    else:
+        intercept_val = 0
+
+    if 'outcome_name' in data:
+        predict_string = "P(Y = +1) = 1/(1 + exp(%d - score))" % intercept_val
+    else:
+        predict_string = "P(%s = +1) = 1/(1 + exp(%d - score)" % (data['outcome_name'].upper(), intercept_val)
+
+    if not show_omitted_variables:
+        selected_ind = np.flatnonzero(rho_values)
+        rho_values = rho_values[selected_ind]
+        rho_names = [rho_names[i] for i in selected_ind]
+        rho_binary = [np.all((data['X'][:,j] == 0) | (data['X'][:,j] == 1)) for j in selected_ind]
+
+        #sort by most positive to most negative
+        sort_ind = np.argsort(-np.array(rho_values))
+        rho_values = [rho_values[j] for j in sort_ind]
+        rho_names = [rho_names[j] for j in sort_ind]
+        rho_binary = [rho_binary[j] for j in sort_ind]
+        rho_values = np.array(rho_values)
+
+    rho_values_string = [str(int(i)) + " points" for i in rho_values]
+    n_variable_rows = len(rho_values)
+    total_string = "ADD POINTS FROM ROWS %d to %d" % (1, n_variable_rows)
+
+    max_name_col_length = max(len(predict_string), len(total_string), max([len(s) for s in rho_names])) + 2
+    max_value_col_length = max(7, max([len(s) for s in rho_values_string]) + len("points")) + 2
+
+    m = pt.PrettyTable()
+    m.field_names = ["Variable", "Points", "Tally"]
+
+    m.add_row([predict_string, "", ""])
+    m.add_row(['=' * max_name_col_length, "=" * max_value_col_length, "========="])
+
+    for v in range(0, n_variable_rows):
+        m.add_row([rho_names[v], rho_values_string[v], "+ ....."])
+
+    m.add_row(['=' * max_name_col_length, "=" * max_value_col_length, "========="])
+    m.add_row([total_string, "SCORE", "= ....."])
+    m.header = False
+    m.align["Variable"] = "l"
+    m.align["Points"] = "r"
+    m.align["Tally"] = "r"
+
+    print(m)
+    return(m)
 

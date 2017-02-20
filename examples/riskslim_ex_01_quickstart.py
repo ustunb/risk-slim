@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from pprint import pprint
-from riskslim.helper_functions import load_data_from_csv
+from riskslim.helper_functions import load_data_from_csv, print_model
 from riskslim.CoefficientSet import CoefficientSet
 from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa
 
@@ -26,7 +26,7 @@ data = load_data_from_csv(dataset_csv_file = data_csv_file, sample_weights_csv_f
 N, P = data['X'].shape
 
 # coefficient set
-coef_set = CoefficientSet(variable_names=data['X_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
+coef_set = CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
 coef_set.view()
 
 # offset value
@@ -114,3 +114,8 @@ output = run_lattice_cpa(data, constraints, settings)
 
 # print output
 pprint(output)
+
+# just a placeholder for now
+print(print_model(output['incumbent'], data))
+
+
