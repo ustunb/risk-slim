@@ -25,11 +25,11 @@ w_pos = 1.00                                                # relative weight on
 data = load_data_from_csv(dataset_csv_file = data_csv_file, sample_weights_csv_file = sample_weights_csv_file)
 N, P = data['X'].shape
 
-# coefficient set
+# create coefficient set
 coef_set = CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
 coef_set.view()
 
-# offset value
+# set the value of the offset parameter
 conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
 max_offset = min(max_offset, conservative_offset)
 coef_set.set_field('lb', '(Intercept)', -max_offset)
@@ -46,76 +46,47 @@ constraints = {
     'coef_set':coef_set,
 }
 
-# Run RiskSLIM
+# major settings (see riskslim_ex_02_complete for full set of options)
 settings = {
     #
     'c0_value': c0_value,
     'w_pos': w_pos,
     #
-    'max_runtime': 300.0,
-    'max_tolerance': 0.000001,
-    'max_iterations': 100000,
-    'display_cplex_progress': True,
+    # LCPA Settings
+    'max_runtime': 300.0,                               # max runtime for LCPA
+    'max_tolerance': 0.000001,                          # tolerance to stop LCPA
+    'display_cplex_progress': True,                     # set to True to print CPLEX progress
+    'loss_computation': 'normal',                       # how to compute the loss function ('normal','fast','lookup')
+    'tight_formulation': True,                          # use a slightly formulation of surrogate MIP that provides a slightly improved formulation
     #
-    'loss_computation': 'normal',
-    'update_bounds_flag': True,                         # use chained updates
+    #  LCPA Improvements
+    'round_flag': True,                                 # round continuous solutions with SeqRd
     'polish_flag': True,                                # polish integer feasible solutions with DCD
-    'round_flag': False,                                # round continuous solutions with SeqRd
-    'polish_rounded_solutions': True,                   # polish solutions rounded with SeqRd using DCD
-    'tight_formulation': True,                          # use tighter MIP formulation (forces alpha_j = 0 when lambda_j = 0)
-    'add_cuts_at_heuristic_solutions': True,
-    'initialization_flag': False,
+    'update_bounds_flag': True,                         # use chained updates
+    'initialization_flag': False,                       # use initialization procedure
+    'init_max_runtime': 300.0,                          # max time to run CPA in initialization procedure
+    'add_cuts_at_heuristic_solutions': True,            # add cuts at integer feasible solutions found using polishing/rounding
     #
-    'polishing_ub_to_objval_relgap': 0.1,
-    'polishing_max_runtime': 10.0,
-    'polishing_max_solutions': 5.0,
-    'polishing_min_cuts': 0,
-    'polishing_max_cuts': float('inf'),
-    'polishing_min_relgap': 5.0,
-    'polishing_max_relgap': float('inf'),
-    #
-    'rounding_min_cuts': 0,
-    'rounding_max_cuts': 20000,
-    'rounding_min_relgap': 0.2,
-    'rounding_max_relgap': float('inf'),
-    'rounding_ub_to_objval_relgap': float('inf'),
-    #
-    'init_display_progress': True,
-    'init_display_cplex_progress': False,
-    #
-    'init_max_runtime': 300.0,
-    'init_max_runtime_per_iteration': 300.0,
-    'init_max_cplex_time_per_iteration': 10.0,
-    'init_max_iterations': 10000,
-    'init_max_tolerance': 0.0001,
-    #
-    'init_use_sequential_rounding': True,
-    'init_sequential_rounding_max_runtime': 30.0,
-    'init_sequential_rounding_max_solutions': 5,
-    'init_polishing_after': True,
-    'init_polishing_max_runtime': 30.0,
-    'init_polishing_max_solutions': 5,
-    #
-    'cplex_randomseed': 0,
-    'cplex_mipemphasis': 0,
-    'cplex_mipgap': np.finfo('float').eps,
-    'cplex_absmipgap': np.finfo('float').eps,
-    'cplex_integrality_tolerance': np.finfo('float').eps,
-    'cplex_repairtries': 20,
-    'cplex_poolsize': 100,
-    'cplex_poolrelgap': float('nan'),
-    'cplex_poolreplace': 2,
-    'cplex_n_cores': 1,
-    'cplex_nodefilesize': (120 * 1024) / 1,
+    # CPLEX Solver Parameters
+    'cplex_randomseed': 0,                              # random seed
+    'cplex_mipemphasis': 0,                             # cplex MIP strategy
 }
 
 # train model using lattice_cpa
-output = run_lattice_cpa(data, constraints, settings)
+model_info, mip_info, lcpa_info = run_lattice_cpa(data, constraints, settings)
 
 # print output
-pprint(output)
+pprint(model_info)
 
-# just a placeholder for now
-print(print_model(output['incumbent'], data))
+# print model (placholder)
+print_model(model_info['solution'], data)
+
+# mip-related output in
+mip_info['risk_slim_mip']
+mip_info['risk_slim_idx']
+
+# lcpa_output related output in
+pprint(lcpa_info)
+
 
 

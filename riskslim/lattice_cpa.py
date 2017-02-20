@@ -17,9 +17,24 @@ def cast_to_integer(rho):
     original_type = rho.dtype
     return np.require(np.require(rho, dtype=np.int_), dtype=original_type)
 
-
 # Main
 def run_lattice_cpa(data, constraints, settings = None):
+    """
+
+    Parameters
+    ----------
+    data
+    constraints
+    settings
+
+    Returns
+    -------
+    model_info
+    mip_info
+    lcpa_info
+
+
+    """
 
     global Z, C_0, C_0_nnz, L0_reg_ind, rho_lb, rho_ub
     global compute_loss, compute_loss_cut, compute_loss_from_scores
@@ -31,60 +46,75 @@ def run_lattice_cpa(data, constraints, settings = None):
         #
         'c0_value': 1e-6,
         'w_pos': 1.00,
-        'tight_formulation_flag': True,  # use tighter MIP formulation for RiskSLIM MIP and RiskSLIM LP
+        'tight_formulation': True,  # use a slightly tighter MIP formulation
         #
-        'max_runtime': 300.0,
-        'max_tolerance': 0.000001,
-        'display_cplex_progress': True,
+        # LCPA Settings
         #
-        'loss_computation': 'fast',
+        'max_runtime': 300.0,  # max runtime for LCPA
+        'max_tolerance': 0.000001,  # tolerance to stop LCPA
+        'display_cplex_progress': True,  # setting to True shows CPLEX progress
+        'loss_computation': 'normal',  # type of loss computation to use ('normal','fast','lookup')
         'update_bounds_flag': True,  # use chained updates
-        'add_cuts_at_heuristic_solutions': True,
-        #
-        'round_flag': False,  # round continuous solutions with SeqRd
-        'polish_rounded_solutions': True,  # polish solutions rounded with SeqRd using DCD
-        'rounding_min_cuts': 0,
-        'rounding_max_cuts': 20000,
-        'rounding_min_relgap': 0.2,
-        'rounding_max_relgap': float('inf'),
-        'rounding_ub_to_objval_relgap': float('inf'),
-        #
         'polish_flag': True,  # polish integer feasible solutions with DCD
-        'polishing_max_runtime': 10.0,
-        'polishing_max_solutions': 5.0,
-        'polishing_min_cuts': 0,
-        'polishing_max_cuts': float('inf'),
-        'polishing_min_relgap': 5.0,
-        'polishing_max_relgap': float('inf'),
-        'polishing_ub_to_objval_relgap': 0.1,
+        'round_flag': True,  # round continuous solutions with SeqRd
+        'polish_rounded_solutions': True,  # polish solutions rounded with SeqRd using DCD
+        'initialization_flag': False,  # use initialization procedure
+        'add_cuts_at_heuristic_solutions': True,
+        # add cuts at integer feasible solutions found using polishing/rounding
         #
-        'initialization_flag': False,
-        'init_display_progress': True,
-        'init_display_cplex_progress': False,
-        'init_max_iterations': 10000,
-        'init_max_tolerance': 0.0001,
-        'init_max_runtime': 300.0,
-        'init_max_runtime_per_iteration': 300.0,
-        'init_max_cplex_time_per_iteration': 10.0,
-        'init_use_sequential_rounding': True,
-        'init_sequential_rounding_max_runtime': 30.0,
-        'init_sequential_rounding_max_solutions': 5,
-        'init_polishing_after': True,
-        'init_polishing_max_runtime': 30.0,
-        'init_polishing_max_solutions': 5,
+        # LCPA Rounding Heuristic
         #
-        'cplex_randomseed': 0,
-        'cplex_mipemphasis': 0,
-        'cplex_mipgap': np.finfo('float').eps,
-        'cplex_absmipgap': np.finfo('float').eps,
-        'cplex_integrality_tolerance': np.finfo('float').eps,
-        'cplex_repairtries': 20,
-        'cplex_poolsize': 100,
-        'cplex_poolrelgap': float('nan'),
-        'cplex_poolreplace': 2,
-        'cplex_n_cores': 1,
-        'cplex_nodefilesize': (120 * 1024) / 1,
+        'rounding_tolerance': float('inf'),  # only solutions with objective value < (1 + tol) are rounded
+        'rounding_start_cuts': 0,  # cuts needed to start using rounding heuristic
+        'rounding_start_gap': float('inf'),  # optimality gap needed to start using rounding heuristic
+        'rounding_stop_cuts': 20000,  # cuts needed to stop using rounding heuristic
+        'rounding_stop_gap': 0.2,  # optimality gap needed to stop using rounding heuristic
+        #
+        # LCPA Polishing Heuristic
+        #
+        'polishing_tolerance': 0.1,
+        # only solutions with objective value (1 + polishing_ub_to_objval_relgap) are polished. setting to
+        'polishing_max_runtime': 10.0,  # max time to run polishing each time
+        'polishing_max_solutions': 5.0,  # max # of solutions to polish each time
+        'polishing_start_cuts': 0,  # cuts needed to start using polishing heuristic
+        'polishing_start_gap': float('inf'),  # min optimality gap needed to start using polishing heuristic
+        'polishing_stop_cuts': float('inf'),  # cuts needed to stop using polishing heuristic
+        'polishing_stop_gap': 5.0,  # max optimality gap required to stop using polishing heuristic
+        #
+        # Initialization Procedure
+        #
+        'init_display_progress': True,  # show progress of initialization procedure
+        'init_display_cplex_progress': False,  # show progress of CPLEX during intialization procedure
+        #
+        'init_max_runtime': 300.0,  # max time to run CPA in initialization procedure
+        'init_max_iterations': 10000,  # max # of cuts needed to stop CPA
+        'init_max_tolerance': 0.0001,  # tolerance of solution to stop CPA
+        'init_max_runtime_per_iteration': 300.0,  # max time per iteration of CPA
+        'init_max_cplex_time_per_iteration': 10.0,  # max time per iteration to solve surrogate problem in CPA
+        #
+        'init_use_sequential_rounding': True,  # use SeqRd in initialization procedure
+        'init_sequential_rounding_max_runtime': 30.0,  # max runtime for SeqRd in initialization procedure
+        'init_sequential_rounding_max_solutions': 5,  # max solutions to round using SeqRd
+        'init_polishing_after': True,  # polish after rounding
+        'init_polishing_max_runtime': 30.0,  # max runtime for polishing
+        'init_polishing_max_solutions': 5,  # max solutions to polish
+        #
+        # CPLEX Solver Parameters
+        #
+        'cplex_randomseed': 0,  # random seed
+        'cplex_mipemphasis': 0,  # cplex MIP strategy
+        'cplex_mipgap': np.finfo('float').eps,  #
+        'cplex_absmipgap': np.finfo('float').eps,  #
+        'cplex_integrality_tolerance': np.finfo('float').eps,  #
+        'cplex_repairtries': 20,  # number of tries to repair user provided solutions
+        'cplex_poolsize': 100,  # number of feasible solutions to keep in solution pool
+        'cplex_poolrelgap': float('nan'),  # discard if solutions
+        'cplex_poolreplace': 2,  # solution pool
+        'cplex_n_cores': 1,  # number of cores to use in B & B (must be 1)
+        'cplex_nodefilesize': (120 * 1024) / 1,  # node file size
     }
+
+
 
     # initialize settings, replace keys with default values if not found
     settings = dict(settings) if settings is not None else dict()
@@ -323,23 +353,53 @@ def run_lattice_cpa(data, constraints, settings = None):
     except CplexError:
         control['found_solution'] = False
 
-    control['risk_slim_mip'] = risk_slim_mip
-
     # get stop reason
-    control['stop_reason'] = control['cplex_status']
+    control.pop('start_time')
     control['total_data_time'] = control['total_cut_time'] + control['total_polish_time'] + control['total_round_time'] + control['total_round_then_polish_time']
     control['total_callback_time'] = control['total_cut_callback_time'] + control['total_heuristic_callback_time']
     control['total_solver_time'] = control['total_run_time'] - control['total_callback_time']
 
-    #output
-    output = dict(control)
-    output['c0_value'] = c0_value
-    output['w_pos'] = w_pos
-    output['w_neg'] = w_neg
-    output['indices'] = indices
-    output['bounds'] = dict(bounds)
-    output['settings'] = dict(settings)
-    return output
+
+    # output
+    if control['found_solution']:
+        model_info = {
+            'solution': control['incumbent'],
+            'optimality_gap': control['relative_gap'],
+            'loss_value': compute_loss(control['incumbent']),
+            'objective_value':get_objval(control['incumbent']),
+        }
+    else:
+        model_info = {
+            'solution': np.nan * np.zeros(P),
+            'optimality_gap': float('inf'),
+            'loss_value': float('inf'),
+            'objective_value': float('inf')
+        }
+
+    model_info.update({
+        # lcpa runtime statistics
+        'nodes_processed': control['nodes_processed'],
+        'run_time': control['total_run_time'],
+        'solver_time': control['total_solver_time'],
+        'callback_time': control['total_callback_time'],
+        'data_time': control['total_data_time'],
+        #
+        # details about instance
+        'c0_value': c0_value,
+        'w_pos': w_pos,
+    })
+
+    # problem details
+    model_info.update(constraints)
+
+    mip_info = {'risk_slim_mip': risk_slim_mip,
+                'risk_slim_idx': indices}
+
+    lcpa_info = dict(control)
+    lcpa_info['bounds'] = dict(bounds)
+    lcpa_info['settings'] = dict(settings)
+
+    return model_info, mip_info, lcpa_info
 
 
 class LossCallback(LazyConstraintCallback):
@@ -486,7 +546,7 @@ class LossCallback(LazyConstraintCallback):
             self.control['n_incumbent_updates'] += 1
 
         if self.settings['polish_flag']:
-            polishing_cutoff = self.control['upperbound'] * (1.0 + self.settings['polishing_ub_to_objval_relgap'])
+            polishing_cutoff = self.control['upperbound'] * (1.0 + self.settings['polishing_tolerance'])
             if current_upperbound < polishing_cutoff:
                 self.polish_queue.add(current_upperbound, rho)
 
@@ -566,12 +626,12 @@ class PolishAndRoundCallback(HeuristicCallback):
     def update_heuristic_flags(self):
 
         # keep on rounding?
-        keep_rounding = (self.settings['rounding_min_cuts'] <= self.control['n_cuts'] <= self.settings['rounding_max_cuts'] and
-                         self.settings['rounding_min_relgap'] <= self.control['relative_gap'] <= self.settings['rounding_max_relgap'])
+        keep_rounding = (self.settings['rounding_start_cuts'] <= self.control['n_cuts'] <= self.settings['rounding_stop_cuts'] and
+                         self.settings['rounding_stop_gap'] <= self.control['relative_gap'] <= self.settings['rounding_start_gap'])
 
         # keep on polishing?
-        keep_polishing = (self.settings['polishing_min_cuts'] <= self.control['n_cuts'] <= self.settings['polishing_max_cuts'] and
-                          self.settings['polishing_min_relgap'] <= self.control['relative_gap'] <= self.settings['polishing_max_relgap'])
+        keep_polishing = (self.settings['polishing_start_cuts'] <= self.control['n_cuts'] <= self.settings['polishing_stop_cuts'] and
+                          self.settings['polishing_stop_relgap'] <= self.control['relative_gap'] <= self.settings['polishing_start_relgap'])
 
         self.polish_flag &= keep_polishing
         self.round_flag &= keep_rounding
@@ -629,7 +689,7 @@ class PolishAndRoundCallback(HeuristicCallback):
                                             max_l0_norm > self.control['bounds']['L0_min'])
 
             if rounded_solution_is_feasible:
-                rounding_cutoff = self.control['upperbound'] * (1.0 + self.settings['rounding_ub_to_objval_relgap'])
+                rounding_cutoff = self.control['upperbound'] * (1.0 + self.settings['rounding_tolerance'])
                 rounding_start_time = time.time()
                 rounded_solution, rounded_objval, early_stop = self.sequential_rounding(rho_cts, rounding_cutoff)
                 self.control['n_rounded'] += 1
@@ -647,7 +707,7 @@ class PolishAndRoundCallback(HeuristicCallback):
 
                     if self.polish_rounded_solutions:
                         current_upperbound = min(rounded_objval, self.control['upperbound'])
-                        polishing_cutoff = current_upperbound * (1.0 + self.settings['polishing_ub_to_objval_relgap'])
+                        polishing_cutoff = current_upperbound * (1.0 + self.settings['polishing_tolerance'])
 
                         if rounded_objval < polishing_cutoff:
                             start_time = time.time()
@@ -670,7 +730,7 @@ class PolishAndRoundCallback(HeuristicCallback):
 
             #get current upperbound
             current_upperbound = min(best_objval, self.control['upperbound'])
-            polishing_cutoff = current_upperbound * (1.0 + self.settings['polishing_ub_to_objval_relgap'])
+            polishing_cutoff = current_upperbound * (1.0 + self.settings['polishing_tolerance'])
 
             #only polish solutions in queue that <= cutoff
             self.polish_queue.filter_sort_unique(polishing_cutoff)
@@ -696,7 +756,7 @@ class PolishAndRoundCallback(HeuristicCallback):
                     if is_feasible(polished_solution, L0_min=self.control['bounds']['L0_min'], L0_max=self.control['bounds']['L0_max']):
                         polished_queue.add(polished_objval, polished_solution)
                         current_upperbound = min(polished_objval, polished_objval)
-                        polishing_cutoff = current_upperbound * (1.0 + self.settings['polishing_ub_to_objval_relgap'])
+                        polishing_cutoff = current_upperbound * (1.0 + self.settings['polishing_tolerance'])
 
                     if polish_time > self.settings['polishing_max_runtime']:
                         break

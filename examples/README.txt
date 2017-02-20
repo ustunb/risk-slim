@@ -3,4 +3,3 @@
 General examples
 ================
 
-Introductory examples.

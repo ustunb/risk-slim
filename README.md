@@ -32,11 +32,12 @@ Performance can be substantially through special functions to compute the loss. 
 
 Short term:
 
-- Cleanup, commends and specs
+- Comments / Specs 
 - Usage examples
+- RiskSLIM classifier object
 - Convenience functions for analysis (ROC curves, CAL diagrams)
-- Convenience functions for batch computing ()
-- Online documentation
+- Convenience functions for batch computing (on EC2)
+- Documentation 
 - Installation via pip
 
 Long term
