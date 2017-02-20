@@ -2,8 +2,8 @@
 
 '''
 This script builds loss functions using Cython on a local machine.
-
 It must be launched from the command line using the following command:
+
 
 python build_cython_loss_functions.py build_ext --inplace
 

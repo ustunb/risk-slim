@@ -1,19 +1,17 @@
 risk-slim
 ========
 
-**This package is currently under active development (should be up and running by March 2017).** 
+**THIS PACKAGE IS UNDER ACTIVE DEVELOPMENT. It will be finalized in March 2017.** 
 
-risk-slim is a package to create optimized risk scores in Python using the CPLEX MIP solver.
+risk-slim is a package to create optimized risk scores in Python using the CPLEX MIP solver. It can handle datasets with a huge number of samples.
 
 *Risk scores* are simple classification models to assess risk by adding, subtracting and multiplying a few small numbers.
 
+## Installation 
 
+``risk-slim`` was developed using Python 2.7.11 and CPLEX 12.6.3. It should work with older versions of Python and CPLEX, however this has not been tested and will not be supported.
 
-## Requirements
-
-``risk-slim`` was developed using Python 2.7.11 and CPLEX 12.6.3. It may work with other versions of Python and/or CPLEX, but this has not been tested and will not be supported in future releases.
-
-### Obtaining and Installing CPLEX 
+### CPLEX 
 
 *CPLEX* is cross-platform commercial optimization tool that can be called from Python. It is freely available to students and faculty members at accredited institutions as part of the IBM Academic Initiative. To get CPLEX:
 
@@ -24,9 +22,34 @@ risk-slim is a package to create optimized risk scores in Python using the CPLEX
 
 Please check the [CPLEX user manual](http://www-01.ibm.com/support/knowledgecenter/SSSA5P/welcome) or the [CPLEX forums](https://www.ibm.com/developerworks/community/forums/html/forum?id=11111111-0000-0000-0000-000000002059) if you have problems installing CPLEX.
 
+### Fast Data-Related Computation
+
+Performance can be substantially through special functions to compute the loss. To use these functions:
+ 
+``python build_cython_loss_functions.py build_ext --inplace``
+
+## Development Plan
+
+Short term:
+
+- Cleanup, commends and specs
+- Usage examples
+- Convenience functions for analysis (ROC curves, CAL diagrams)
+- Convenience functions for batch computing ()
+- Online documentation
+- Installation via pip
+
+Long term
+
+- Add support for an open-source MIP solver [SYMPHONY IP solver](https://projects.coin-or.org/SYMPHONY) 
+
+- Full [sci-kit learn compatibility](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator)
+
+If you are interested in helping out, shoot me an e-mail.
+
 ## References 
 
-If you use RiskSLIM for academic research, please cite [our paper](https://arxiv.org/abs/1610.00168)!  
+If you use RiskSLIM for research, please cite [our paper](https://arxiv.org/abs/1610.00168)!  
      
 ```
 @article{ustun2016learning,

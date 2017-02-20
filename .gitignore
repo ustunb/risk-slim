@@ -21,7 +21,8 @@ skltemplate/
 
 # riskslim specific
 scratch/
-riskslim/tests/
+riskslim/tests/test_common.py
+riskslim/tests/test_template.py
 riskslim/loss_functions/build/
 riskslim/loss_functions/*.so
 

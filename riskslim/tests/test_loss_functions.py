@@ -1,9 +1,9 @@
 #noinspection
 import numpy as np
-import loss_functions.log_loss as normal
-import loss_functions.fast_log_loss as fast
-import loss_functions.lookup_log_loss as lookup
-import loss_functions.log_loss_weighted as weighted
+import riskslim.loss_functions.log_loss as normal
+import riskslim.loss_functions.fast_log_loss as fast
+import riskslim.loss_functions.lookup_log_loss as lookup
+import riskslim.loss_functions.log_loss_weighted as weighted
 
 #np.__config__.show()
 
