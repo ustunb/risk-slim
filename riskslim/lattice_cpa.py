@@ -9,14 +9,6 @@ from .helper_functions import print_log, get_or_set_default
 from .solution_classes import SolutionQueue, SolutionPool
 import riskslim.loss_functions as lossfun
 
-
-def is_integer(rho):
-    return np.array_equal(rho, np.require(rho, dtype=np.int_))
-
-def cast_to_integer(rho):
-    original_type = rho.dtype
-    return np.require(np.require(rho, dtype=np.int_), dtype=original_type)
-
 # Main
 def run_lattice_cpa(data, constraints, settings = None):
     """
@@ -41,6 +33,8 @@ def run_lattice_cpa(data, constraints, settings = None):
     global compute_loss_real, compute_loss_cut_real, compute_loss_from_scores_real
     global get_L0_norm, get_L0_penalty, get_alpha, get_L0_penalty_from_alpha, get_L0_range_of_rounded_solution
     global get_objval, is_feasible
+
+    #todo fix initialization procedure code
 
     default_settings = {
         #
@@ -204,7 +198,7 @@ def run_lattice_cpa(data, constraints, settings = None):
         trivial_objval = compute_loss(trivial_solution)
         bounds['objval_max'] = min(bounds['objval_max'], trivial_objval)
         bounds['loss_max'] = min(bounds['loss_max'], trivial_objval)
-        bounds = update_bounds(bounds, C_0_nnz)
+        bounds = chained_updates(bounds, C_0_nnz)
 
     # setup risk_slim_lp and risk_slim_mip parameters
     risk_slim_settings = {
@@ -218,7 +212,7 @@ def run_lattice_cpa(data, constraints, settings = None):
 
     # run initialization procedure
     if lcpa_settings['initialization_flag']:
-        initial_pool, initial_cuts, initial_bounds = lattice_cpa_initialization(risk_slim_settings, warmstart_settings, cplex_parameters, bounds)
+        initial_pool, initial_cuts, initial_bounds = initialize_lattice_cpa(risk_slim_settings, warmstart_settings, cplex_parameters, bounds)
         bounds.update(initial_bounds)
         risk_slim_settings.update(initial_bounds)
 
@@ -284,7 +278,7 @@ def run_lattice_cpa(data, constraints, settings = None):
                            polish_queue = lcpa_polish_queue)
 
         def heuristic_dcd(rho):
-            return(dcd_polishing(rho, Z, C_0, rho_ub, rho_lb))
+            return(discrete_descent(rho, Z, C_0, rho_ub, rho_lb))
 
         def heuristic_seqrd(rho, cutoff):
             return(sequential_rounding(rho, Z, C_0, cutoff))
@@ -388,7 +382,6 @@ def run_lattice_cpa(data, constraints, settings = None):
 
     return model_info, mip_info, lcpa_info
 
-
 class LossCallback(LazyConstraintCallback):
     """
     This callback has to be initialized after construction using the initialize() method.
@@ -452,10 +445,10 @@ class LossCallback(LazyConstraintCallback):
     def update_bounds(self):
 
         #print_log('in update bounds')
-        bounds = update_bounds(old_bounds = self.control['bounds'],
-                               C_0_nnz = self.C_0_nnz,
-                               new_objval_at_relaxation=self.control['lowerbound'],
-                               new_objval_at_feasible=self.control['upperbound'])
+        bounds = chained_updates(old_bounds = self.control['bounds'],
+                                 C_0_nnz = self.C_0_nnz,
+                                 new_objval_at_relaxation=self.control['lowerbound'],
+                                 new_objval_at_feasible=self.control['upperbound'])
 
         #add cuts if bounds need to be tighter
         if bounds['loss_min'] > self.control['bounds']['loss_min']:
@@ -772,6 +765,14 @@ class PolishAndRoundCallback(HeuristicCallback):
         #print_log('left heuristic callback')
         return
 
+
+def is_integer(rho):
+    return np.array_equal(rho, np.require(rho, dtype=np.int_))
+
+
+def cast_to_integer(rho):
+    original_type = rho.dtype
+    return np.require(np.require(rho, dtype=np.int_), dtype=original_type)
 
 
 # CPLEX
@@ -1350,6 +1351,24 @@ def load_loss_functions(Z,
                         rho_lb = None,
                         L0_reg_ind= None,
                         L0_max=None):
+    """
+
+    Parameters
+    ----------
+    Z
+    loss_computation
+    sample_weights
+    rho_ub
+    rho_lb
+    L0_reg_ind
+    L0_max
+
+    Returns
+    -------
+
+    """
+    #todo load loss based on constraints
+    #todo check to see if fast/lookup loss are installed
 
     ignore_sample_weights = (sample_weights is None) or (len(np.unique(sample_weights)) <= 1)
 
@@ -1613,7 +1632,7 @@ def get_conservative_offset(data, coef_set, max_L0_value = None):
 
 
 # Heuristics
-def update_bounds(old_bounds, C_0_nnz, new_objval_at_feasible=None, new_objval_at_relaxation=None):
+def chained_updates(old_bounds, C_0_nnz, new_objval_at_feasible=None, new_objval_at_relaxation=None):
 
     new_bounds = dict(old_bounds)
 
@@ -1762,7 +1781,7 @@ def sequential_rounding(rho, Z, C_0, objval_cutoff=float('Inf')):
     return rho, best_objval, early_stop_flag
 
 
-def dcd_polishing(rho, Z, C_0, rho_ub, rho_lb, descent_dimensions=None, print_flag=False):
+def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, descent_dimensions=None, print_flag=False):
     """
     given a initial feasible solution, rho, produces an improved solution that is 1-OPT
     (i.e. the objective value does not decrease by moving in any single dimension)
@@ -1939,8 +1958,9 @@ def compute_objvals_at_dim(dim_index,
     # return objective value at feasible coefficients
     return objval_at_coef_values
 
-# Initialization
-def lattice_cpa_initialization(risk_slim_settings, warmstart_settings, cplex_parameters, compute_loss_real, compute_loss_cut_real, bounds = None):
+
+# Initialization Procedure
+def initialize_lattice_cpa(risk_slim_settings, warmstart_settings, cplex_parameters, compute_loss_real, compute_loss_cut_real, bounds = None):
     """
 
     Returns
@@ -1986,35 +2006,35 @@ def lattice_cpa_initialization(risk_slim_settings, warmstart_settings, cplex_par
                                                                 compute_loss_cut_real)
 
     # update bounds
-    initial_bounds = update_bounds(bounds, C_0_nnz, new_objval_at_relaxation=cpa_stats['lowerbound'])
+    initial_bounds = chained_updates(bounds, C_0_nnz, new_objval_at_relaxation=cpa_stats['lowerbound'])
     initial_pool = SolutionPool(cts_pool.P)
 
     #remove redundant solutions, remove infeasible solutions, order solutions by objective value of RiskSLIMLP
     cts_pool = cts_pool.distinct().removeInfeasible(check_feasible).sort()
 
     if warmstart_settings['use_sequential_rounding']:
-        initial_pool, _, _ = sequential_rounding_on_pool(cts_pool,
-                                                         max_runtime=warmstart_settings['sequential_rounding_max_runtime'],
-                                                         max_solutions=warmstart_settings['sequential_rounding_max_solutions'],
-                                                         objval_cutoff=bounds['objval_max'],
-                                                         L0_min=bounds['L0_min'],
-                                                         L0_max=bounds['L0_max'])
+        initial_pool, _, _ = sequential_round_solution_pool(cts_pool,
+                                                            max_runtime=warmstart_settings['sequential_rounding_max_runtime'],
+                                                            max_solutions=warmstart_settings['sequential_rounding_max_solutions'],
+                                                            objval_cutoff=bounds['objval_max'],
+                                                            L0_min=bounds['L0_min'],
+                                                            L0_max=bounds['L0_max'])
 
         initial_pool = initial_pool.distinct().sort()
-        bounds = update_bounds(bounds, C_0_nnz, new_objval_at_feasible=np.min(initial_pool.objvals))
+        bounds = chained_updates(bounds, C_0_nnz, new_objval_at_feasible=np.min(initial_pool.objvals))
     else:
-        initial_pool, _, _ = round_pool_solutions(cts_pool, constraints)
+        initial_pool, _, _ = round_solution_pool(cts_pool, constraints)
 
     initial_pool.computeObjvals(get_objval)
     if warmstart_settings['polishing_after'] and len(initial_pool) > 0:
-        initial_pool, _, _ = dcd_polishing_on_pool(initial_pool,
-                                                   warmstart_settings['polishing_max_runtime'],
-                                                   warmstart_settings['polishing_max_solutions'])
+        initial_pool, _, _ = discrete_descent_solution_pool(initial_pool,
+                                                            warmstart_settings['polishing_max_runtime'],
+                                                            warmstart_settings['polishing_max_solutions'])
 
         initial_pool = initial_pool.removeInfeasible(check_feasible).distinct().sort()
 
     if len(initial_pool) > 0:
-        initial_bounds = update_bounds(bounds, C_0_nnz, new_objval_at_feasible=np.min(initial_pool.objvals))
+        initial_bounds = chained_updates(bounds, C_0_nnz, new_objval_at_feasible=np.min(initial_pool.objvals))
 
     return initial_pool, initial_cuts, initial_pool
 
@@ -2074,18 +2094,18 @@ def cutting_plane_algorithm(MIP, indices, settings, compute_loss, compute_loss_c
         if settings['type'] is 'cvx':
             vtypes = 'C'
             def update_problem_bounds(bounds, lb, ub):
-                return update_bounds_for_cvx(bounds,
-                                             C_0_nnz,
-                                             new_objval_at_feasible = ub,
-                                             new_objval_at_relaxation = lb,
-                                             print_flag = False)
+                return chained_updates_for_lp(bounds,
+                                              C_0_nnz,
+                                              new_objval_at_feasible = ub,
+                                              new_objval_at_relaxation = lb,
+                                              print_flag = False)
         elif settings['type'] is 'ntree':
             vtypes = MIP.variables.get_types(rho_idx)
             def update_problem_bounds(bounds, lb, ub):
-                return update_bounds(bounds, C_0_nnz,
-                                     new_objval_at_feasible = ub,
-                                     new_objval_at_relaxation = lb,
-                                     print_flag = False)
+                return chained_updates(bounds, C_0_nnz,
+                                       new_objval_at_feasible = ub,
+                                       new_objval_at_relaxation = lb,
+                                       print_flag = False)
 
     objval = 0.0
     upperbound = CPX_INFINITY
@@ -2258,7 +2278,7 @@ def cutting_plane_algorithm(MIP, indices, settings, compute_loss, compute_loss_c
     return stats, cuts, pool
 
 
-def update_bounds_for_cvx(old_bounds, C_0_nnz, new_objval_at_feasible=None, new_objval_at_relaxation=None):
+def chained_updates_for_lp(old_bounds, C_0_nnz, new_objval_at_feasible=None, new_objval_at_relaxation=None):
     new_bounds = dict(old_bounds)
 
     # update objval_min using new_value (only done once)
@@ -2337,7 +2357,9 @@ def update_bounds_for_cvx(old_bounds, C_0_nnz, new_objval_at_feasible=None, new_
     return new_bounds
 
 
-def round_pool_solutions(pool, constraints):
+
+# todo: add methods to SolutionPool so as to run the following as filter-map
+def round_solution_pool(pool, constraints):
 
     pool.distinct().sort()
     P = pool.P
@@ -2364,14 +2386,14 @@ def round_pool_solutions(pool, constraints):
     return rounded_pool
 
 
-def sequential_rounding_on_pool(pool,
-                                Z,
-                                C_0,
-                                max_runtime=float('inf'),
-                                max_solutions=float('inf'),
-                                objval_cutoff=float('inf'),
-                                L0_min=0,
-                                L0_max=float('inf')):
+def sequential_round_solution_pool(pool,
+                                   Z,
+                                   C_0,
+                                   max_runtime=float('inf'),
+                                   max_solutions=float('inf'),
+                                   objval_cutoff=float('inf'),
+                                   L0_min=0,
+                                   L0_max=float('inf')):
     """
 
     Parameters
@@ -2430,12 +2452,12 @@ def sequential_rounding_on_pool(pool,
 
     return rounded_pool, total_runtime, len(rounded_pool)
 
-def dcd_polishing_on_pool(pool,
-                          Z,
-                          C_0,
-                          constraints,
-                          max_runtime=float('inf'),
-                          max_solutions=float('inf')):
+def discrete_descent_solution_pool(pool,
+                                   Z,
+                                   C_0,
+                                   constraints,
+                                   max_runtime=float('inf'),
+                                   max_solutions=float('inf')):
     """
     runs DCD polishing for all solutions in the a solution pool
     can be stopped early using max_runtime or max_solutions
@@ -2466,7 +2488,7 @@ def dcd_polishing_on_pool(pool,
     for n in range(n_to_polish):
 
         start_time = time.time()
-        polished_solution, _, polished_objval = dcd_polishing(pool.solutions[n], Z, C_0, rho_lb, rho_ub)
+        polished_solution, _, polished_objval = discrete_descent(pool.solutions[n], Z, C_0, rho_lb, rho_ub)
         total_runtime += time.time() - start_time
 
         polished_pool = polished_pool.add(objvals=polished_objval, solutions=polished_solution)
