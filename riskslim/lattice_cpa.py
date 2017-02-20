@@ -6,7 +6,7 @@ from cplex import infinity as CPX_INFINITY
 from cplex.callbacks import LazyConstraintCallback, HeuristicCallback
 from cplex.exceptions import CplexError
 from .helper_functions import print_log, get_or_set_default
-from .solution_helper_classes import SolutionQueue, SolutionPool
+from .solution_classes import SolutionQueue, SolutionPool
 import riskslim.loss_functions as lossfun
 
 
@@ -23,8 +23,8 @@ def run_lattice_cpa(data, constraints, settings = None):
 
     Parameters
     ----------
-    data
-    constraints
+    data, dict containing training data should pass check_data
+    constraints, dict containing 'L0_min, L0_max, CoefficientSet'
     settings
 
     Returns
@@ -49,21 +49,17 @@ def run_lattice_cpa(data, constraints, settings = None):
         'tight_formulation': True,  # use a slightly tighter MIP formulation
         #
         # LCPA Settings
-        #
         'max_runtime': 300.0,  # max runtime for LCPA
         'max_tolerance': 0.000001,  # tolerance to stop LCPA
         'display_cplex_progress': True,  # setting to True shows CPLEX progress
         'loss_computation': 'normal',  # type of loss computation to use ('normal','fast','lookup')
         'update_bounds_flag': True,  # use chained updates
-        'polish_flag': True,  # polish integer feasible solutions with DCD
-        'round_flag': True,  # round continuous solutions with SeqRd
-        'polish_rounded_solutions': True,  # polish solutions rounded with SeqRd using DCD
         'initialization_flag': False,  # use initialization procedure
-        'add_cuts_at_heuristic_solutions': True,
-        # add cuts at integer feasible solutions found using polishing/rounding
+        'add_cuts_at_heuristic_solutions': True, #add cuts at integer feasible solutions found using polishing/rounding
         #
         # LCPA Rounding Heuristic
-        #
+        'round_flag': True,  # round continuous solutions with SeqRd
+        'polish_rounded_solutions': True,  # polish solutions rounded with SeqRd using DCD
         'rounding_tolerance': float('inf'),  # only solutions with objective value < (1 + tol) are rounded
         'rounding_start_cuts': 0,  # cuts needed to start using rounding heuristic
         'rounding_start_gap': float('inf'),  # optimality gap needed to start using rounding heuristic
@@ -71,9 +67,8 @@ def run_lattice_cpa(data, constraints, settings = None):
         'rounding_stop_gap': 0.2,  # optimality gap needed to stop using rounding heuristic
         #
         # LCPA Polishing Heuristic
-        #
-        'polishing_tolerance': 0.1,
-        # only solutions with objective value (1 + polishing_ub_to_objval_relgap) are polished. setting to
+        'polish_flag': True,  # polish integer feasible solutions with DCD
+        'polishing_tolerance': 0.1, # only solutions with objective value (1 + polishing_ub_to_objval_relgap) are polished. setting to
         'polishing_max_runtime': 10.0,  # max time to run polishing each time
         'polishing_max_solutions': 5.0,  # max # of solutions to polish each time
         'polishing_start_cuts': 0,  # cuts needed to start using polishing heuristic
@@ -82,16 +77,13 @@ def run_lattice_cpa(data, constraints, settings = None):
         'polishing_stop_gap': 5.0,  # max optimality gap required to stop using polishing heuristic
         #
         # Initialization Procedure
-        #
-        'init_display_progress': True,  # show progress of initialization procedure
-        'init_display_cplex_progress': False,  # show progress of CPLEX during intialization procedure
-        #
+        'init_display_progress': True,  # print progress of initialization procedure
+        'init_display_cplex_progress': False,  # print of CPLEX during intialization procedure
         'init_max_runtime': 300.0,  # max time to run CPA in initialization procedure
         'init_max_iterations': 10000,  # max # of cuts needed to stop CPA
         'init_max_tolerance': 0.0001,  # tolerance of solution to stop CPA
         'init_max_runtime_per_iteration': 300.0,  # max time per iteration of CPA
         'init_max_cplex_time_per_iteration': 10.0,  # max time per iteration to solve surrogate problem in CPA
-        #
         'init_use_sequential_rounding': True,  # use SeqRd in initialization procedure
         'init_sequential_rounding_max_runtime': 30.0,  # max runtime for SeqRd in initialization procedure
         'init_sequential_rounding_max_solutions': 5,  # max solutions to round using SeqRd
@@ -100,7 +92,6 @@ def run_lattice_cpa(data, constraints, settings = None):
         'init_polishing_max_solutions': 5,  # max solutions to polish
         #
         # CPLEX Solver Parameters
-        #
         'cplex_randomseed': 0,  # random seed
         'cplex_mipemphasis': 0,  # cplex MIP strategy
         'cplex_mipgap': np.finfo('float').eps,  #
@@ -113,8 +104,6 @@ def run_lattice_cpa(data, constraints, settings = None):
         'cplex_n_cores': 1,  # number of cores to use in B & B (must be 1)
         'cplex_nodefilesize': (120 * 1024) / 1,  # node file size
     }
-
-
 
     # initialize settings, replace keys with default values if not found
     settings = dict(settings) if settings is not None else dict()
@@ -281,7 +270,6 @@ def run_lattice_cpa(data, constraints, settings = None):
         'n_bound_updates_objval_max': 0,
     }
 
-
     heuristic_flag = lcpa_settings['round_flag'] or lcpa_settings['polish_flag']
     if heuristic_flag:
         lcpa_cut_queue = SolutionQueue(P)
@@ -358,7 +346,6 @@ def run_lattice_cpa(data, constraints, settings = None):
     control['total_data_time'] = control['total_cut_time'] + control['total_polish_time'] + control['total_round_time'] + control['total_round_then_polish_time']
     control['total_callback_time'] = control['total_cut_callback_time'] + control['total_heuristic_callback_time']
     control['total_solver_time'] = control['total_run_time'] - control['total_callback_time']
-
 
     # output
     if control['found_solution']:

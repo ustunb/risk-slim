@@ -54,7 +54,7 @@ settings = {
     #
     # LCPA Settings
     'max_runtime': 300.0,                               # max runtime for LCPA
-    'max_tolerance': 0.000001,                          # tolerance to stop LCPA
+    'max_tolerance': np.finfo('float').eps,             # tolerance to stop LCPA (set to 0 to return provably optimal solution)
     'display_cplex_progress': True,                     # set to True to print CPLEX progress
     'loss_computation': 'normal',                       # how to compute the loss function ('normal','fast','lookup')
     'tight_formulation': True,                          # use a slightly formulation of surrogate MIP that provides a slightly improved formulation
@@ -108,18 +108,21 @@ settings = {
 # train model using lattice_cpa
 model_info, mip_info, lcpa_info = run_lattice_cpa(data, constraints, settings)
 
-# print output
-pprint(model_info)
+# train model using lattice_cpa
+model_info, mip_info, lcpa_info = run_lattice_cpa(data, constraints, settings)
 
-# print model (placholder)
+#model info contains key results
+pprint(model_info)
 print_model(model_info['solution'], data)
 
-# mip-related output in
-mip_info['risk_slim_mip']
-mip_info['risk_slim_idx']
+# mip_output contains information to access the MIP
+mip_info['risk_slim_mip'] #CPLEX mip
+mip_info['risk_slim_idx'] #indices of the relevant constraints
 
-# lcpa_output related output in
+# lcpa_output contains detailed information about LCPA
 pprint(lcpa_info)
+
+
 
 
 
