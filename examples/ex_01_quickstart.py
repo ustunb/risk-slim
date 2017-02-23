@@ -59,10 +59,10 @@ settings = {
     'loss_computation': 'normal',                       # how to compute the loss function ('normal','fast','lookup')
     'tight_formulation': True,                          # use a slightly formulation of surrogate MIP that provides a slightly improved formulation
     #
-    #  LCPA Improvements
-    'round_flag': True,                                 # round continuous solutions with SeqRd
-    'polish_flag': True,                                # polish integer feasible solutions with DCD
-    'update_bounds_flag': True,                         # use chained updates
+    # LCPA Improvements
+    'round_flag': False,                                 # round continuous solutions with SeqRd
+    'polish_flag': False,                                # polish integer feasible solutions with DCD
+    'chained_updates_flag': False,                         # use chained updates
     'initialization_flag': False,                       # use initialization procedure
     'init_max_runtime': 300.0,                          # max time to run CPA in initialization procedure
     'add_cuts_at_heuristic_solutions': True,            # add cuts at integer feasible solutions found using polishing/rounding
