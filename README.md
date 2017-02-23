@@ -3,9 +3,7 @@ risk-slim
 
 **THIS PACKAGE IS UNDER ACTIVE DEVELOPMENT. It will be finalized in March 2017.** 
 
-risk-slim is a package to create optimized risk scores in Python using the CPLEX MIP solver. It can handle datasets with a huge number of samples.
-
-*Risk scores* are simple classification models to assess risk by adding, subtracting and multiplying a few small numbers.
+risk-slim is a Python package to build data-driven *risk scores*. These are simple classification models to assess risk by adding, subtracting and multiplying a few small numbers.
 
 ## Installation 
 
@@ -32,7 +30,7 @@ Performance can be substantially through special functions to compute the loss. 
 
 Short term:
 
-- Comments / Specs 
+- Specs and unit tests
 - Usage examples
 - RiskSLIM classifier object
 - Convenience functions for analysis (ROC curves, CAL diagrams)
