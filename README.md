@@ -28,20 +28,17 @@ Performance can be substantially through special functions to compute the loss. 
 
 ## Development Plan
 
-Short term:
+##### Short Term:
 
-- Specs and unit tests
-- Usage examples
-- RiskSLIM classifier object
-- Convenience functions for analysis (ROC curves, CAL diagrams)
-- Convenience functions for batch computing (on EC2)
-- Documentation 
+- Specs, unit tests, documentation
+- Examples
+- Convenience functions to visualize performance (ROC curves, Calibation Diagrams)
+- Convenience functions for batch computing on EC2
 - Installation via pip
 
-Long term
+##### Long Term:
 
-- Add support for an open-source MIP solver [SYMPHONY IP solver](https://projects.coin-or.org/SYMPHONY) 
-
+- Ability to use an open-source MIP solver [SYMPHONY IP solver](https://projects.coin-or.org/SYMPHONY) 
 - Full [sci-kit learn compatibility](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator)
 
 If you are interested in helping out, shoot me an e-mail.
