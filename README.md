@@ -20,21 +20,15 @@ risk-slim is a Python package to build data-driven *risk scores*. These are simp
 
 Please check the [CPLEX user manual](http://www-01.ibm.com/support/knowledgecenter/SSSA5P/welcome) or the [CPLEX forums](https://www.ibm.com/developerworks/community/forums/html/forum?id=11111111-0000-0000-0000-000000002059) if you have problems installing CPLEX.
 
-### Fast Data-Related Computation
-
-Performance can be substantially through special functions to compute the loss. To use these functions:
- 
-``python build_cython_loss_functions.py build_ext --inplace``
-
 ## Development Plan
 
 ##### Short Term:
 
-- Specs, unit tests, documentation
-- Examples
 - Convenience functions to visualize performance (ROC curves, Calibation Diagrams)
-- Convenience functions for batch computing on EC2
-- Installation via pip
+- Convenience functions for batch computing
+- Examples
+- Specs/Unit Tests/Documentation
+- ~~Simplify Installation~~ 
 
 ##### Long Term:
 
