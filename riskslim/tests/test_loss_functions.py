@@ -195,10 +195,6 @@ assert(np.all(np.isclose(weighted_cut[1], weighted_cut_scaled[1])))
 print "passed all tests for weighted loss functions when w_pos = %1.2f and w_neg = %1.2f" % (w_pos, w_neg)
 
 
-
-
-
-#
 # print 'timing for loss value computation \n'
 # %timeit -n 20 normal_value = normal_value_test()
 # %timeit -n 20 cython_value = fast_value_test()

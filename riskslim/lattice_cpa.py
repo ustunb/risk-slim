@@ -8,6 +8,7 @@ from cplex.exceptions import CplexError
 from .helper_functions import print_log, get_or_set_default
 from .solution_classes import SolutionQueue, SolutionPool
 import riskslim.loss_functions as lossfun
+#from .debugging import ipsh #only for debugging
 
 # Lattice CPA
 def run_lattice_cpa(data, constraints, settings = None):
@@ -25,9 +26,7 @@ def run_lattice_cpa(data, constraints, settings = None):
     mip_info
     lcpa_info
 
-
     """
-
     global Z, C_0, C_0_nnz, L0_reg_ind, rho_lb, rho_ub
     global compute_loss, compute_loss_cut, compute_loss_from_scores
     global compute_loss_real, compute_loss_cut_real, compute_loss_from_scores_real
@@ -83,6 +82,7 @@ def run_lattice_cpa(data, constraints, settings = None):
         'init_polishing_after': True,  # polish after rounding
         'init_polishing_max_runtime': 30.0,  # max runtime for polishing
         'init_polishing_max_solutions': 5,  # max solutions to polish
+        #
         #  CPLEX Solver Parameters
         'cplex_randomseed': 0,  # random seed
         'cplex_mipemphasis': 0,  # cplex MIP strategy
@@ -618,16 +618,16 @@ class PolishAndRoundCallback(HeuristicCallback):
 
         # keep on polishing?
         keep_polishing = (self.settings['polishing_start_cuts'] <= self.control['n_cuts'] <= self.settings['polishing_stop_cuts'] and
-                          self.settings['polishing_stop_relgap'] <= self.control['relative_gap'] <= self.settings['polishing_start_relgap'])
+                          self.settings['polishing_stop_gap'] <= self.control['relative_gap'] <= self.settings['polishing_start_gap'])
 
-        self.polish_flag &= keep_polishing
-        self.round_flag &= keep_rounding
-        self.polish_rounded_solutions &= self.round_flag
+        self.polish_flag = keep_polishing & self.polish_flag
+        self.round_flag = keep_rounding & self.round_flag
+        self.polish_rounded_solutions = self.round_flag & self.polish_rounded_solutions
         return
 
 
     def __call__(self):
-        print_log('in heuristic callback')
+        #print_log('in heuristic callback')
 
         #fast exit if rounding is off & (polishing is off / no solution to polish)
         if (self.round_flag is False) and (self.polish_flag is False or len(self.polish_queue) == 0):
@@ -662,7 +662,6 @@ class PolishAndRoundCallback(HeuristicCallback):
 
         #decide whether to keep on rounding/polishing
         self.update_heuristic_flags()
-
         #variables to store best objective value / solution from heuristics
         best_objval = float('inf')
         best_solution = None
@@ -711,7 +710,6 @@ class PolishAndRoundCallback(HeuristicCallback):
                                 best_solution = polished_solution
                                 best_objval = polished_objval
 
-
         # polish solutions in polish_queue or that were produced by rounding
         if self.polish_flag and len(self.polish_queue) > 0:
 
@@ -759,7 +757,6 @@ class PolishAndRoundCallback(HeuristicCallback):
                 self.control['total_polish_time'] += polish_time
                 self.control['n_polished'] += n_polished
 
-
         # if heuristics produces a better solution then update the incumbent
         heuristic_update = best_objval < self.control['upperbound']
         if heuristic_update:
@@ -769,7 +766,7 @@ class PolishAndRoundCallback(HeuristicCallback):
             self.set_solution(solution = proposed_solution, objective_value = proposed_objval)
 
         self.control['total_heuristic_callback_time'] += time.time() - callback_start_time
-        print_log('left heuristic callback')
+        #print_log('left heuristic callback')
         return
 
 
