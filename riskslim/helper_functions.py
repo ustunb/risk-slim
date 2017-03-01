@@ -289,3 +289,34 @@ def print_model(rho, data,  show_omitted_variables = False):
     print(m)
     return(m)
 
+# DATA CONVERSION
+def is_integer(rho):
+    """
+    checks if numpy array is an integer vector
+
+    Parameters
+    ----------
+    rho
+
+    Returns
+    -------
+
+    """
+    return np.array_equal(rho, np.require(rho, dtype=np.int_))
+
+def cast_to_integer(rho):
+    """
+    casts numpy array to integer vector
+    Parameters
+    ----------
+    rho
+
+    Returns
+    -------
+
+    """
+    original_type = rho.dtype
+    return np.require(np.require(rho, dtype=np.int_), dtype=original_type)
+
+
+

@@ -1,6 +1,6 @@
 numpy
 scipy
+Cython
 nose
 pandas
 prettytable
-cplex

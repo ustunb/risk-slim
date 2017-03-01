@@ -5,7 +5,7 @@ from math import ceil, floor
 from cplex import infinity as CPX_INFINITY
 from cplex.callbacks import LazyConstraintCallback, HeuristicCallback
 from cplex.exceptions import CplexError
-from .helper_functions import print_log, get_or_set_default
+from .helper_functions import print_log, get_or_set_default, is_integer, cast_to_integer
 from .solution_classes import SolutionQueue, SolutionPool
 import riskslim.loss_functions as lossfun
 #from .debugging import ipsh #only for debugging
@@ -770,15 +770,6 @@ class PolishAndRoundCallback(HeuristicCallback):
         return
 
 
-def is_integer(rho):
-    return np.array_equal(rho, np.require(rho, dtype=np.int_))
-
-
-def cast_to_integer(rho):
-    original_type = rho.dtype
-    return np.require(np.require(rho, dtype=np.int_), dtype=original_type)
-
-
 # CPLEX
 def create_risk_slim(input):
     """
@@ -1375,6 +1366,7 @@ def load_loss_functions(Z,
     #todo check to see if fast/lookup loss are installed
 
     ignore_sample_weights = (sample_weights is None) or (len(np.unique(sample_weights)) <= 1)
+
 
     if ignore_sample_weights:
 

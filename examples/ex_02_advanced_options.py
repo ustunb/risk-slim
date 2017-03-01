@@ -27,7 +27,6 @@ N, P = data['X'].shape
 
 # coefficient set
 coef_set = CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
-coef_set.view()
 
 # offset value
 conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
@@ -83,7 +82,7 @@ settings = {
     'polishing_stop_gap': 5.0,                          # max optimality gap required to stop using polishing heuristic
     #
     # Initialization Procedure
-    'initialization_flag': False,                       # use initialization procedure
+    'initialization_flag': True,                       # use initialization procedure
     'init_display_progress': True,                      # show progress of initialization procedure
     'init_display_cplex_progress': False,               # show progress of CPLEX during intialization procedure
     #
