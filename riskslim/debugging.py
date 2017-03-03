@@ -1,7 +1,15 @@
+"""
+This function provides MATLAB style debugging using iPython
+
+To use
+1. import the function "from debugging import ipsh"
+2. add isph() right before use
+
+See post on StackExchange for more info
+http://stackoverflow.com/a/23388116/568249
+"""
+
 import inspect
-
-# First import the embed function
-
 from IPython.terminal.embed import InteractiveShellEmbed
 from traitlets.config import Config
 
@@ -22,10 +30,8 @@ exit_msg = '**Leaving Nested interpreter'
 # Wrap it in a function that gives me more context:
 def ipsh():
     ipshell = InteractiveShellEmbed(config=cfg, banner1=banner_msg, exit_msg=exit_msg)
-
     frame = inspect.currentframe().f_back
     msg   = 'Stopped at {0.f_code.co_filename} at line {0.f_lineno}'.format(frame)
-
     # Go back one level!
     # This is needed because the call to ipshell is inside the function ipsh()
     ipshell(msg, stack_depth=2)
