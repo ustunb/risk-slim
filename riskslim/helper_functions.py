@@ -5,10 +5,62 @@ import warnings
 import numpy as np
 import pandas as pd
 import prettytable as pt
+import logging
 #from .debugging import ipsh #only for debugging
 
+
 # PRINTING AND LOGGING
+def setup_logging(log_to_console = True, log_file = None):
+    """
+    Sets up logging to console and file on disk
+    See https://docs.python.org/2/howto/logging-cookbook.html for details on how to customize
+
+    Parameters
+    ----------
+    log_to_console  set to True to disable logging in console
+    log_file        path to file for loggin
+
+    Returns
+    -------
+    Logger object that prints formatted messages to log_file and console
+    """
+
+    logger = logging.getLogger('')
+
+    # quick return if no logging to console or file
+    if log_to_console is False and log_file is None:
+        logger.disabled = True
+        return logger
+
+    log_format = logging.Formatter(fmt='%(asctime)s %(levelname)-8s | %(message)s', datefmt='%m-%d-%Y %I:%M:%S %p')
+
+    # log to file
+    if log_file is not None:
+        fh = logging.FileHandler(filename=log_file, mode='w')
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(log_format)
+        logger.addHandler(fh)
+
+    if log_to_console:
+        ch = logging.StreamHandler(sys.stderr)
+        ch.setLevel(logging.DEBUG)
+        ch.setFormatter(log_format)
+        logger.addHandler(ch)
+
+    return logger
+
 def print_log(msg, print_flag = True):
+    """
+
+    Parameters
+    ----------
+    msg
+    print_flag
+
+    Returns
+    -------
+
+    """
     if print_flag:
         if type(msg) is str:
             print ('%s | ' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()))) + msg

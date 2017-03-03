@@ -1,8 +1,7 @@
-#!/usr/bin/env bash
-
 #!/bin/bash
 
-#This is a script to show how to train RiskSLIM
+# This script shows how to call train_risk_slim from the Bash shell
+
 home_dir=$(pwd)                    #directory where code is stored
 repo_dir=$(pwd)                    #directory where code is stored
 data_dir="${repo_dir}/datasets"    #directory where data, sample weights and cvindices are stored
