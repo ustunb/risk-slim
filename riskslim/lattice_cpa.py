@@ -10,9 +10,6 @@ from .solution_classes import SolutionQueue, SolutionPool
 import riskslim.loss_functions as lossfun
 #from .debugging import ipsh #only for debugging
 
-def test_hello():
-    print 'hello'
-
 # Lattice CPA
 DEFAULT_LCPA_SETTINGS = {
     #
