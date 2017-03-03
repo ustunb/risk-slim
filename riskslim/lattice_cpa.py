@@ -5,10 +5,10 @@ from math import ceil, floor
 from cplex import infinity as CPX_INFINITY
 from cplex.callbacks import LazyConstraintCallback, HeuristicCallback
 from cplex.exceptions import CplexError
+import riskslim.loss_functions as lossfun
 from .helper_functions import print_log, get_or_set_default, is_integer, cast_to_integer
 from .solution_classes import SolutionQueue, SolutionPool
-import riskslim.loss_functions as lossfun
-#from .debugging import ipsh #only for debugging
+#from .debugging import ipsh #only when debugging
 
 # Lattice CPA
 DEFAULT_LCPA_SETTINGS = {
@@ -100,7 +100,7 @@ def run_lattice_cpa(data, constraints, settings=DEFAULT_LCPA_SETTINGS):
     global get_L0_norm, get_L0_penalty, get_alpha, get_L0_penalty_from_alpha, get_L0_range_of_rounded_solution
     global get_objval, is_feasible
 
-    #todo fix initialization procedure code
+    #todo fix initialization procedure
     # initialize settings, replace keys with default values if not found
     settings = dict(settings) if settings is not None else dict()
     settings = {key: settings[key] if key in settings else DEFAULT_LCPA_SETTINGS[key] for key in DEFAULT_LCPA_SETTINGS}
