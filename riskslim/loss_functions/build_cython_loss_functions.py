@@ -2,11 +2,15 @@
 
 """
 This script builds loss functions using Cython on a local machine.
-It must be launched from the command line using the following command:
+To run this script
 
+1. Change to the directory
+
+$REPO_DIR/riskslim/loss_functions
+
+2. Run the following command in Bash:
 
 python build_cython_loss_functions.py build_ext --inplace
-
 
 """
 
@@ -42,13 +46,6 @@ setup(
     ext_modules = ext_modules,
 )
 
-
-
-# if __name__ == "__main__":
-#     if len(sys.argv) == 0:
-#         main()
-#     else:
-#         main(sys.argv)
 
 
 

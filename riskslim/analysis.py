@@ -111,3 +111,16 @@ def get_accuracy_stats(model, data, error_checking=True):
     return accuracy_stats
 
 
+# ROC Curve + AUC
+def get_roc_metrics(model, data):
+    pass
+
+def get_calibration_metrics(model, data):
+    #distinct scores
+    #calibration error at each score
+    #max calibration error
+    #mean calibration error
+    scores = (data['X'] * data['Y']).dot(model)
+    pass
+
+

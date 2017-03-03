@@ -1,7 +1,7 @@
 risk-slim
 ========
 
-**THIS PACKAGE IS UNDER ACTIVE DEVELOPMENT. It will be finalized in March 2017.** 
+**NOTE: THIS PACKAGE IS CURRENTLY UNDER ACTIVE DEVELOPMENT. The code works but may be buggy, and may change substantially with each commit.** 
 
 risk-slim is a Python package to build data-driven *risk scores*. These are simple classification models to assess risk by adding, subtracting and multiplying a few small numbers.
 
@@ -20,15 +20,16 @@ risk-slim is a Python package to build data-driven *risk scores*. These are simp
 
 Please check the [CPLEX user manual](http://www-01.ibm.com/support/knowledgecenter/SSSA5P/welcome) or the [CPLEX forums](https://www.ibm.com/developerworks/community/forums/html/forum?id=11111111-0000-0000-0000-000000002059) if you have problems installing CPLEX.
 
-## Development Plan
+## Development Timeline
 
 ##### Short Term:
 
+- ~~Simplify Installation~~ 
+- ~~Convenience functions for batch computing~~~
 - Convenience functions to visualize performance (ROC curves, Calibation Diagrams)
-- Convenience functions for batch computing
 - Examples
 - Specs/Unit Tests/Documentation
-- ~~Simplify Installation~~ 
+
 
 ##### Long Term:
 

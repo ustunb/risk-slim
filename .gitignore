@@ -20,6 +20,8 @@ ci_scripts/
 skltemplate/
 
 # riskslim specific
+riskslim/*cvindices.csv
+riskslim/*weights.csv
 scratch/
 riskslim/tests/test_common.py
 riskslim/tests/test_template.py

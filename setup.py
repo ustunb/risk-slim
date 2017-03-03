@@ -7,6 +7,11 @@ import sys
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
 
+#resources
+#
+#setuptools http://setuptools.readthedocs.io/en/latest/setuptools.html
+#setuptools + Cython: http://stackoverflow.com/questions/32528560/
+
 DISTNAME = 'riskslim'
 DESCRIPTION = "optimized risk scores on large-scale datasets"
 AUTHOR = 'Berk Ustun'

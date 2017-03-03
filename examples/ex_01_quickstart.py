@@ -11,7 +11,7 @@ np.__config__.show()
 # data
 data_name = "breastcancer"                                  # name of the data
 data_dir = os.getcwd() + '/datasets/'                       # directory where datasets are stored
-data_csv_file = data_dir + data_name + '_processed.csv'     # csv file for the dataset
+data_csv_file = data_dir + data_name + '_data.csv'          # csv file for the dataset
 sample_weights_csv_file = None                              # csv file of sample weights for the dataset (optional)
 
 # problem parameters
@@ -21,15 +21,12 @@ max_offset = 50                                             # maximum value of o
 c0_value = 1e-6                                             # L0-penalty parameter such that c0_value > 0; larger values -> sparser models; we set to a small value (1e-6) so that we get a model with max_L0_value terms
 w_pos = 1.00                                                # relative weight on examples with y = +1; w_neg = 1.00 (optional)
 
-# load dataset
+# load dataset from disk
 data = load_data_from_csv(dataset_csv_file = data_csv_file, sample_weights_csv_file = sample_weights_csv_file)
 N, P = data['X'].shape
 
-# create coefficient set
+# create coefficient set and set the value of the offset parameter
 coef_set = CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
-coef_set.view()
-
-# set the value of the offset parameter
 conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
 max_offset = min(max_offset, conservative_offset)
 coef_set.set_field('lb', '(Intercept)', -max_offset)

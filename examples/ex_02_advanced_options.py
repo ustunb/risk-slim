@@ -11,7 +11,7 @@ np.__config__.show()
 # data
 data_name = "breastcancer"                                  # name of the data
 data_dir = os.getcwd() + '/datasets/'                       # directory where datasets are stored
-data_csv_file = data_dir + data_name + '_processed.csv'     # csv file for the dataset
+data_csv_file = data_dir + data_name + '_data.csv'          # csv file for the dataset
 sample_weights_csv_file = None                              # csv file of sample weights for the dataset (optional)
 
 # problem parameters

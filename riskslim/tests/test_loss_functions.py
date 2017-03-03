@@ -5,8 +5,7 @@ import riskslim.loss_functions.fast_log_loss as fast
 import riskslim.loss_functions.lookup_log_loss as lookup
 import riskslim.loss_functions.log_loss_weighted as weighted
 
-#np.__config__.show()
-
+print "testing riskslim.loss_functions"
 np.random.seed(seed = 0)
 
 #initialize data matrix X and label vector Y
@@ -15,36 +14,23 @@ n_cols = 20
 rho_ub = 100
 rho_lb = -100
 
+#helper function s
+def generate_binary_data(n_rows = 1000000, n_cols = 20):
+    X = np.random.randint(low=0, high=2, size=(n_rows, n_cols))
+    Y = np.random.randint(low=0, high=2, size=(n_rows, 1))
+    pos_ind = Y == 1
+    Y[~pos_ind] = -1
+    Z = X * Y
+    Z = np.require(Z, requirements=['F'], dtype=np.float64)
+    return Z
 
-X = np.random.randint(low=0, high=2, size=(n_rows, n_cols))
-Y = np.random.randint(low=0, high=2, size=(n_rows, 1))
-pos_ind = Y == 1
-Y[~pos_ind] = -1
-Z = X*Y
-Z = np.require(Z, requirements = ['F'], dtype = np.float64)
-
-#setup weights
-w_pos = 1.0
-w_neg = 1.0
-w_total = w_pos + w_neg
-w_pos = 2.0 * (w_pos / w_total)
-w_neg = 2.0 * (w_neg / w_total)
-weights = np.empty_like(Y)
-weights[pos_ind] = w_pos
-weights[~pos_ind] = w_neg
-weights = weights.flatten()
-
-
-rho = np.random.randint(low=rho_lb, high=rho_ub, size= n_cols)
-rho = np.require(rho, dtype=Z.dtype, requirements = ['F'])
-set_to_zero = np.random.choice(range(0, n_cols), size = int(np.floor(n_cols/2)), replace=False)
-rho[set_to_zero] = 0.0
-L0_reg_ind = np.ones(n_cols, dtype = 'bool')
-L0_reg_ind[0] = False
-
-#create lookup table
-Z_min = np.min(Z, axis = 0)
-Z_max = np.max(Z, axis = 0)
+def generate_integer_model(n_cols = 20, rho_ub = 100, rho_lb = -100, sparse_pct = 0.5):
+    rho = np.random.randint(low=rho_lb, high=rho_ub, size=n_cols)
+    rho = np.require(rho, dtype=Z.dtype, requirements=['F'])
+    nnz_count = int(sparse_pct * np.floor(n_cols / 2))
+    set_to_zero = np.random.choice(range(0, n_cols), size=nnz_count, replace=False)
+    rho[set_to_zero] = 0.0
+    return rho
 
 def get_score_bounds(Z_min, Z_max, rho):
     pos_ind = np.where(rho>0.0)[0]
@@ -60,7 +46,6 @@ def get_score_bounds(Z_min, Z_max, rho):
         s_min += rho[j] * Z_max[j]
 
     return s_min, s_max
-
 
 def get_score_bounds_from_range(Z_min, Z_max, rho_lb, rho_ub, L0_max = None):
     "global variables: L0_reg_ind"
@@ -85,6 +70,27 @@ def get_score_bounds_from_range(Z_min, Z_max, rho_lb, rho_ub, L0_max = None):
 
     return s_min, s_max
 
+
+#setup weights
+w_pos = 1.0
+w_neg = 1.0
+w_total = w_pos + w_neg
+w_pos = 2.0 * (w_pos / w_total)
+w_neg = 2.0 * (w_neg / w_total)
+weights = np.empty(n_rows)
+weights[pos_ind] = w_pos
+weights[~pos_ind] = w_neg
+weights = weights.flatten()
+
+#generate data
+Z = generate_binary_data(n_rows, n_cols)
+rho = generate_integer_model(n_cols, rho_ub, rho_lb)
+L0_reg_ind = np.ones(n_cols, dtype='bool')
+L0_reg_ind[0] = False
+Z_min = np.min(Z, axis = 0)
+Z_max = np.max(Z, axis = 0)
+
+#create lookup table
 min_score, max_score = get_score_bounds_from_range(Z_min, Z_max, rho_lb, rho_ub, L0_max = n_cols)
 loss_value_tbl, prob_value_tbl, loss_tbl_offset = lookup.get_loss_value_and_prob_tables(min_score, max_score)
 loss_tbl_offset = int(loss_tbl_offset)
@@ -107,11 +113,10 @@ Z_py = np.require(Z, requirements = ['C'])
 rho_py = np.require(rho, requirements = ['C'])
 scores_py = Z_py.dot(rho_py)
 
-#define wrappers
+#define tests
 def normal_value_test(): return normal.log_loss_value(Z_py, rho_py)
 def fast_value_test(): return fast.log_loss_value(Z, rho)
 def lookup_value_test(): return lookup.log_loss_value(Z, rho, loss_value_tbl, loss_tbl_offset)
-
 
 def normal_cut_test(): return normal.log_loss_value_and_slope(Z_py, rho_py)
 def fast_cut_test(): return fast.log_loss_value_and_slope(Z, rho)

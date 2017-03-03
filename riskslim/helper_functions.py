@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import prettytable as pt
+#from .debugging import ipsh #only for debugging
 
 # PRINTING AND LOGGING
 def print_log(msg, print_flag = True):
@@ -76,7 +77,7 @@ def get_or_set_default(settings, setting_name, default_value, type_check=False, 
                 settings[setting_name] = default_value
             else:
                 print_log("type mismatch on %s: user provided type: %s and but expected type: %s" % (
-                setting_name, user_type, default_type), print_flag)
+                    setting_name, user_type, default_type), print_flag)
                 print_log("setting %s to its default value: %r" % (setting_name, default_value), print_flag)
                 settings[setting_name] = default_value
                 # else: do nothing
@@ -87,13 +88,34 @@ def get_or_set_default(settings, setting_name, default_value, type_check=False, 
     return settings
 
 # LOADING DATA FROM DISK
-def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None):
+def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_csv_file = None, fold_num = 0):
     """
 
     Parameters
     ----------
-    dataset_csv_file = location of a csv file on disk
-    sample_weights_csv_file = location of a sample weights file on disk
+    dataset_csv_file                csv file containing the training data
+                                    see /datasets/adult_data.csv for an example
+                                    training data stored as a table with N+1 rows and d+1 columns
+                                    column 1 is the outcome variable entries must be (-1,1) or (0,1)
+                                    column 2 to d+1 are the d outcome variables
+                                    row 1 contains unique names for the outcome variable, and the input vairable
+
+    sample_weights_csv_file         csv file containing sample weights for the training data
+                                    weights stored as a table with N rows and 1 column
+                                    all sample weights must be non-negative
+
+    fold_csv_file                   csv file containing indices of folds for K-fold cross validation
+                                    fold indices stored as a table with N rows and 1 column
+                                    folds must be integers between 1 to K
+                                    if fold_csv_file is None, then we do not use folds
+
+    fold_num                        int between 0 to K, where K is set by the fold_csv_file
+                                    let fold_idx be the N x 1 index vector listed in fold_csv_file
+                                    samples where fold_idx == fold_num will be used to test
+                                    samples where fold_idx != fold_num will be used to train the model
+                                    fold_num = 0 means use "all" of the training data (since all values of fold_idx \in [1,K])
+                                    if fold_csv_file is None, then fold_num is set to 0
+
 
     Returns
     -------
@@ -135,7 +157,7 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None):
         sample_weights = np.ones(N)
     else:
         if os.path.isfile(sample_weights_csv_file):
-            sample_weights = pd.read_csv(sample_weights_csv_file, sep=',')
+            sample_weights = pd.read_csv(sample_weights_csv_file, sep=',', header=None)
             sample_weights = sample_weights.as_matrix()
         else:
             raise IOError('could not find sample_weights_csv_file: %s' % sample_weights_csv_file)
@@ -147,6 +169,25 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None):
         'outcome_name': Y_name,
         'sample_weights': sample_weights,
     }
+
+    #load folds
+    if fold_csv_file is not None:
+        if not os.path.isfile(fold_csv_file):
+            raise IOError('could not find fold_csv_file: %s' % fold_csv_file)
+        else:
+            fold_idx = pd.read_csv(fold_csv_file, sep=',', header=None)
+            fold_idx = fold_idx.values.flatten()
+            K = max(fold_idx)
+            all_fold_nums = np.sort(np.unique(fold_idx))
+            assert len(fold_idx) == N, "dimension mismatch: read %r fold indices (expected N = %r)" % (len(fold_idx), N)
+            assert np.all(all_fold_nums == np.arange(1, K + 1)), "folds should contain indices between 1 to %r" % K
+            assert fold_num in np.arange(0, K), "fold_num should either be 0 or an integer between 1 to %r" % K
+            if fold_num >= 1:
+                test_idx = fold_num == fold_idx
+                train_idx = fold_num != fold_idx
+                data['X'] = data['X'][train_idx,]
+                data['Y'] = data['Y'][train_idx]
+                data['sample_weights'] = data['sample_weights'][train_idx]
 
     assert check_data(data)
     return data
