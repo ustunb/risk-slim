@@ -21,7 +21,7 @@
 
 #directories
 repo_dir=$(pwd)"/"
-data_dir="${repo_dir}examples/data/"    #change to /batch/data/ for your own data
+data_dir="${repo_dir}batch/data/"    #change to /batch/data/ for your own data
 results_dir="${repo_dir}batch/results/"
 log_dir="${repo_dir}batch/logs/"
 
@@ -30,6 +30,7 @@ data_name="breastcancer"
 data_file="${data_dir}/${data_name}_data.csv"
 cvindices_file="${data_dir}/${data_name}_cvindices.csv"
 fold=0
+timelimit=60
 
 for fold in $(seq 0 5)
 
@@ -58,9 +59,10 @@ python "${repo_dir}/batch/train_risk_slim.py"  \
     --results "${results_file}" \
     --cvindices "${cvindices_file}" \
     --fold "${fold}" \
+    --timelimit "${timelimit}" \
     --settings "${settings_file}" \
     --log "${log_file}"
-
+    
 done
 
 exit

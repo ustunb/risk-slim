@@ -200,8 +200,17 @@ if __name__ == '__main__':
     logger.info("saving results as pickle file")
     with open(results_file, 'wb') as outfile:
         pickle.dump(results, outfile, protocol=pickle.HIGHEST_PROTOCOL)
-    logger.info("saved results to %r" % results_file)
 
+    logger.info("saved results in pickle format to %r" % results_file)
+    logger.info('''code snippet to access results:
+
+                \t\t\t    import pickle
+
+                \t\t\t    with open(results_file, 'rb') as infile:
+                \t\t\t     \tresults = pickle.load(results_file)
+
+                '''
+                )
     logger.info("finished training model")
     logger.info("quitting")
     sys.exit(0)
