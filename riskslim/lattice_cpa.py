@@ -25,7 +25,8 @@ DEFAULT_LCPA_SETTINGS = {
     'chained_updates_flag': True,  # use chained updates
     'initialization_flag': False,  # use initialization procedure
     'add_cuts_at_heuristic_solutions': True, #add cuts at integer feasible solutions found using polishing/rounding
-    # LCPA Rounding Heuristic
+    #
+    #  LCPA Rounding Heuristic
     'round_flag': True,  # round continuous solutions with SeqRd
     'polish_rounded_solutions': True,  # polish solutions rounded with SeqRd using DCD
     'rounding_tolerance': float('inf'),  # only solutions with objective value < (1 + tol) are rounded

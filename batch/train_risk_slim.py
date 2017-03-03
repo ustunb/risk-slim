@@ -25,13 +25,15 @@ from os import path
 sys.path.append(path.dirname( path.dirname( path.abspath(__file__) ) ) )
 import time
 import argparse
+import logging
 import pickle
 import numpy as np
-from riskslim.helper_functions import load_data_from_csv, print_model, print_log
+
+from riskslim.helper_functions import load_data_from_csv, setup_logging, print_model
 from riskslim.CoefficientSet import CoefficientSet
 from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa, DEFAULT_LCPA_SETTINGS
 
-DEFAULT_BATCH_SETTINGS = {
+DEFAULT_SETTINGS = {
     'max_coefficient': 5,
     'max_L0_value': 5,
     'max_offset': 50,
@@ -42,7 +44,7 @@ if __name__ == '__main__':
     # parse command line arguments
     parser = argparse.ArgumentParser(
         prog='train_risk_slim',
-        description='This file is to train a RiskSLIM classifier in a batch computing environment',
+        description='Train a RiskSLIM classifier from the command shell',
         epilog='Copyright (C) 2017 Berk Ustun',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -67,6 +69,22 @@ if __name__ == '__main__':
                         default=0,
                         help='fold number')
 
+    parser.add_argument('--timelimit',
+                        type=int,
+                        default=3600,
+                        help='time limit on training in seconds')
+
+    parser.add_argument('--log',
+                        type=str,
+                        default='None',
+                        required=False,
+                        help='name of the log file')
+
+    parser.add_argument('--silent',
+                        action='store_true',
+                        required=False,
+                        help='add to suppress logging to stderr')
+
     parser.add_argument('--settings',
                         type=str,
                         default='None',
@@ -74,29 +92,39 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     parsed = vars(args)
+
+    # setup logging
+    log_to_console = not parsed['silent']
+    log_file = parsed['log'] if parsed['log'] is not 'None' else None
+    logger = logging.getLogger()
+    logger = setup_logging(logger, log_to_console = True, log_file = log_file)
+    logger.setLevel(logging.INFO)
+    logger.info("running 'train_risk_slim.py'")
+    logger.info("working directory: %r" % os.getcwd())
+    logger.info("data_file: %r" % parsed['data'])
+    logger.info("fold_file: %r" % parsed['cvindices'])
+    logger.info("fold_num: %r" % parsed['fold'])
+    logger.info("time_limit: %r" % parsed['timelimit'])
+    logger.info("settings_file: %r" % parsed['results'])
+    logger.info("results_file: %r" % parsed['settings'])
+
+    #parse arguments
     data_file = parsed['data']
-    results_file = parsed['results']
     fold_file = parsed['cvindices']
     fold_num = parsed['fold']
+    max_runtime = parsed['timelimit']
+    results_file = parsed['results']
     settings_file = parsed['settings']
-
-    # print stuff to screen
-    print_log("running 'train_risk_slim.py'")
-    print_log("working directory: %r" % os.getcwd())
-    print_log("data_file: %r" % data_file)
-    print_log("fold_file: %r" % fold_file)
-    print_log("fold_num: %r" % fold_num)
-    print_log("settings_file: %r" % settings_file)
-    print_log("results_file: %r" % settings_file)
 
     # check data_file exists
     if not os.path.isfile(data_file):
-        print_log("data_file %r not found on disk" % data_file)
+        logger.error("data_file %r not found on disk" % data_file)
         sys.exit(1)
 
     # check results_file does not exist
     if os.path.isfile(results_file):
-        print_log("ERROR: results_file %r already exists\nDelete the old file, or choose a different name" % results_file)
+        logger.error("results_file %r already exists)" % results_file)
+        logger.error("either delete %r or choose a different name" % results_file)
         sys.exit(1)
 
     # check fold_file exists
@@ -107,16 +135,22 @@ if __name__ == '__main__':
     # check settings_file exists / or use default settings
     if os.path.isfile(settings_file):
         with open(settings_file) as f:
-            run_settings = {l.strip() for l in f.readlines() if l}
+            settings = {l.strip() for l in f.readlines() if l}
     else:
-        print_log('settings_file %r not found on disk' % settings_file)
-        run_settings = {}
+        logger.warn("settings_file %r not found on disk" % settings_file)
+        settings = {}
+
+    # overwrite time limit on settings
+    settings['timelimit'] = parsed['timelimit']
+
 
     # check if sample weights file was specified, if not set as None
+    logger.info("loading data and sample weights")
+
     sample_weights_file = None
-    if 'sample_weights_file' in run_settings:
-        if os.path.isfile(run_settings['sample_weights_file']):
-            sample_weights_file = run_settings['sample_weights_file']
+    if 'sample_weights_file' in settings:
+        if os.path.isfile(settings['sample_weights_file']):
+            sample_weights_file = settings['sample_weights_file']
 
     data = load_data_from_csv(dataset_csv_file=data_file,
                               sample_weights_csv_file=sample_weights_file,
@@ -124,14 +158,12 @@ if __name__ == '__main__':
                               fold_num=fold_num)
     N, P = data['X'].shape
 
-    # model form constraints
-    max_coefficient = run_settings['max_coefficient'] if 'max_coefficient' in run_settings else DEFAULT_BATCH_SETTINGS[
-        'max_coefficient']
-    max_L0_value = run_settings['max_L0_value'] if 'max_L0_value' in run_settings else DEFAULT_BATCH_SETTINGS[
-        'max_L0_value']
-    max_offset = run_settings['max_offset'] if 'max_offset' in run_settings else DEFAULT_BATCH_SETTINGS['max_offset']
-
     # initialize coefficient set and offset parameter
+    logger.info("creating coefficient set and constraints")
+    max_coefficient = settings['max_coefficient'] if 'max_coefficient' in settings else DEFAULT_SETTINGS['max_coefficient']
+    max_L0_value = settings['max_L0_value'] if 'max_L0_value' in settings else DEFAULT_SETTINGS['max_L0_value']
+    max_offset = settings['max_offset'] if 'max_offset' in settings else DEFAULT_SETTINGS['max_offset']
+
     coef_set = CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
     conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
     max_offset = min(max_offset, conservative_offset)
@@ -149,7 +181,7 @@ if __name__ == '__main__':
     }
 
     # initialize lcpa_settings
-    lcpa_settings = {key: run_settings[key] if key in run_settings else DEFAULT_LCPA_SETTINGS[key] for key in
+    lcpa_settings = {key: settings[key] if key in settings else DEFAULT_LCPA_SETTINGS[key] for key in
                      DEFAULT_LCPA_SETTINGS}
 
     # fit RiskSLIM model using Lattice Cutting Plane Algorithm
@@ -165,12 +197,11 @@ if __name__ == '__main__':
     }
     results.update(model_info)
 
+    logger.info("saving results as pickle file")
     with open(results_file, 'wb') as outfile:
         pickle.dump(results, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+    logger.info("saved results to %r" % results_file)
 
-    with open(results_file, "rb") as infile:
-        loaded_results = pickle.load(infile)
-
-    print_log("finished training model")
-    print_log("quitting")
+    logger.info("finished training model")
+    logger.info("quitting")
     sys.exit(0)

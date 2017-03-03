@@ -20,16 +20,18 @@ ci_scripts/
 skltemplate/
 
 # riskslim specific
-datasets/*cvindices.csv
-datasets/*weights.csv
-scratch/
+batch/data/
+batch/results/
+batch/log/
+examples/data/*cvindices.csv
+examples/data/*weights.csv
 riskslim/tests/test_common.py
 riskslim/tests/test_template.py
 riskslim/loss_functions/build/
 riskslim/loss_functions/*.so
+scratch/
 
 # Distribution / packaging
-
 .Python
 env/
 build/

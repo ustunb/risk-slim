@@ -10,7 +10,7 @@ import logging
 
 
 # PRINTING AND LOGGING
-def setup_logging(log_to_console = True, log_file = None):
+def setup_logging(logger, log_to_console = True, log_file = None):
     """
     Sets up logging to console and file on disk
     See https://docs.python.org/2/howto/logging-cookbook.html for details on how to customize
@@ -25,25 +25,23 @@ def setup_logging(log_to_console = True, log_file = None):
     Logger object that prints formatted messages to log_file and console
     """
 
-    logger = logging.getLogger('')
-
     # quick return if no logging to console or file
     if log_to_console is False and log_file is None:
         logger.disabled = True
         return logger
 
-    log_format = logging.Formatter(fmt='%(asctime)s %(levelname)-8s | %(message)s', datefmt='%m-%d-%Y %I:%M:%S %p')
+    log_format = logging.Formatter(fmt='%(asctime)s | %(levelname)-8s | %(message)s', datefmt='%m-%d-%Y %I:%M:%S %p')
 
     # log to file
     if log_file is not None:
-        fh = logging.FileHandler(filename=log_file, mode='w')
-        fh.setLevel(logging.DEBUG)
+        fh = logging.FileHandler(filename=log_file)
+        #fh.setLevel(logging.DEBUG)
         fh.setFormatter(log_format)
         logger.addHandler(fh)
 
     if log_to_console:
-        ch = logging.StreamHandler(sys.stderr)
-        ch.setLevel(logging.DEBUG)
+        ch = logging.StreamHandler()
+        #ch.setLevel(logging.DEBUG)
         ch.setFormatter(log_format)
         logger.addHandler(ch)
 
@@ -232,8 +230,8 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
             K = max(fold_idx)
             all_fold_nums = np.sort(np.unique(fold_idx))
             assert len(fold_idx) == N, "dimension mismatch: read %r fold indices (expected N = %r)" % (len(fold_idx), N)
-            assert np.all(all_fold_nums == np.arange(1, K + 1)), "folds should contain indices between 1 to %r" % K
-            assert fold_num in np.arange(0, K), "fold_num should either be 0 or an integer between 1 to %r" % K
+            assert np.all(all_fold_nums == np.arange(1, K+1)), "folds should contain indices between 1 to %r" % K
+            assert fold_num in np.arange(0, K+1), "fold_num should either be 0 or an integer between 1 to %r" % K
             if fold_num >= 1:
                 test_idx = fold_num == fold_idx
                 train_idx = fold_num != fold_idx

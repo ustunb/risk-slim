@@ -10,7 +10,7 @@ np.__config__.show()
 
 # data
 data_name = "breastcancer"                                  # name of the data
-data_dir = os.getcwd() + '/datasets/'                       # directory where datasets are stored
+data_dir = os.getcwd() + '/examples/data/'                  # directory where datasets are stored
 data_csv_file = data_dir + data_name + '_data.csv'          # csv file for the dataset
 sample_weights_csv_file = None                              # csv file of sample weights for the dataset (optional)
 
@@ -82,7 +82,7 @@ settings = {
     'polishing_stop_gap': 5.0,                          # max optimality gap required to stop using polishing heuristic
     #
     # Initialization Procedure
-    'initialization_flag': True,                       # use initialization procedure
+    'initialization_flag': False,                       # use initialization procedure
     'init_display_progress': True,                      # show progress of initialization procedure
     'init_display_cplex_progress': False,               # show progress of CPLEX during intialization procedure
     #
