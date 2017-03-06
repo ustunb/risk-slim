@@ -1,20 +1,17 @@
 #!/usr/bin/python
 
 """
-This file is to train a RiskSLIM classifier in a batch computing environment
-It parses command line arguments
+This file is to train a RiskSLIM model in a batch computing environment
+It parses command line arguments, and can be called as:
 
-It can be called as
+python train_risk_slim.py --data="${data_file}" --results="${results_file}"
 
-python train_risk_slim.py "${data_file}" "${fold_file}" "${fold_num}" "${save_file}" "${settings_file}"
-
-where
+where:
 
 data_file       csv file containing the training data
-fold_file       csv file containing training folds (optional; if not included, then all data is used)
-fold_num        integer between 0 to K to specify the # of the fold (optional; if not specified, then 0 so that all data is used)
 results_file    file name for the save file; needs to be unique and not already exist on disk
-settings_file   text file with name-value pairs for LCPA settings
+
+Use "python train_risk_slim.py --help" for a description of additional arguments.
 
 Copyright (C) 2017 Berk Ustun
 """
@@ -27,21 +24,65 @@ import time
 import argparse
 import logging
 import pickle
+import json
 import numpy as np
-
-from riskslim.helper_functions import load_data_from_csv, setup_logging, print_model
+from riskslim.helper_functions import load_data_from_csv, setup_logging
 from riskslim.CoefficientSet import CoefficientSet
 from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa, DEFAULT_LCPA_SETTINGS
+#from riskslim.debugging import ipsh #for debugging only
 
-DEFAULT_SETTINGS = {
-    'max_coefficient': 5,
-    'max_L0_value': 5,
-    'max_offset': 50,
-}
+# TODO: run the following when building
+# with open(settings_json, 'w') as outfile:
+#     json.dump(DEFAULT_LCPA_SETTINGS, outfile, sort_keys = False, indent=4)
 
-if __name__ == '__main__':
+def is_positive_integer(value):
+    parsed_value = int(value)
+    if parsed_value <= 0:
+        raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
+    return parsed_value
 
-    # parse command line arguments
+
+def is_positive_float(value):
+    parsed_value = float(value)
+    if parsed_value <= 0.0:
+        raise argparse.ArgumentTypeError("%s must be a positive value" % value)
+    return parsed_value
+
+def is_negative_one_or_positive_integer(value):
+    parsed_value = int(value)
+    if not (parsed_value == -1 or parsed_value >= 1):
+        raise argparse.ArgumentTypeError("%s is an invalid value (must be -1 or >=1)" % value)
+    else:
+        return parsed_value
+
+def is_file_on_disk(file_name):
+    if not os.path.isfile(file_name):
+        raise argparse.ArgumentTypeError("the file %s does not exist!" % file_name)
+    else:
+        return file_name
+
+def is_file_not_on_disk(file_name):
+    if os.path.isfile(file_name):
+        raise argparse.ArgumentTypeError("the file %s already exists on disk" % file_name)
+    else:
+        return file_name
+
+def is_valid_fold(value):
+    parsed_value = int(value)
+    if parsed_value < 0:
+        raise argparse.ArgumentTypeError("%s must be a positive integer" % value)
+    return parsed_value
+
+
+def setupParser():
+    """
+    Create an argparse Parser object for RiskSLIM command line arguments.
+    This object determines all command line arguments, handles input
+    validation and default values.
+
+    See https://docs.python.org/3/library/argparse.html for configuration
+    """
+
     parser = argparse.ArgumentParser(
         prog='train_risk_slim',
         description='Train a RiskSLIM classifier from the command shell',
@@ -60,157 +101,161 @@ if __name__ == '__main__':
                         help='name of results file (must not already exist)')
 
     parser.add_argument('--cvindices',
-                        type=str,
-                        default='None',
+                        type=is_file_on_disk,
                         help='csv file with indices for K-fold CV')
 
     parser.add_argument('--fold',
-                        type=int,
+                        type=is_valid_fold,
                         default=0,
-                        help='fold number')
+                        help='index of test fold; set as 0 to use all data for training')
+
+    parser.add_argument('--weights',
+                        type=is_file_on_disk,
+                        help='csv file with non-negative weights for each point')
+
+    parser.add_argument('--settings',
+                        type=is_file_on_disk,
+                        help='JSON file with additional settings for LCPA')
 
     parser.add_argument('--timelimit',
-                        type=int,
-                        default=3600,
-                        help='time limit on training in seconds')
+                        type=is_negative_one_or_positive_integer,
+                        default=300,
+                        help='time limit on training (in seconds); set as -1 for no time limit')
+
+    parser.add_argument('--max_size',
+                        type = is_negative_one_or_positive_integer,
+                        default=-1,
+                        help='maximum number of non-zero coefficients; set as -1 for no limit')
+
+    parser.add_argument('--max_coef',
+                        type=is_positive_integer,
+                        default=5,
+                        help='value of upper and lower bounds for any coefficient')
+
+    parser.add_argument('--max_offset',
+                        type=is_negative_one_or_positive_integer,
+                        default=-1,
+                        help='value of upper and lower bound on offset parameter; set as -1 to use a conservative value')
+
+    parser.add_argument('--c0_value',
+                        type=is_positive_float,
+                        default=1e-6,
+                        help='l0 regularization parameter; set as a positive number between 0.00 and log(2)')
+
+    parser.add_argument('--w_pos',
+                        type=is_positive_float,
+                        default=1.00,
+                        help='w_pos')
 
     parser.add_argument('--log',
                         type=str,
-                        default='None',
-                        required=False,
                         help='name of the log file')
 
     parser.add_argument('--silent',
                         action='store_true',
-                        required=False,
-                        help='add to suppress logging to stderr')
+                        help='flag to suppress logging to stderr')
 
-    parser.add_argument('--settings',
-                        type=str,
-                        default='None',
-                        help='text file containing additional settings for LCPA')
+    return(parser)
 
-    args = parser.parse_args()
-    parsed = vars(args)
+if __name__ == '__main__':
+
+    parser = setupParser()
+    parsed = parser.parse_args()
+    parsed_dict = vars(parsed)
+    parsed_string = [key + ' : ' + str(parsed_dict[key]) + '\n' for key in parsed_dict]
+    parsed_string.sort()
 
     # setup logging
-    log_to_console = not parsed['silent']
-    log_file = parsed['log'] if parsed['log'] is not 'None' else None
     logger = logging.getLogger()
-    logger = setup_logging(logger, log_to_console = True, log_file = log_file)
+    logger = setup_logging(logger, log_to_console =(not parsed.silent), log_file = parsed.log)
     logger.setLevel(logging.INFO)
     logger.info("running 'train_risk_slim.py'")
     logger.info("working directory: %r" % os.getcwd())
-    logger.info("data_file: %r" % parsed['data'])
-    logger.info("fold_file: %r" % parsed['cvindices'])
-    logger.info("fold_num: %r" % parsed['fold'])
-    logger.info("time_limit: %r" % parsed['timelimit'])
-    logger.info("settings_file: %r" % parsed['results'])
-    logger.info("results_file: %r" % parsed['settings'])
-
-    #parse arguments
-    data_file = parsed['data']
-    fold_file = parsed['cvindices']
-    fold_num = parsed['fold']
-    max_runtime = parsed['timelimit']
-    results_file = parsed['results']
-    settings_file = parsed['settings']
-
-    # check data_file exists
-    if not os.path.isfile(data_file):
-        logger.error("data_file %r not found on disk" % data_file)
-        sys.exit(1)
+    logger.info("parsed the following variables:\n-%s" % '-'.join(parsed_string))
 
     # check results_file does not exist
-    if os.path.isfile(results_file):
-        logger.error("results_file %r already exists)" % results_file)
-        logger.error("either delete %r or choose a different name" % results_file)
+    if os.path.isfile(parsed.results):
+        logger.error("results file %s already exists)" % parsed.results)
+        logger.error("either delete %s or choose a different name" % parsed.results)
         sys.exit(1)
 
-    # check fold_file exists
-    if not os.path.isfile(fold_file):
-        fold_file = None
-        fold_num = 0
+    # check settings_json exists / or use default settings
+    settings = dict(DEFAULT_LCPA_SETTINGS)
+    if parsed.settings is not None:
+        with open(parsed.settings) as json_file:
+            loaded_settings = json.load(json_file)
+            loaded_settings = {str(key): loaded_settings[key] for key in loaded_settings if key in settings}
+            settings.update(loaded_settings)
 
-    # check settings_file exists / or use default settings
-    if os.path.isfile(settings_file):
-        with open(settings_file) as f:
-            settings = {l.strip() for l in f.readlines() if l}
-    else:
-        logger.warn("settings_file %r not found on disk" % settings_file)
-        settings = {}
-
-    # overwrite time limit on settings
-    settings['timelimit'] = parsed['timelimit']
-
+    #overwrite parameters specified by the user
+    settings['max_runtime'] = float('inf') if parsed.timelimit == -1 else parsed.timelimit
+    settings['c0_value'] = parsed.c0_value
+    settings['w_pos'] = parsed.w_pos
 
     # check if sample weights file was specified, if not set as None
     logger.info("loading data and sample weights")
 
-    sample_weights_file = None
-    if 'sample_weights_file' in settings:
-        if os.path.isfile(settings['sample_weights_file']):
-            sample_weights_file = settings['sample_weights_file']
-
-    data = load_data_from_csv(dataset_csv_file=data_file,
-                              sample_weights_csv_file=sample_weights_file,
-                              fold_csv_file=fold_file,
-                              fold_num=fold_num)
+    data = load_data_from_csv(dataset_csv_file=parsed.data,
+                              sample_weights_csv_file=parsed.weights,
+                              fold_csv_file=parsed.cvindices,
+                              fold_num=parsed.fold)
     N, P = data['X'].shape
 
     # initialize coefficient set and offset parameter
     logger.info("creating coefficient set and constraints")
-    max_coefficient = settings['max_coefficient'] if 'max_coefficient' in settings else DEFAULT_SETTINGS['max_coefficient']
-    max_L0_value = settings['max_L0_value'] if 'max_L0_value' in settings else DEFAULT_SETTINGS['max_L0_value']
-    max_offset = settings['max_offset'] if 'max_offset' in settings else DEFAULT_SETTINGS['max_offset']
+    max_coefficient = parsed.max_coef
+    max_model_size = parsed.max_size if parsed.max_size >= 0 else float('inf')
+    max_offset = parsed.max_offset if parsed.max_offset >= 0 else float('inf')
 
-    coef_set = CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
-    conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
+    coef_set = CoefficientSet(variable_names=data['variable_names'],
+                              lb=-max_coefficient,
+                              ub=max_coefficient,
+                              sign=0)
+
+
+    trivial_model_size = P - np.sum(coef_set.C_0j == 0)
+    max_model_size = min(max_model_size, trivial_model_size)
+
+    conservative_offset = get_conservative_offset(data, coef_set, max_model_size)
     max_offset = min(max_offset, conservative_offset)
     coef_set.set_field('lb', '(Intercept)', -max_offset)
     coef_set.set_field('ub', '(Intercept)', max_offset)
-    coef_set.view()
 
-    trivial_L0_max = P - np.sum(coef_set.C_0j == 0)
-    max_L0_value = min(max_L0_value, trivial_L0_max)
+    #print coefficient set
+    if not parsed.silent:
+        coef_set.view()
 
     constraints = {
         'L0_min': 0,
-        'L0_max': max_L0_value,
+        'L0_max': max_model_size,
         'coef_set': coef_set,
     }
 
-    # initialize lcpa_settings
-    lcpa_settings = {key: settings[key] if key in settings else DEFAULT_LCPA_SETTINGS[key] for key in
-                     DEFAULT_LCPA_SETTINGS}
-
     # fit RiskSLIM model using Lattice Cutting Plane Algorithm
-    model_info, mip_info, lcpa_info = run_lattice_cpa(data, constraints, lcpa_settings)
+    model_info, mip_info, lcpa_info = run_lattice_cpa(data, constraints, settings)
 
     # save output to disk
     results = {
         "date": time.strftime("%d/%m/%y", time.localtime()),
-        "data_file": data_file,
-        "fold_file": fold_file,
-        "fold_num": settings_file,
-        "results_file": results_file,
+        "data_file": parsed.data,
+        "fold_file": parsed.cvindices,
+        "fold_num": parsed.settings,
+        "results_file": parsed.results,
     }
     results.update(model_info)
 
-    logger.info("saving results as pickle file")
-    with open(results_file, 'wb') as outfile:
+    logger.info("saving results...")
+    with open(parsed.results, 'wb') as outfile:
         pickle.dump(results, outfile, protocol=pickle.HIGHEST_PROTOCOL)
 
-    logger.info("saved results in pickle format to %r" % results_file)
-    logger.info('''code snippet to access results:
+    logger.info("saved results as pickle file: %r" % parsed.results)
+    logger.info('''to access results, use this snippet:
 
                 \t\t\t    import pickle
-
                 \t\t\t    with open(results_file, 'rb') as infile:
-                \t\t\t     \tresults = pickle.load(results_file)
-
+                \t\t\t    \tresults = pickle.load(results_file)
                 '''
                 )
-    logger.info("finished training model")
-    logger.info("quitting")
+    logger.info("finished training.")
+    logger.info("quitting.")
     sys.exit(0)

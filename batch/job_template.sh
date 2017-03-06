@@ -1,63 +1,91 @@
 #!/bin/bash
-
-# This is a template to show how to train RiskSLIM from the Bash shell
-# Change it to run RiskSLIM on a batch computing environment (AWS Batch)
+# This is a template to show how to train RiskSLIM from a Bash command shell
+# You should adapt this to run RiskSLIM on a batch computing environment (e.g. AWS Batch)
 #
-# To test the script, run it from the risk-slim directory using the command:
+# To test the script, run the following command from risk-slim directory:
+#
 # `bash batch/job_template.sh`
 #
+# To see a detailed list of all arguments that can be passed into risk_slim, use:
 #
-# Recommended Directory Structure
+# `python "batch/train_risk_slim.py --help`
 #
-#   risk-slim/          
+# Recommended Directory Structure for Batch Computing:
+#
+#   risk-slim/
 #       └──batch/
-#           └──data/           location of CSV files for data (ignored in .gitignore)
-#           └──logs/           directory where log files are printed out (ignored in .gitignore)
-#           └──results/        directory where results files are stored (ignored in .gitignore)
+#           └──data/           location of CSV files for data (ignored in git)
+#           └──logs/           directory where log files are printed out (ignored in git)
+#           └──results/        directory where results files are stored (ignored in git)
 #       └──doc/
 #       └──examples/           
 #       └──riskslim/           directory where code is stored (do not change this to be able to pull from GitHub)
 #       └──setup.py
+#
+# Advantaged settings are be configured through a JSON file. This script uses:
+#
+# batch/settings_template.json
+#
+# Settings can be changed directly using a text editor, or programmatically
+# using `jq` (https://stedolan.github.io/jq/download/)
+
+
 
 #directories
-repo_dir=$(pwd)"/"
-data_dir="${repo_dir}examples/data/"    #change to /batch/data/ for your own data
-results_dir="${repo_dir}batch/results/"
-log_dir="${repo_dir}batch/logs/"
+repo_dir=$(pwd)
+data_dir="${repo_dir}/examples/data"    #change to /batch/data/ for your own data
+batch_dir="${repo_dir}/batch"
+results_dir="${batch_dir}/results"
+log_dir="${batch_dir}/logs"
 
 #job parameters
-data_name="breastcancer"
+data_name="adult"
 data_file="${data_dir}/${data_name}_data.csv"
 cvindices_file="${data_dir}/${data_name}_cvindices.csv"
 fold=0
 timelimit=60
 
-#results_file and log_file must have a UNIQUE name for each job
-#otherwise we may overwrite existing results *or* run into trouble when running in parallel
-#for safety, train_risk_slim.py does not run a results_file already exists on disk
-#this does not handle issues when jobs running in parallel overwrite each otehr
-run_name="${data_name}_fold_${fold}"
+#optional parameters
+weights_file="${data_dir}/${data_name}_weights.csv"
+max_coef=5
+max_size=5
+max_offset=-1
+w_pos=1.00
+c0_value=1e-6
 
-results_file="${results_dir}${run_name}.results"
+#results_file and log_file must have a UNIQUE name for each job to avoid
+#overwriting existing results and other IO issues during parallel execution
+#for safety, train_risk_slim.py will not run when results_file exists on disk
+run_name="${data_name}_fold_${fold}"
+results_file="${results_dir}/${run_name}_results.p"
 rm -f "${results_file}"
 
 now=$(date +"%m_%d_%Y_%H_%M_%S")
-log_file="${log_dir}${run_name}_${now}.log"
+log_file="${log_dir}/${run_name}_${now}.log"
 
 #create directories that do not exist
 mkdir -p "${results_dir}"
 mkdir -p "${log_dir}"
 
-#write settings to settings_file
-settings_file="${results_dir}${run_name}.settings"
+#addition settings can be modified with a settings_file
+#complete list of settings is in: risk-slim/batch/settings_template.json
+settings_file="${results_dir}/${run_name}_settings.json"
+cp "${batch_dir}/settings_template.json" "${settings_file}"
 
-python "${repo_dir}/batch/train_risk_slim.py"  \
+#run command
+python "${batch_dir}/train_risk_slim.py"  \
     --data "${data_file}" \
     --results "${results_file}" \
     --cvindices "${cvindices_file}" \
+    --weights "${weights_file}" \
     --fold "${fold}" \
     --timelimit "${timelimit}" \
     --settings "${settings_file}" \
+    --w_pos "${w_pos}" \
+    --c0_value "${c0_value}" \
+    --max_size "${max_size}" \
+    --max_coef "${max_coef}" \
+    --max_offset "${max_offset}" \
     --log "${log_file}"
 
 exit
