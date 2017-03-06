@@ -155,7 +155,7 @@ def setupParser():
                         action='store_true',
                         help='flag to suppress logging to stderr')
 
-    return(parser)
+    return parser
 
 if __name__ == '__main__':
 
@@ -211,7 +211,6 @@ if __name__ == '__main__':
                               lb=-max_coefficient,
                               ub=max_coefficient,
                               sign=0)
-
 
     trivial_model_size = P - np.sum(coef_set.C_0j == 0)
     max_model_size = min(max_model_size, trivial_model_size)

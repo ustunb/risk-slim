@@ -22,14 +22,9 @@
 #       └──riskslim/           directory where code is stored (do not change this to be able to pull from GitHub)
 #       └──setup.py
 #
-# Advantaged settings are be configured through a JSON file. This script uses:
-#
-# batch/settings_template.json
-#
-# Settings can be changed directly using a text editor, or programmatically
-# using `jq` (https://stedolan.github.io/jq/download/)
-
-
+# Advantaged settings are be configured through a JSON file. See: `batch/settings_template.json` for a template
+# The values can be changed directly using a text editor, or programmatically using a tool such as
+# `jq` https://stedolan.github.io/jq/
 
 #directories
 repo_dir=$(pwd)
@@ -38,36 +33,36 @@ batch_dir="${repo_dir}/batch"
 results_dir="${batch_dir}/results"
 log_dir="${batch_dir}/logs"
 
-#job parameters
-data_name="adult"
+#set job parameters
+data_name="breastcancer"
 data_file="${data_dir}/${data_name}_data.csv"
-cvindices_file="${data_dir}/${data_name}_cvindices.csv"
-fold=0
-timelimit=60
 
-#optional parameters
-weights_file="${data_dir}/${data_name}_weights.csv"
+cvindices_file="${data_dir}/${data_name}_cvindices.csv"
+#weights_file="${data_dir}/${data_name}_weights.csv"
+fold=0
+
 max_coef=5
 max_size=5
 max_offset=-1
 w_pos=1.00
 c0_value=1e-6
 
-#results_file and log_file must have a UNIQUE name for each job to avoid
-#overwriting existing results and other IO issues during parallel execution
+timelimit=60
+
+#results_file and log_file must have a UNIQUE name for each job to avoid overwriting existing files
 #for safety, train_risk_slim.py will not run when results_file exists on disk
 run_name="${data_name}_fold_${fold}"
+run_time=$(date +"%m_%d_%Y_%H_%M_%S")
 results_file="${results_dir}/${run_name}_results.p"
-rm -f "${results_file}"
+log_file="${log_dir}/${run_name}_${run_time}.log"
 
-now=$(date +"%m_%d_%Y_%H_%M_%S")
-log_file="${log_dir}/${run_name}_${now}.log"
+#rm -f "${results_file}" #uncomment when testing
 
 #create directories that do not exist
 mkdir -p "${results_dir}"
 mkdir -p "${log_dir}"
 
-#addition settings can be modified with a settings_file
+#addition settings can be modified by changing a JSON file
 #complete list of settings is in: risk-slim/batch/settings_template.json
 settings_file="${results_dir}/${run_name}_settings.json"
 cp "${batch_dir}/settings_template.json" "${settings_file}"
@@ -77,7 +72,7 @@ python "${batch_dir}/train_risk_slim.py"  \
     --data "${data_file}" \
     --results "${results_file}" \
     --cvindices "${cvindices_file}" \
-    --weights "${weights_file}" \
+#    --weights "${weights_file}" \
     --fold "${fold}" \
     --timelimit "${timelimit}" \
     --settings "${settings_file}" \
