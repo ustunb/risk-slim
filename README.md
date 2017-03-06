@@ -3,7 +3,7 @@ risk-slim
 
 **NOTE: THIS PACKAGE IS CURRENTLY UNDER ACTIVE DEVELOPMENT. The code works but may be buggy, and may change substantially with each commit.** 
 
-``risk-slim`` is a package to create simple data-driven *risk scores* in Python. These are simple classification models that let users quickly assess risk by adding, subtracting and multiplying a few small numbers, such as the following.
+``risk-slim`` is a package to create simple data-driven *risk scores* in Python. These are simple classification models that let users quickly assess risk by adding, subtracting and multiplying a few small numbers.
 
 
 ## Installation 
@@ -15,6 +15,7 @@ risk-slim
 CPLEX is cross-platform commercial optimization tool with a Python API. It is freely available to students and faculty members at accredited institutions as part of the IBM Academic Initiative. 
 
 To get CPLEX:
+
 1. Sign up for the [IBM Academic Initiative](https://developer.ibm.com/academic/). Note that it may take up to a week to obtain approval.
 2. Download *IBM ILOG CPLEX Optimization Studio* from the [software catalog](https://ibm.onthehub.com/WebStore/OfferingDetails.aspx?o=6fcc1096-7169-e611-9420-b8ca3a5db7a1)
 3. Install the file on your computer. Note mac/unix users will [need to install a .bin file](http://www-01.ibm.com/support/docview.wss?uid=swg21444285).
