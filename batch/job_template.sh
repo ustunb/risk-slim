@@ -50,13 +50,14 @@ c0_value=1e-6
 timelimit=60
 
 #results_file and log_file must have a UNIQUE name for each job to avoid overwriting existing files
-#for safety, train_risk_slim.py will not run when results_file exists on disk
 run_name="${data_name}_fold_${fold}"
 run_time=$(date +"%m_%d_%Y_%H_%M_%S")
 results_file="${results_dir}/${run_name}_results.p"
 log_file="${log_dir}/${run_name}_${run_time}.log"
 
-#rm -f "${results_file}" #uncomment when testing
+#comment out the following in case testing / OK with overwriting
+#for safety, train_risk_slim.py will not run if results_file exists on disk
+rm -f "${results_file}" #c
 
 #create directories that do not exist
 mkdir -p "${results_dir}"
