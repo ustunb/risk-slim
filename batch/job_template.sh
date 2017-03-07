@@ -72,7 +72,6 @@ python "${batch_dir}/train_risk_slim.py"  \
     --data "${data_file}" \
     --results "${results_file}" \
     --cvindices "${cvindices_file}" \
-#    --weights "${weights_file}" \
     --fold "${fold}" \
     --timelimit "${timelimit}" \
     --settings "${settings_file}" \
