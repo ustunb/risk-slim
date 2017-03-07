@@ -8,7 +8,6 @@ from setuptools import setup, find_packages
 from setuptools.extension import Extension
 
 #resources
-#
 #setuptools http://setuptools.readthedocs.io/en/latest/setuptools.html
 #setuptools + Cython: http://stackoverflow.com/questions/32528560/
 
@@ -22,9 +21,6 @@ DOWNLOAD_URL = 'https://github.com/ustunb/risk-slim'
 VERSION = '0.0.0'
 
 #read requirements as listed in txt file
-with open('requirements.txt') as f:
-    INSTALL_REQUIRES = [l.strip() for l in f.readlines() if l]
-
 try:
     import numpy
 except ImportError:
@@ -57,7 +53,7 @@ extensions =[
         [DISTNAME + "/loss_functions/lookup_log_loss.pyx"],
         include_dirs=[numpy.get_include(), scipy.get_include()],
         libraries=["m"],
-        extra_compile_args = ["-ffast-math"])
+        extra_compile_args=["-ffast-math"])
 ]
 
 
@@ -68,6 +64,9 @@ if __name__ == "__main__":
 
     os.chdir(local_path)
     sys.path.insert(0, local_path)
+
+    with open('requirements.txt') as f:
+        INSTALL_REQUIRES = [l.strip() for l in f.readlines() if l]
 
     setup(
         name=DISTNAME,

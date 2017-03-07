@@ -1,14 +1,28 @@
 risk-slim
 ========
 
-**NOTE: THIS PACKAGE IS CURRENTLY UNDER ACTIVE DEVELOPMENT. The code works but may be buggy, and may change substantially with each commit.** 
-
 ``risk-slim`` is a package to create simple data-driven *risk scores* in Python. These are simple classification models that let users quickly assess risk by adding, subtracting and multiplying a few small numbers.
 
+**NOTE: THIS PACKAGE IS CURRENTLY WORKING BUT UNDER ACTIVE DEVELOPMENT. There may be bugs, and the internal code may change substantially with each commit.** 
 
-## Installation 
 
-``risk-slim`` was developed using Python 2.7 and CPLEX 12.6. It should work with older versions of Python and CPLEX. However this has not been tested and will not be supported.
+
+
+## Installation
+  
+Run the following snippet to install ``risk-slim`` in a Mac/Unix environment, and complete a test run.  
+
+```
+git clone https://github.com/ustunb/risk-slim
+cd risk-slim
+pip install -e . #install in editable mode  
+bash batch/job_template.sh #batch run
+```
+
+### Requirements
+
+``risk-slim`` was developed using Python 2.7 and CPLEX 12.6. It may work with older versions of Python and CPLEX. However this has not been tested and will not be supported.
+
 
 ### CPLEX 
 
