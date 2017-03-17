@@ -15,66 +15,29 @@ Use "python train_risk_slim.py --help" for a description of additional arguments
 
 Copyright (C) 2017 Berk Ustun
 """
-
 import os
 import sys
-from os import path
-sys.path.append(path.dirname( path.dirname( path.abspath(__file__) ) ) )
 import time
 import argparse
 import logging
 import pickle
 import json
 import numpy as np
+
+# add the source directory to search path to avoid module import errors if riskslim has not been installed
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from riskslim.helper_functions import load_data_from_csv, setup_logging
 from riskslim.CoefficientSet import CoefficientSet
 from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa, DEFAULT_LCPA_SETTINGS
-#from riskslim.debugging import ipsh #for debugging only
+
+# uncomment for debugging
+#from riskslim.debugging import ipsh
 
 # TODO: run the following when building
 # with open(settings_json, 'w') as outfile:
 #     json.dump(DEFAULT_LCPA_SETTINGS, outfile, sort_keys = False, indent=4)
 
-def is_positive_integer(value):
-    parsed_value = int(value)
-    if parsed_value <= 0:
-        raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
-    return parsed_value
-
-
-def is_positive_float(value):
-    parsed_value = float(value)
-    if parsed_value <= 0.0:
-        raise argparse.ArgumentTypeError("%s must be a positive value" % value)
-    return parsed_value
-
-def is_negative_one_or_positive_integer(value):
-    parsed_value = int(value)
-    if not (parsed_value == -1 or parsed_value >= 1):
-        raise argparse.ArgumentTypeError("%s is an invalid value (must be -1 or >=1)" % value)
-    else:
-        return parsed_value
-
-def is_file_on_disk(file_name):
-    if not os.path.isfile(file_name):
-        raise argparse.ArgumentTypeError("the file %s does not exist!" % file_name)
-    else:
-        return file_name
-
-def is_file_not_on_disk(file_name):
-    if os.path.isfile(file_name):
-        raise argparse.ArgumentTypeError("the file %s already exists on disk" % file_name)
-    else:
-        return file_name
-
-def is_valid_fold(value):
-    parsed_value = int(value)
-    if parsed_value < 0:
-        raise argparse.ArgumentTypeError("%s must be a positive integer" % value)
-    return parsed_value
-
-
-def setupParser():
+def setup_parser():
     """
     Create an argparse Parser object for RiskSLIM command line arguments.
     This object determines all command line arguments, handles input
@@ -82,6 +45,44 @@ def setupParser():
 
     See https://docs.python.org/3/library/argparse.html for configuration
     """
+
+    #parser helper functions
+    def is_positive_integer(value):
+        parsed_value = int(value)
+        if parsed_value <= 0:
+            raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
+        return parsed_value
+
+    def is_positive_float(value):
+        parsed_value = float(value)
+        if parsed_value <= 0.0:
+            raise argparse.ArgumentTypeError("%s must be a positive value" % value)
+        return parsed_value
+
+    def is_negative_one_or_positive_integer(value):
+        parsed_value = int(value)
+        if not (parsed_value == -1 or parsed_value >= 1):
+            raise argparse.ArgumentTypeError("%s is an invalid value (must be -1 or >=1)" % value)
+        else:
+            return parsed_value
+
+    def is_file_on_disk(file_name):
+        if not os.path.isfile(file_name):
+            raise argparse.ArgumentTypeError("the file %s does not exist!" % file_name)
+        else:
+            return file_name
+
+    def is_file_not_on_disk(file_name):
+        if os.path.isfile(file_name):
+            raise argparse.ArgumentTypeError("the file %s already exists on disk" % file_name)
+        else:
+            return file_name
+
+    def is_valid_fold(value):
+        parsed_value = int(value)
+        if parsed_value < 0:
+            raise argparse.ArgumentTypeError("%s must be a positive integer" % value)
+        return parsed_value
 
     parser = argparse.ArgumentParser(
         prog='train_risk_slim',
@@ -159,7 +160,7 @@ def setupParser():
 
 if __name__ == '__main__':
 
-    parser = setupParser()
+    parser = setup_parser()
     parsed = parser.parse_args()
     parsed_dict = vars(parsed)
     parsed_string = [key + ' : ' + str(parsed_dict[key]) + '\n' for key in parsed_dict]
@@ -255,6 +256,6 @@ if __name__ == '__main__':
                 \t\t\t    \tresults = pickle.load(results_file)
                 '''
                 )
-    logger.info("finished training.")
-    logger.info("quitting.")
+    logger.info("finished training")
+    logger.info("quitting\n\n")
     sys.exit(0)
