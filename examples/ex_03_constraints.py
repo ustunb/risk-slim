@@ -81,20 +81,20 @@ settings['initialization_flag'] = False
 # initialize MIP for lattice CPA
 mip_objects = setup_lattice_cpa(data, constraints, settings)
 
-# add constraints
+# add operational constraints
 mip, indices = mip_objects['mip'], mip_objects['indices']
 get_alpha_name = lambda var_name: 'alpha_' + str(data['variable_names'].index(var_name))
 get_alpha_ind = lambda var_names: [get_alpha_name(v) for v in var_names]
 
-# Either "CellSize" or "CellShape"
-# need to add constraint: alpha[cell_size] + alpha[cell_shape] <= 1 to MIP
+# to add a constraint like "either "CellSize" or "CellShape"
+# you must formulate the constraint in terms of the alpha variables
+# alpha[cell_size] + alpha[cell_shape] <= 1 to MIP
 mip.linear_constraints.add(
         names = ["EitherOr_CellSize_or_CellShape"],
         lin_expr = [cplex.SparsePair(ind = get_alpha_ind(['UniformityOfCellSize', 'UniformityOfCellShape']),
                                      val = [1.0, 1.0])],
         senses = "L",
         rhs = [1.0])
-
 
 mip_objects['mip'] = mip
 

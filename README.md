@@ -43,7 +43,7 @@ If you have problems installing CPLEX, check the [CPLEX user manual](http://www-
 
 - ~~Simplify Installation~~ 
 - ~~Convenience functions for batch computing~~
-- Convenience functions to assess performance (ROC curves, calibration diagrams)
+- Convenience functions for performance (ROC curves, calibration diagrams)
 - Examples / Jupyter Notebooks
 - Specs/Unit Tests/Documentation
 
@@ -55,16 +55,18 @@ If you have problems installing CPLEX, check the [CPLEX user manual](http://www-
 
 ## Citation 
 
-If you use ``risk-slim`` research, please cite [our paper](https://arxiv.org/abs/1610.00168)!  
+If you use ``risk-slim`` for in your research, please cite [our paper](https://arxiv.org/abs/1610.00168)!  
      
 ```
-@article{ustun2016learning,
-  title={Learning Optimized Risk Scores on Large-Scale Datasets},
-  author={Ustun, Berk and Rudin, Cynthia},
-  journal={stat},
-  volume={1050},
-  pages={1},
-  year={2016}
+@inproceedings{ustun2016kdd,
+	Author = {Ustun, Berk and Rudin, Cynthia},
+	Booktitle = {Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+	Organization = {ACM},
+	Title = {{Optimized Risk Scores}},
+	Year = {2017}}
 }
 ```
+
+
+
 
