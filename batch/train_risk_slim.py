@@ -253,7 +253,7 @@ if __name__ == '__main__':
 
                 \t\t\t    import pickle
                 \t\t\t    with open(results_file, 'rb') as infile:
-                \t\t\t    \tresults = pickle.load(results_file)
+                \t\t\t    \tresults = pickle.load(infile)
                 '''
                 )
     logger.info("finished training")

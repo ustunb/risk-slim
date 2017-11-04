@@ -387,6 +387,433 @@ def run_lattice_cpa(data, constraints, settings=DEFAULT_LCPA_SETTINGS):
     return model_info, mip_info, lcpa_info
 
 
+def setup_lattice_cpa(data, constraints, settings=DEFAULT_LCPA_SETTINGS):
+    """
+
+    Parameters
+    ----------
+    data, dict containing training data should pass check_data
+    constraints, dict containing 'L0_min, L0_max, CoefficientSet'
+    settings
+
+    Returns
+    -------
+    mip_objects 
+    
+    """
+    global Z, C_0, C_0_nnz, L0_reg_ind, rho_lb, rho_ub
+    global compute_loss, compute_loss_cut, compute_loss_from_scores
+    global compute_loss_real, compute_loss_cut_real, compute_loss_from_scores_real
+    global get_L0_norm, get_L0_penalty, get_alpha, get_L0_penalty_from_alpha, get_L0_range_of_rounded_solution
+    global get_objval, is_feasible
+
+    #todo fix initialization procedure
+    # initialize settings, replace keys with default values if not found
+    settings = dict(settings) if settings is not None else dict()
+    settings = {key: settings[key] if key in settings else DEFAULT_LCPA_SETTINGS[key] for key in DEFAULT_LCPA_SETTINGS}
+
+    # separate settings into more manageable objects
+    warmstart_settings = {key.lstrip('init_'): settings[key] for key in settings if key.startswith('init_')}
+    cplex_parameters = {key.lstrip('cplex_'): settings[key] for key in settings if key.startswith('cplex_')}
+    lcpa_settings = {key: settings[key] for key in settings if settings if not (key.startswith('init_') or key.startswith('cplex_'))}
+
+    # data
+    N, P = data['X'].shape
+    Z = data['X'] * data['Y']
+
+    # sample weights and case weights
+    training_weights = data['sample_weights'].flatten()
+    training_weights = len(training_weights) * (training_weights / sum(training_weights))
+    w_pos = settings['w_pos']
+    w_neg = 1.00
+    w_total = w_pos + w_neg
+    w_pos = 2.00 * (w_pos / w_total)
+    w_neg = 2.00 * (w_neg / w_total)
+    pos_ind = data['Y'].flatten() == 1
+    training_weights[pos_ind] *= w_pos
+    training_weights[~pos_ind] *= w_neg
+
+    # trade-off parameter
+    c0_value = lcpa_settings['c0_value']
+    C_0 = np.array(constraints['coef_set'].C_0j)
+    L0_reg_ind = np.isnan(C_0)
+    C_0[L0_reg_ind] = c0_value
+    C_0_nnz = C_0[L0_reg_ind]
+
+    # constraints
+    rho_lb = np.array(constraints['coef_set'].lb)
+    rho_ub = np.array(constraints['coef_set'].ub)
+    L0_min = constraints['L0_min']
+    L0_max = constraints['L0_max']
+
+
+    # get handles for loss functions
+    (compute_loss,
+     compute_loss_cut,
+     compute_loss_from_scores,
+     compute_loss_real,
+     compute_loss_cut_real,
+     compute_loss_from_scores_real) = load_loss_functions(Z,
+                                                          sample_weights = training_weights,
+                                                          loss_computation = settings['loss_computation'],
+                                                          rho_ub=constraints['coef_set'].ub,
+                                                          rho_lb=constraints['coef_set'].lb,
+                                                          L0_reg_ind=np.isnan(constraints['coef_set'].C_0j),
+                                                          L0_max=constraints['L0_max'])
+
+    # setup function handles for key functions
+    def get_L0_norm(rho):
+        return np.count_nonzero(rho[L0_reg_ind])
+
+    def is_feasible(rho, lb=rho_lb, ub=rho_ub, L0_min=L0_min, L0_max=L0_max):
+        return np.all(ub >= rho) and np.all(lb <= rho) and (L0_min <= np.count_nonzero(rho[L0_reg_ind]) <= L0_max)
+
+    def get_L0_penalty(rho):
+        return np.sum(C_0_nnz * (rho[L0_reg_ind] != 0.0))
+
+    def get_objval(rho):
+        return compute_loss(rho) + np.sum(C_0_nnz * (rho[L0_reg_ind] != 0.0))
+
+    def get_alpha(rho):
+        return np.array(abs(rho[L0_reg_ind]) > 0.0, dtype=np.float_)
+
+    def get_L0_penalty_from_alpha(alpha):
+        return np.sum(C_0_nnz * alpha)
+
+    def get_L0_range_of_rounded_solution(rho):
+        abs_rho = abs(rho)
+        rounded_L0_min = get_L0_norm(np.floor(abs_rho))
+        rounded_L0_max = get_L0_norm(np.ceil(abs_rho))
+        return rounded_L0_min, rounded_L0_max
+
+    # compute bounds on objective value
+    bounds = {
+        'loss_min': 0.0,
+        'loss_max': CPX_INFINITY,
+        'objval_min': 0.0,
+        'objval_max': CPX_INFINITY,
+        'L0_min': constraints['L0_min'],
+        'L0_max': constraints['L0_max'],
+    }
+    bounds['loss_min'], bounds['loss_max'] = get_loss_bounds(Z, rho_ub, rho_lb, L0_reg_ind, L0_max)
+
+    #initialize
+    initial_pool = SolutionPool(P)
+    initial_cuts = None
+
+    # check if trivial solution is feasible, if so add it to the pool and update bounds
+    trivial_solution = np.zeros(P)
+    if is_feasible(trivial_solution):
+        trivial_objval = compute_loss(trivial_solution)
+        bounds['objval_max'] = min(bounds['objval_max'], trivial_objval)
+        bounds['loss_max'] = min(bounds['loss_max'], trivial_objval)
+        bounds = chained_updates(bounds, C_0_nnz)
+        initial_pool = initial_pool.add(objvals=trivial_objval, solutions=trivial_solution)
+
+    # setup risk_slim_lp and risk_slim_mip parameters
+    risk_slim_settings = {
+        'C_0': c0_value,
+        'coef_set': constraints['coef_set'],
+        'tight_formulation': lcpa_settings['tight_formulation'],
+        'include_auxillary_variable_for_L0_norm': lcpa_settings['chained_updates_flag'],
+        'include_auxillary_variable_for_objval': lcpa_settings['chained_updates_flag'],
+    }
+    risk_slim_settings.update(bounds)
+
+    # run initialization procedure
+    if lcpa_settings['initialization_flag']:
+        initial_pool, initial_cuts, initial_bounds = initialize_lattice_cpa(risk_slim_settings, warmstart_settings, cplex_parameters, bounds)
+        bounds.update(initial_bounds)
+        risk_slim_settings.update(initial_bounds)
+
+    # create risk_slim mip
+    risk_slim_mip, risk_slim_indices = create_risk_slim(risk_slim_settings)
+    risk_slim_indices['C_0_nnz'] = C_0_nnz
+    risk_slim_indices['L0_reg_ind'] = L0_reg_ind
+
+    # mip
+    mip_objects = {
+        'mip': risk_slim_mip,
+        'indices':risk_slim_indices,
+        'bounds': bounds,
+        'initial_pool': initial_pool,
+        'initial_cuts': initial_cuts,
+        }
+
+    return mip_objects
+
+
+def finish_lattice_cpa(data, constraints, mip_objects, settings=DEFAULT_LCPA_SETTINGS):
+    """
+
+    Parameters
+    ----------
+    data, dict containing training data should pass check_data
+    constraints, dict containing 'L0_min, L0_max, CoefficientSet'
+    settings
+    mip_objects output of setup_risk_slim
+    
+    Returns
+    ------- 
+
+    """
+
+    global Z, C_0, C_0_nnz, L0_reg_ind, rho_lb, rho_ub
+    global compute_loss, compute_loss_cut, compute_loss_from_scores
+    global compute_loss_real, compute_loss_cut_real, compute_loss_from_scores_real
+    global get_L0_norm, get_L0_penalty, get_alpha, get_L0_penalty_from_alpha, get_L0_range_of_rounded_solution
+    global get_objval, is_feasible
+
+    # todo fix initialization procedure
+    settings = dict(settings) if settings is not None else dict()
+    settings = {key: settings[key] if key in settings else DEFAULT_LCPA_SETTINGS[key] for key in DEFAULT_LCPA_SETTINGS}
+
+    # separate settings into more manageable objects
+    cplex_parameters = {key.lstrip('cplex_'): settings[key] for key in settings if key.startswith('cplex_')}
+    lcpa_settings = {key: settings[key] for key in settings if settings if
+                     not (key.startswith('init_') or key.startswith('cplex_'))}
+
+    # data
+    N, P = data['X'].shape
+    Z = data['X'] * data['Y']
+
+    # unpack variables from setup_risk_slim
+    risk_slim_mip = mip_objects['mip']
+    indices = mip_objects['indices']
+    bounds = mip_objects['bounds']
+    initial_pool = mip_objects['initial_pool']
+    initial_cuts = mip_objects['initial_cuts']
+
+    # sample weights and case weights
+    training_weights = data['sample_weights'].flatten()
+    training_weights = len(training_weights) * (training_weights / sum(training_weights))
+    w_pos = settings['w_pos']
+    w_neg = 1.00
+    w_total = w_pos + w_neg
+    w_pos = 2.00 * (w_pos / w_total)
+    w_neg = 2.00 * (w_neg / w_total)
+    pos_ind = data['Y'].flatten() == 1
+    training_weights[pos_ind] *= w_pos
+    training_weights[~pos_ind] *= w_neg
+
+    # trade-off parameter
+    c0_value = lcpa_settings['c0_value']
+    C_0 = np.array(constraints['coef_set'].C_0j)
+    L0_reg_ind = np.isnan(C_0)
+    C_0[L0_reg_ind] = c0_value
+    C_0_nnz = C_0[L0_reg_ind]
+
+    # constraints
+    rho_lb = np.array(constraints['coef_set'].lb)
+    rho_ub = np.array(constraints['coef_set'].ub)
+    L0_min = max(bounds['L0_min'], constraints['L0_min'])
+    L0_max = min(bounds['L0_max'], constraints['L0_max'])
+
+    # get handles for loss functions
+    (compute_loss,
+     compute_loss_cut,
+     compute_loss_from_scores,
+     compute_loss_real,
+     compute_loss_cut_real,
+     compute_loss_from_scores_real) = load_loss_functions(Z,
+                                                          sample_weights = training_weights,
+                                                          loss_computation = settings['loss_computation'],
+                                                          rho_ub = constraints['coef_set'].ub,
+                                                          rho_lb = constraints['coef_set'].lb,
+                                                          L0_reg_ind = np.isnan(constraints['coef_set'].C_0j),
+                                                          L0_max = constraints['L0_max'])
+
+    # setup function handles for key functions
+    def get_L0_norm(rho):
+        return np.count_nonzero(rho[L0_reg_ind])
+
+    def is_feasible(rho, lb = rho_lb, ub = rho_ub, L0_min = L0_min, L0_max = L0_max):
+        return np.all(ub >= rho) and np.all(lb <= rho) and (L0_min <= np.count_nonzero(rho[L0_reg_ind]) <= L0_max)
+
+    def get_L0_penalty(rho):
+        return np.sum(C_0_nnz * (rho[L0_reg_ind] != 0.0))
+
+    def get_objval(rho):
+        return compute_loss(rho) + np.sum(C_0_nnz * (rho[L0_reg_ind] != 0.0))
+
+    def get_alpha(rho):
+        return np.array(abs(rho[L0_reg_ind]) > 0.0, dtype = np.float_)
+
+    def get_L0_penalty_from_alpha(alpha):
+        return np.sum(C_0_nnz * alpha)
+
+    def get_L0_range_of_rounded_solution(rho):
+        abs_rho = abs(rho)
+        rounded_L0_min = get_L0_norm(np.floor(abs_rho))
+        rounded_L0_max = get_L0_norm(np.ceil(abs_rho))
+        return rounded_L0_min, rounded_L0_max
+
+    risk_slim_mip = set_cplex_mip_parameters(risk_slim_mip,
+                                             cplex_parameters,
+                                             display_cplex_progress=lcpa_settings['display_cplex_progress'])
+
+    risk_slim_mip.parameters.timelimit.set(lcpa_settings['max_runtime'])
+
+    # setup callback functions
+    control = {
+        'incumbent': np.nan * np.zeros(P),
+        'upperbound': float('Inf'),
+        'bounds': dict(bounds),
+        'lowerbound': 0.0,
+        'relative_gap': float('Inf'),
+        'nodes_processed': 0,
+        'nodes_remaining': 0,
+        #
+        'start_time': float('nan'),
+        'total_run_time': 0.0,
+        'total_cut_time': 0.0,
+        'total_polish_time': 0.0,
+        'total_round_time': 0.0,
+        'total_round_then_polish_time': 0.0,
+        #
+        'cut_callback_times_called': 0,
+        'total_cut_callback_time': 0.00,
+        'heuristic_callback_times_called': 0,
+        'total_heuristic_callback_time': 0.00,
+        #
+        # number of times solutions were updates
+        'n_incumbent_updates': 0,
+        'n_heuristic_updates': 0,
+        'n_cuts': 0,
+        'n_polished': 0,
+        'n_rounded': 0,
+        'n_rounded_then_polished': 0,
+        #
+        # total # of bound updates
+        'n_update_bounds_calls': 0,
+        'n_bound_updates': 0,
+        'n_bound_updates_loss_min': 0,
+        'n_bound_updates_loss_max': 0,
+        'n_bound_updates_L0_min': 0,
+        'n_bound_updates_L0_max': 0,
+        'n_bound_updates_objval_min': 0,
+        'n_bound_updates_objval_max': 0,
+    }
+
+    lcpa_cut_queue = SolutionQueue(P)
+    lcpa_polish_queue = SolutionQueue(P)
+    heuristic_flag = lcpa_settings['round_flag'] or lcpa_settings['polish_flag']
+    if heuristic_flag:
+
+        loss_cb = risk_slim_mip.register_callback(LossCallback)
+        loss_cb.initialize(indices = indices,
+                           control = control,
+                           settings = lcpa_settings,
+                           initial_cuts=initial_cuts,
+                           cut_queue = lcpa_cut_queue,
+                           polish_queue = lcpa_polish_queue)
+
+        def heuristic_dcd(rho):
+            return(discrete_descent(rho, Z, C_0, rho_ub, rho_lb))
+
+        def heuristic_seqrd(rho, cutoff):
+            return(sequential_rounding(rho, Z, C_0, cutoff))
+
+        heuristic_cb = risk_slim_mip.register_callback(PolishAndRoundCallback)
+        heuristic_cb.initialize(indices = indices,
+                                control = control,
+                                settings = lcpa_settings,
+                                cut_queue = lcpa_cut_queue,
+                                polish_queue = lcpa_polish_queue,
+                                dcd_polishing = heuristic_dcd,
+                                sequential_rounding = heuristic_seqrd)
+    else:
+        loss_cb = risk_slim_mip.register_callback(LossCallback)
+        loss_cb.initialize(indices = indices,
+                           control= control,
+                           settings=lcpa_settings,
+                           initial_cuts=initial_cuts)
+
+    # attach solution pool
+    if len(initial_pool) > 0:
+        if lcpa_settings['polish_flag']: # initializing via the polish_queue is preferable since the CPLEX MIP start interface is finicky
+            lcpa_polish_queue.add(initial_pool.objvals[0], initial_pool.solutions[0])
+        else:
+            risk_slim_mip = add_mip_starts(risk_slim_mip, indices, initial_pool, mip_start_effort_level=risk_slim_mip.MIP_starts.effort_level.repair)
+
+        if lcpa_settings['add_cuts_at_heuristic_solutions'] and len(initial_pool) > 1:
+            lcpa_cut_queue.add(initial_pool.objvals[1:], initial_pool.solutions[1:])
+
+    # solve using lcpa
+    control['start_time'] = time.time()
+    risk_slim_mip.solve()
+    control['total_run_time'] = time.time() - control['start_time']
+    control['cplex_status'] = risk_slim_mip.solution.get_status_string()
+
+    # Results
+    incumbent_update_at_termination = False
+    try:
+        # record the state at the end again since CPLEX may have run for a bit after last callback
+        control['found_solution'] = True
+        control['upperbound'] = risk_slim_mip.solution.get_objective_value()
+        control['lowerbound'] = risk_slim_mip.solution.MIP.get_best_objective()
+        try:
+            control['relative_gap'] = risk_slim_mip.solution.MIP.get_mip_relative_gap()
+        except Exception:
+            control['relative_gap'] = (control['upperbound'] - control['lowerbound']) / (
+                control['upperbound'] + np.finfo('float').eps)
+
+        incumbent_at_termination = np.array(risk_slim_mip.solution.get_values(indices['rho']))
+        incumbent_update_at_termination = not np.array_equal(incumbent_at_termination, control['incumbent'])
+        if incumbent_update_at_termination:
+            control['incumbent'] = incumbent_at_termination
+    except CplexError:
+        control['found_solution'] = False
+
+    # get stop reason
+    control.pop('start_time')
+    control['total_data_time'] = control['total_cut_time'] + control['total_polish_time'] + control['total_round_time'] + control['total_round_then_polish_time']
+    control['total_callback_time'] = control['total_cut_callback_time'] + control['total_heuristic_callback_time']
+    control['total_solver_time'] = control['total_run_time'] - control['total_callback_time']
+
+    # General Output
+    if control['found_solution']:
+        model_info = {
+            'solution': control['incumbent'],
+            'optimality_gap': control['relative_gap'],
+            'loss_value': compute_loss(control['incumbent']),
+            'objective_value':get_objval(control['incumbent']),
+        }
+    else:
+        model_info = {
+            'solution': np.nan * np.zeros(P),
+            'optimality_gap': float('inf'),
+            'loss_value': float('inf'),
+            'objective_value': float('inf')
+        }
+
+    model_info.update({
+        # lcpa runtime statistics
+        'nodes_processed': control['nodes_processed'],
+        'run_time': control['total_run_time'],
+        'solver_time': control['total_solver_time'],
+        'callback_time': control['total_callback_time'],
+        'data_time': control['total_data_time'],
+        #
+        # details about instance
+        'c0_value': c0_value,
+        'w_pos': w_pos,
+    })
+
+    model_info.update(constraints)
+
+    # MIP object
+    mip_info = {'risk_slim_mip': risk_slim_mip,
+                'risk_slim_idx': indices}
+
+    # LCPA
+    lcpa_info = dict(control)
+    lcpa_info['bounds'] = dict(bounds)
+    lcpa_info['settings'] = dict(settings)
+
+    return model_info, mip_info, lcpa_info
+
+
 class LossCallback(LazyConstraintCallback):
     """
     This callback has to be initialized after construction using the initialize() method.
@@ -814,6 +1241,7 @@ def create_risk_slim(input):
     input = update_parameter('relax_integer_variables', False)
     input = update_parameter('tight_formulation', False)
     input = update_parameter('set_cplex_cutoffs', True)
+    input = update_parameter('drop_variables', False)
 
     w_pos, w_neg = input['w_pos'], input['w_neg']
     C_0j = np.copy(input['coef_set'].C_0j)
@@ -862,8 +1290,6 @@ def create_risk_slim(input):
     include_auxillary_variable_for_objval = input[
                                                 'include_auxillary_variable_for_objval'] or nontrivial_objval_min or nontrivial_objval_max
 
-    # tight formulation flag
-    tight_formulation = input['tight_formulation']
 
     # %min w_pos*loss_pos + w_neg *loss_minus + 0*rho_j + C_0j*alpha_j
     # %s.t.
@@ -881,7 +1307,8 @@ def create_risk_slim(input):
     # objval = w_pos * loss_pos + w_neg * loss_min + sum(C_0j * alpha_j) (required for callback)
     # L0_norm = sum(alpha_j) (required for callback)
 
-    # if tight formulation, add
+
+    # if tight formulation, add input['tight_formulation']
     # sigma_j in B for j s.t. lambda_j has free sign and alpha_j exists
     # lambda_j >= delta_pos_j if alpha_j = 1 and sigma_j = 1
     # lambda_j <= -delta_neg_j if alpha_j = 1 and sigma_j = 0
@@ -993,7 +1420,7 @@ def create_risk_slim(input):
                                    names=constraint_name)
 
     # Tighter Formulation
-    if tight_formulation:
+    if input['tight_formulation']:
         assert (all(input['coef_set'].vtype == 'I'))
         sigma_obj = [0.0] * P
         sigma_ub = [1.0] * P
@@ -1039,101 +1466,105 @@ def create_risk_slim(input):
                                        names=constraint_name)
 
     dropped_variables = []
-    sign_pos_ind = np.where(input['coef_set'].sign > 0)[0].tolist()
-    sign_neg_ind = np.where(input['coef_set'].sign < 0)[0].tolist()
-    fixed_value_ind = np.where(input['coef_set'].ub == input['coef_set'].lb)[0].tolist()
 
     # drop L0_norm_lb constraint for any variable with rho_lb >= 0
-    constraints_to_drop = ["L0_norm_lb_" + str(j) for j in sign_pos_ind]
-    mip.linear_constraints.delete(constraints_to_drop)
+    if input['drop_variables']:
 
-    # drop L0_norm_ub constraint for any variable with rho_ub >= 0
-    constraints_to_drop = ["L0_norm_ub_" + str(j) for j in sign_neg_ind]
-    mip.linear_constraints.delete(constraints_to_drop)
+        sign_pos_ind = np.where(input['coef_set'].sign > 0)[0].tolist()
+        sign_neg_ind = np.where(input['coef_set'].sign < 0)[0].tolist()
+        fixed_value_ind = np.where(input['coef_set'].ub == input['coef_set'].lb)[0].tolist()
 
-    # drop alpha for any variable where rho_ub = rho_lb = 0
-    variables_to_drop = ["alpha_" + str(j) for j in fixed_value_ind]
-    mip.variables.delete(variables_to_drop)
-    dropped_variables += variables_to_drop
-    alpha_names = [alpha_names[j] for j in range(0, P) if alpha_names[j] not in dropped_variables]
-
-    # drop alpha, L0_norm_ub and L0_norm_lb for ('Intercept')
-    try:
-        offset_idx = input['coef_set'].get_field_as_list('variable_names').index('(Intercept)')
-        variables_to_drop = ['alpha_' + str(offset_idx)]
-        mip.variables.delete(variables_to_drop)
-        alpha_names.pop(alpha_names.index('alpha_' + str(offset_idx)))
-        dropped_variables += ['alpha_' + str(offset_idx)]
-        print_from_function("dropped L0 variable for intercept variable")
-    except CplexError:
-        pass
-
-    try:
-        offset_idx = input['coef_set'].get_field_as_list('variable_names').index('(Intercept)')
-        mip.linear_constraints.delete(["L0_norm_lb_" + str(offset_idx),
-                                       "L0_norm_ub_" + str(offset_idx)])
-        print_from_function("dropped L0 constraints for intercept variable")
-    except CplexError:
-        pass
-
-    # drop variables that were added for a tighter formulation
-    if tight_formulation:
-        dropped_alphas = [j for j in range(0, P) if ("alpha_" + str(j)) in dropped_variables]
-
-        # drop min_neg_value_when_L0_on_j for any variable with rho_lb >= 0 or that does not have alpha[j]
-        drop_ind = list(set(sign_pos_ind + dropped_alphas))
-        constraints_to_drop = ["min_neg_value_when_L0_on_" + str(j) for j in drop_ind]
+        constraints_to_drop = ["L0_norm_lb_" + str(j) for j in sign_pos_ind]
         mip.linear_constraints.delete(constraints_to_drop)
 
-        # drop min_pos_value_when_L0_on_j constraint for any variable with rho_ub >= 0 or that does not have alpha[j]
-        drop_ind = list(set(sign_neg_ind + dropped_alphas))
-        constraints_to_drop = ["min_pos_value_when_L0_on_" + str(j) for j in drop_ind]
+        # drop L0_norm_ub constraint for any variable with rho_ub >= 0
+        constraints_to_drop = ["L0_norm_ub_" + str(j) for j in sign_neg_ind]
         mip.linear_constraints.delete(constraints_to_drop)
 
-        # drop sigma_j for any variable with fixed sign or that does not have alpha[j]
-        sigma_to_drop_ind = list(set(sign_pos_ind + sign_neg_ind + dropped_alphas))
-        variables_to_drop = ["sigma_" + str(j) for j in sigma_to_drop_ind]
+        # drop alpha for any variable where rho_ub = rho_lb = 0
+        variables_to_drop = ["alpha_" + str(j) for j in fixed_value_ind]
         mip.variables.delete(variables_to_drop)
         dropped_variables += variables_to_drop
-        sigma_names = [sigma_names[j] for j in range(0, P) if sigma_names[j] not in dropped_variables]
+        alpha_names = [alpha_names[j] for j in range(0, P) if alpha_names[j] not in dropped_variables]
 
-        # for variables with sign[j] > 0 where alpha exists, add constraint again
-        # lambda[j] >= delta_pos * alpha[j]
-        # lambda[j] - delta_pos[j] * alpha[j] >= 0
-        add_pos_con_ind_ = [j for j in range(0, P) if
-                            j in sign_pos_ind and
-                            ("sigma_" + str(j)) in dropped_variables
-                            ("alpha_" + str(j)) not in dropped_variables]
+        # drop alpha, L0_norm_ub and L0_norm_lb for ('Intercept')
+        try:
+            offset_idx = input['coef_set'].get_field_as_list('variable_names').index('(Intercept)')
+            variables_to_drop = ['alpha_' + str(offset_idx)]
+            mip.variables.delete(variables_to_drop)
+            alpha_names.pop(alpha_names.index('alpha_' + str(offset_idx)))
+            dropped_variables += ['alpha_' + str(offset_idx)]
+            print_from_function("dropped L0 variable for intercept variable")
+        except CplexError:
+            pass
 
-        for j in add_pos_con_ind_:
-            constraint_name = ["min_pos_value_when_L0_on_" + str(j)]
-            constraint_expr = [cplex.SparsePair(ind=[rho_names[j], alpha_names[j]],
-                                                val=[1.0, -delta_pos[j]])]
-            constraint_rhs = [0.0]
-            constraint_sense = "G"
-            mip.linear_constraints.add(lin_expr=constraint_expr,
-                                       senses=constraint_sense,
-                                       rhs=constraint_rhs,
-                                       names=constraint_name)
+        try:
+            offset_idx = input['coef_set'].get_field_as_list('variable_names').index('(Intercept)')
+            mip.linear_constraints.delete(["L0_norm_lb_" + str(offset_idx),
+                                           "L0_norm_ub_" + str(offset_idx)])
+            print_from_function("dropped L0 constraints for intercept variable")
+        except CplexError:
+            pass
 
-        # for variables with sign[j] < 0 where alpha exists, add constraint again
-        # lambda[j] <= -delta_neg[j] * alpha[j]
-        # -lambda[j] - delta_neg[j] * alpha[j] >= 0
-        add_neg_con_ind_ = [j for j in range(0, P) if
-                            j in sign_neg_ind and
-                            ("sigma_" + str(j)) in dropped_variables
-                            ("alpha_" + str(j)) not in dropped_variables]
+        # drop variables that were added for a tighter formulation
+        if input['tight_formulation']:
 
-        for j in add_neg_con_ind_:
-            constraint_name = ["min_neg_value_when_L0_on_" + str(j)]
-            constraint_expr = [cplex.SparsePair(ind=[rho_names[j], alpha_names[j]],
-                                                val=[-1.0, -delta_neg[j]])]
-            constraint_rhs = [0.0]
-            constraint_sense = "G"
-            mip.linear_constraints.add(lin_expr=constraint_expr,
-                                       senses=constraint_sense,
-                                       rhs=constraint_rhs,
-                                       names=constraint_name)
+            dropped_alphas = [j for j in range(0, P) if ("alpha_" + str(j)) in dropped_variables]
+
+            # drop min_neg_value_when_L0_on_j for any variable with rho_lb >= 0 or that does not have alpha[j]
+            drop_ind = list(set(sign_pos_ind + dropped_alphas))
+            constraints_to_drop = ["min_neg_value_when_L0_on_" + str(j) for j in drop_ind]
+            mip.linear_constraints.delete(constraints_to_drop)
+
+            # drop min_pos_value_when_L0_on_j constraint for any variable with rho_ub >= 0 or that does not have alpha[j]
+            drop_ind = list(set(sign_neg_ind + dropped_alphas))
+            constraints_to_drop = ["min_pos_value_when_L0_on_" + str(j) for j in drop_ind]
+            mip.linear_constraints.delete(constraints_to_drop)
+
+            # drop sigma_j for any variable with fixed sign or that does not have alpha[j]
+            sigma_to_drop_ind = list(set(sign_pos_ind + sign_neg_ind + dropped_alphas))
+            variables_to_drop = ["sigma_" + str(j) for j in sigma_to_drop_ind]
+            mip.variables.delete(variables_to_drop)
+            dropped_variables += variables_to_drop
+            sigma_names = [sigma_names[j] for j in range(0, P) if sigma_names[j] not in dropped_variables]
+
+            # for variables with sign[j] > 0 where alpha exists, add constraint again
+            # lambda[j] >= delta_pos * alpha[j]
+            # lambda[j] - delta_pos[j] * alpha[j] >= 0
+            add_pos_con_ind_ = [j for j in range(0, P) if
+                                j in sign_pos_ind and
+                                ("sigma_" + str(j)) in dropped_variables
+                                ("alpha_" + str(j)) not in dropped_variables]
+
+            for j in add_pos_con_ind_:
+                constraint_name = ["min_pos_value_when_L0_on_" + str(j)]
+                constraint_expr = [cplex.SparsePair(ind=[rho_names[j], alpha_names[j]],
+                                                    val=[1.0, -delta_pos[j]])]
+                constraint_rhs = [0.0]
+                constraint_sense = "G"
+                mip.linear_constraints.add(lin_expr=constraint_expr,
+                                           senses=constraint_sense,
+                                           rhs=constraint_rhs,
+                                           names=constraint_name)
+
+            # for variables with sign[j] < 0 where alpha exists, add constraint again
+            # lambda[j] <= -delta_neg[j] * alpha[j]
+            # -lambda[j] - delta_neg[j] * alpha[j] >= 0
+            add_neg_con_ind_ = [j for j in range(0, P) if
+                                j in sign_neg_ind and
+                                ("sigma_" + str(j)) in dropped_variables
+                                ("alpha_" + str(j)) not in dropped_variables]
+
+            for j in add_neg_con_ind_:
+                constraint_name = ["min_neg_value_when_L0_on_" + str(j)]
+                constraint_expr = [cplex.SparsePair(ind=[rho_names[j], alpha_names[j]],
+                                                    val=[-1.0, -delta_neg[j]])]
+                constraint_rhs = [0.0]
+                constraint_sense = "G"
+                mip.linear_constraints.add(lin_expr=constraint_expr,
+                                           senses=constraint_sense,
+                                           rhs=constraint_rhs,
+                                           names=constraint_name)
 
     rho_idx = mip.variables.get_indices(rho_names)
     alpha_idx = mip.variables.get_indices(alpha_names)
@@ -1167,7 +1598,7 @@ def create_risk_slim(input):
         indices['L0_norm'] = mip.variables.get_indices("L0_norm")
         indices['L0_norm_name'] = L0_norm_auxillary_name
 
-    if tight_formulation:
+    if input['tight_formulation']:
         indices["sigma"] = mip.variables.get_indices(sigma_names)
         indices["sigma_names"] = sigma_names
 

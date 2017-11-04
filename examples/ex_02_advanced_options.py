@@ -107,9 +107,6 @@ settings = {
 # train model using lattice_cpa
 model_info, mip_info, lcpa_info = run_lattice_cpa(data, constraints, settings)
 
-# train model using lattice_cpa
-model_info, mip_info, lcpa_info = run_lattice_cpa(data, constraints, settings)
-
 #model info contains key results
 pprint(model_info)
 print_model(model_info['solution'], data)

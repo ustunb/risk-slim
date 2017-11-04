@@ -1,9 +1,10 @@
 import os
 import numpy as np
+import cplex as cplex
 from pprint import pprint
 from riskslim.helper_functions import load_data_from_csv, print_model
 from riskslim.CoefficientSet import CoefficientSet
-from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa
+from riskslim.lattice_cpa import get_conservative_offset, setup_lattice_cpa, finish_lattice_cpa
 
 # data
 data_name = "breastcancer"                                  # name of the data
@@ -52,7 +53,10 @@ settings = {
     'max_tolerance': np.finfo('float').eps,             # tolerance to stop LCPA (set to 0 to return provably optimal solution)
     'display_cplex_progress': True,                     # print CPLEX progress on screen
     'loss_computation': 'normal',                       # how to compute the loss function ('normal','fast','lookup')
-    'tight_formulation': True,                          # use a slightly formulation of surrogate MIP that provides a slightly improved formulation
+    #
+    # RiskSLIM MIP settings
+    'drop_variables': False,
+    'tight_formulation': False,                          # use a slightly formulation of surrogate MIP that provides a slightly improved formulation
     #
     # LCPA Improvements
     'round_flag': False,                                # round continuous solutions with SeqRd
@@ -67,8 +71,35 @@ settings = {
     'cplex_mipemphasis': 0,                             # cplex MIP strategy
 }
 
-# train model using lattice_cpa
-model_info, mip_info, lcpa_info = run_lattice_cpa(data, constraints, settings)
+# turn on at your own risk
+settings['round_flag'] = False
+settings['polish_flag'] = False
+settings['chained_updates_flag'] = False
+settings['initialization_flag'] = False
+
+
+# initialize MIP for lattice CPA
+mip_objects = setup_lattice_cpa(data, constraints, settings)
+
+# add constraints
+mip, indices = mip_objects['mip'], mip_objects['indices']
+get_alpha_name = lambda var_name: 'alpha_' + str(data['variable_names'].index(var_name))
+get_alpha_ind = lambda var_names: [get_alpha_name(v) for v in var_names]
+
+# Either "CellSize" or "CellShape"
+# need to add constraint: alpha[cell_size] + alpha[cell_shape] <= 1 to MIP
+mip.linear_constraints.add(
+        names = ["EitherOr_CellSize_or_CellShape"],
+        lin_expr = [cplex.SparsePair(ind = get_alpha_ind(['UniformityOfCellSize', 'UniformityOfCellShape']),
+                                     val = [1.0, 1.0])],
+        senses = "L",
+        rhs = [1.0])
+
+
+mip_objects['mip'] = mip
+
+# pass MIP back to lattice CPA so that it will solve
+model_info, mip_info, lcpa_info = finish_lattice_cpa(data, constraints, mip_objects, settings)
 
 #model info contains key results
 pprint(model_info)

@@ -147,7 +147,7 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
                                     see /datasets/adult_data.csv for an example
                                     training data stored as a table with N+1 rows and d+1 columns
                                     column 1 is the outcome variable entries must be (-1,1) or (0,1)
-                                    column 2 to d+1 are the d outcome variables
+                                    column 2 to d+1 are the d input variables
                                     row 1 contains unique names for the outcome variable, and the input vairable
 
     sample_weights_csv_file         csv file containing sample weights for the training data
