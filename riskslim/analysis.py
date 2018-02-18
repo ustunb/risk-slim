@@ -5,29 +5,46 @@ import warnings
 def get_prediction(x, rho):
     return np.sign(x.dot(rho))
 
-
 def get_true_positives_from_pred(yhat, pos_ind):
     return np.sum(yhat[pos_ind] == 1)
-
 
 def get_false_positives_from_pred(yhat, pos_ind):
     return np.sum(yhat[~pos_ind] == 1)
 
-
 def get_true_negatives_from_pred(yhat, pos_ind):
     return np.sum(yhat[~pos_ind] != 1)
-
 
 def get_false_negatives_from_pred(yhat, pos_ind):
     return np.sum(yhat[pos_ind] != 1)
 
+def get_tpr_from_pred(yhat, pos_ind):
+    return(np.sum(yhat[pos_ind] == 1) / np.sum(yhat == 1))
+
+def get_fpr_from_pred(yhat, pos_ind):
+    return(np.sum(yhat[~pos_ind] == 1) / np.sum(pos_ind))
+
+def get_error_rate_from_pred(yhat, pos_ind):
+    return((np.sum(yhat[~pos_ind] == 1) + np.sum(yhat[pos_ind] != 1)) / len(yhat))
+
 
 def get_accuracy_stats(model, data, error_checking=True):
+    """
+    Parameters
+    ----------
+    model - (np.array) model_info['solution']
+    Returns
+    -------
+    """
     accuracy_stats = {
         'train_true_positives': np.nan,
         'train_true_negatives': np.nan,
         'train_false_positives': np.nan,
         'train_false_negatives': np.nan,
+        ## new
+        'train_error_rate': np.nan,
+        'train_true_positive_rate': np.nan,
+        'train_false_positive_rate': np.nan,
+        ###
         'valid_true_positives': np.nan,
         'valid_true_negatives': np.nan,
         'valid_false_positives': np.nan,
@@ -51,6 +68,11 @@ def get_accuracy_stats(model, data, error_checking=True):
     accuracy_stats[data_prefix + '_' + 'true_negatives'] = get_true_negatives_from_pred(Yhat, pos_ind)
     accuracy_stats[data_prefix + '_' + 'false_positives'] = get_false_positives_from_pred(Yhat, pos_ind)
     accuracy_stats[data_prefix + '_' + 'false_negatives'] = get_false_negatives_from_pred(Yhat, pos_ind)
+
+    accuracy_stats[data_prefix + '_' + 'error_rate'] = get_error_rate_from_pred(Yhat, pos_ind)
+    accuracy_stats[data_prefix + '_' + 'true_positive_rate'] = get_tpr_from_pred(Yhat, pos_ind)
+    accuracy_stats[data_prefix + '_' + 'false_positive_rate'] = get_fpr_from_pred(Yhat, pos_ind)
+
 
     if error_checking:
         N_check = (accuracy_stats[data_prefix + '_' + 'true_positives'] +
@@ -385,4 +407,3 @@ def auc(x, y, reorder=False):
         # regular numpy.ndarray instances.
         area = area.dtype.type(area)
     return area
-

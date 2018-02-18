@@ -94,7 +94,7 @@ class CoefficientSet(object):
 
             if self.ub[i] < self.lb[i]:
                 if self.print_flag:
-                    print "fixed issue: ub < lb for variable %s" % self.variable_names[i]
+                    print("fixed issue: ub < lb for variable {}".format(self.variable_names[i]))
                 ub = ub[i]
                 lb = lb[i]
                 self.ub[i] = lb
@@ -109,10 +109,10 @@ class CoefficientSet(object):
             if self.variable_names[i] in {'Intercept','(Intercept)', 'intercept', '(intercept)'}:
                 if self.C_0j[i] > 0 or np.isnan(self.C_0j[i]):
                     if self.print_flag:
-                        print "found intercept variable with penalty value of C_0j = %1.4f" % self.C_0j[i]
+                        print("found intercept variable with penalty value of C_0j = {}".format(self.C_0j[i]))
                     if self.fix_flag:
                         if self.print_flag:
-                            print "setting C_0j for intercept to 0.0 to ensure that intercept is not penalized"
+                            print("setting C_0j for intercept to 0.0 to ensure that intercept is not penalized")
                         self.C_0j[i] = 0.0
 
     def get_field_as_nparray(self, field_name):
@@ -166,7 +166,7 @@ class CoefficientSet(object):
                 curr_values[self_ind] = field_values[user_ind]
             else:
                 if self.print_flag:
-                    print "warning: Lset object does not contain variable with name: %s" % variable_name
+                    print("warning: Lset object does not contain variable with name: {}".format(variable_name))
 
         if self.check_flag: self.check_set()
         if self.print_flag: self.view()
@@ -180,4 +180,4 @@ class CoefficientSet(object):
         x.add_column("lb", self.get_field_as_list('lb'))
         x.add_column("ub", self.get_field_as_list('ub'))
         x.add_column("C_0j", self.get_field_as_list('C_0j'))
-        print x
+        print(x)

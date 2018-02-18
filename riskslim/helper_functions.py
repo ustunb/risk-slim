@@ -7,7 +7,7 @@ import pandas as pd
 import prettytable as pt
 import logging
 #from .debugging import ipsh #only for debugging
-
+import time
 
 # PRINTING AND LOGGING
 def setup_logging(logger, log_to_console = True, log_file = None):
@@ -60,10 +60,7 @@ def print_log(msg, print_flag = True):
 
     """
     if print_flag:
-        if type(msg) is str:
-            print ('%s | ' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()))) + msg
-        else:
-            print '%s | %r' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()), msg)
+        print('{} | {}'.format(time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()), str(msg)))
         sys.stdout.flush()
 
 def get_rho_string(rho, vtypes='I'):
@@ -126,13 +123,13 @@ def get_or_set_default(settings, setting_name, default_value, type_check=False, 
             if user_type == default_type:
                 settings[setting_name] = default_value
             else:
-                print_log("type mismatch on %s: user provided type: %s and but expected type: %s" % (
+                print_log("type mismatch on {}: user provided type: {} and but expected type: {}".format(
                     setting_name, user_type, default_type), print_flag)
-                print_log("setting %s to its default value: %r" % (setting_name, default_value), print_flag)
+                print_log("setting {} to its default value: {}".format(setting_name, default_value), print_flag)
                 settings[setting_name] = default_value
                 # else: do nothing
     else:
-        print_log("setting %s to its default value: %r" % (setting_name, default_value), print_flag)
+        print_log("setting {} to its default value: {}".format(setting_name, default_value), print_flag)
         settings[setting_name] = default_value
 
     return settings
@@ -182,7 +179,7 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
     if os.path.isfile(dataset_csv_file):
         df = pd.read_csv(dataset_csv_file, sep=',')
     else:
-        raise IOError('could not find dataset_csv_file: %s' % dataset_csv_file)
+        raise IOError('could not find dataset_csv_file: {}'.format(dataset_csv_file))
 
     raw_data = df.as_matrix()
     data_headers = list(df.columns.values)
@@ -408,6 +405,3 @@ def cast_to_integer(rho):
     """
     original_type = rho.dtype
     return np.require(np.require(rho, dtype=np.int_), dtype=original_type)
-
-
-

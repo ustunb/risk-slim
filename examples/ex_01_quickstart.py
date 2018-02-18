@@ -4,10 +4,11 @@ from pprint import pprint
 from riskslim.helper_functions import load_data_from_csv, print_model
 from riskslim.CoefficientSet import CoefficientSet
 from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa
+from riskslim.analysis import get_accuracy_stats
 
 # data
 data_name = "breastcancer"                                  # name of the data
-data_dir = os.getcwd() + '/examples/data/'                  # directory where datasets are stored
+data_dir = os.getcwd() + '/data/'                  # directory where datasets are stored
 data_csv_file = data_dir + data_name + '_data.csv'          # csv file for the dataset
 sample_weights_csv_file = None                              # csv file of sample weights for the dataset (optional)
 
@@ -81,6 +82,14 @@ mip_info['risk_slim_idx'] #indices of the relevant constraints
 # lcpa_output contains detailed information about LCPA
 pprint(lcpa_info)
 
+# stats
+stats = get_accuracy_stats(model_info['solution'], data)
 
+print('error_rate: {:.2f}'.format(100*stats['train_error_rate']))
+print('TPR: {:.2f}'.format(100*stats['train_true_positive_rate']))
+print('FPR: {:.2f}'.format(100*stats['train_false_positive_rate']))
 
-
+print('true_positives: {:d}'.format(stats['train_true_positives']))
+print('false_positives: {:d}'.format(stats['train_false_positives']))
+print('true_negatives: {:d}'.format(stats['train_true_negatives']))
+print('false_negatives: {:d}'.format(stats['train_false_negatives']))
