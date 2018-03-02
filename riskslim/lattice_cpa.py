@@ -398,8 +398,8 @@ def setup_lattice_cpa(data, constraints, settings=DEFAULT_LCPA_SETTINGS):
 
     Returns
     -------
-    mip_objects 
-    
+    mip_objects
+
     """
     global Z, C_0, C_0_nnz, L0_reg_ind, rho_lb, rho_ub
     global compute_loss, compute_loss_cut, compute_loss_from_scores
@@ -552,9 +552,9 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings=DEFAULT_LCPA_SET
     constraints, dict containing 'L0_min, L0_max, CoefficientSet'
     settings
     mip_objects output of setup_risk_slim
-    
+
     Returns
-    ------- 
+    -------
 
     """
 
@@ -2273,7 +2273,7 @@ def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, descent_dimensions=None, print
             base_scores = Z.dot(rho)
 
             # remove the current best direction from the set of directions to explore
-            search_dimensions = descent_dimensions
+            search_dimensions = list(descent_dimensions) # modified for py3.5
             search_dimensions.remove(step_dim)
             n_iterations += 1
         else:

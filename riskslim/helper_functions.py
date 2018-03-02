@@ -232,6 +232,8 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
             if fold_num >= 1:
                 test_idx = fold_num == fold_idx
                 train_idx = fold_num != fold_idx
+                data['X_test'] = data['X'][test_idx,] # added this 2/25
+                data['Y_test'] = data['Y'][test_idx]
                 data['X'] = data['X'][train_idx,]
                 data['Y'] = data['Y'][train_idx]
                 data['sample_weights'] = data['sample_weights'][train_idx]

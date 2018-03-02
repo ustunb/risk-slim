@@ -99,6 +99,9 @@ def get_accuracy_stats(model, data, error_checking=True):
         accuracy_stats[data_prefix + '_' + 'false_positives'] = get_false_positives_from_pred(Yhat, pos_ind)
         accuracy_stats[data_prefix + '_' + 'false_negatives'] = get_false_negatives_from_pred(Yhat, pos_ind)
 
+        accuracy_stats[data_prefix + '_' + 'error_rate'] = get_error_rate_from_pred(Yhat, pos_ind)
+        accuracy_stats[data_prefix + '_' + 'true_positive_rate'] = get_tpr_from_pred(Yhat, pos_ind)
+        accuracy_stats[data_prefix + '_' + 'false_positive_rate'] = get_fpr_from_pred(Yhat, pos_ind)
         if error_checking:
             N_check = (accuracy_stats[data_prefix + '_' + 'true_positives'] +
                        accuracy_stats[data_prefix + '_' + 'true_negatives'] +
@@ -123,6 +126,10 @@ def get_accuracy_stats(model, data, error_checking=True):
         accuracy_stats[data_prefix + '_' + 'true_negatives'] = get_true_negatives_from_pred(Yhat, pos_ind)
         accuracy_stats[data_prefix + '_' + 'false_positives'] = get_false_positives_from_pred(Yhat, pos_ind)
         accuracy_stats[data_prefix + '_' + 'false_negatives'] = get_false_negatives_from_pred(Yhat, pos_ind)
+
+        accuracy_stats[data_prefix + '_' + 'error_rate'] = get_error_rate_from_pred(Yhat, pos_ind)
+        accuracy_stats[data_prefix + '_' + 'true_positive_rate'] = get_tpr_from_pred(Yhat, pos_ind)
+        accuracy_stats[data_prefix + '_' + 'false_positive_rate'] = get_fpr_from_pred(Yhat, pos_ind)
 
         if error_checking:
             N_check = (accuracy_stats[data_prefix + '_' + 'true_positives'] +
