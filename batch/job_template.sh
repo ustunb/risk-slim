@@ -26,7 +26,7 @@
 # The values can be changed directly using a text editor, or programmatically using a tool such as
 # `jq` https://stedolan.github.io/jq/
 
-#python train_risk_slim.py --data="/Volumes/healthcare/local_thesis_files/18_3_2_SLIMProcessedData.csv" --results="/Volumes/healthcare/thesis/LinearProgramming/2018_3_2/alldata_1" --timelimit=300
+#python train_risk_slim.py --data="/Volumes/healthcare/local_thesis_files/18_3_2_SLIMProcessedData.csv" --cvindices="/Volumes/healthcare/local_thesis_files/18_3_2_SLIMProcessedData_folds.csv" --results="/Volumes/healthcare/thesis/LinearProgramming/2018_03_03/alldata_fold1_results" --log="/Volumes/healthcare/thesis/LinearProgramming/2018_03_03/alldata_fold1_log" --w_pos=5 --timelimit=1800
 
 #directories
 repo_dir=$(pwd)
