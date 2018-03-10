@@ -193,7 +193,7 @@ if __name__ == '__main__':
     settings['max_runtime'] = float('inf') if parsed.timelimit == -1 else parsed.timelimit
     settings['c0_value'] = parsed.c0_value
     settings['w_pos'] = parsed.w_pos
-    settings["cplex_randomseed"] = 1
+    settings["cplex_randomseed"] = 5  # new
 
     # check if sample weights file was specified, if not set as None
     logger.info("loading data and sample weights")
@@ -250,7 +250,8 @@ if __name__ == '__main__':
         "results_file": parsed.results,
         "max_coef": max_coefficient,
         "max_model_size": max_model_size,
-        "max_runtime": settings['max_runtime']
+        "max_runtime": settings['max_runtime'],
+        "cplex_seed": settings["cplex_randomseed"]
     }
     results.update(model_info)
     results.update(stats)
