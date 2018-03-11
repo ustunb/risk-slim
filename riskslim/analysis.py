@@ -55,7 +55,7 @@ def get_accuracy_stats(model, data, error_checking=True):
         'test_false_negatives': np.nan,
     }
 
-    model = np.array(model).reshape(data['X'].shape[1], 1)
+    model = np.array(model).reshape(data['X'].shape[1], 1) # creates column of coefs
 
     # training set
     data_prefix = 'train'
@@ -171,7 +171,8 @@ def get_roc_metrics(model, data):
     pass
 
 # ROC Curve + AUC
-# adapted from scikit-learn/sklearn/metrics/ranking.py (did not want to import scikit-learn to reduce dependencies)
+# adapted from scikit-learn/sklearn/metrics/ranking.py
+#(did not want to import scikit-learn to reduce dependencies)
 def roc_curve(y_true, y_score, pos_label=None, sample_weight=None, drop_intermediate=True):
     """Compute Receiver operating characteristic (ROC)
     Note: this implementation is restricted to the binary classification task.

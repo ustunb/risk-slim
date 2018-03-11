@@ -5,10 +5,11 @@ from riskslim.helper_functions import load_data_from_csv, print_model
 from riskslim.CoefficientSet import CoefficientSet
 from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa
 from riskslim.analysis import get_accuracy_stats
+import pickle
 
 # data
 data_name = "spambase"                                  # name of the data
-data_dir = os.getcwd() + '/data/'                  # directory where datasets are stored
+data_dir = os.getcwd() + '/data/'                       # directory where datasets are stored
 data_csv_file = data_dir + data_name + '_data.csv'          # csv file for the dataset
 sample_weights_csv_file = None                              # csv file of sample weights for the dataset (optional)
 
@@ -49,7 +50,7 @@ settings = {
     'w_pos': w_pos,
     #
     # LCPA Settings
-    'max_runtime': 300.0,                               # max runtime for LCPA
+    'max_runtime': 60.0,                               # max runtime for LCPA
     'max_tolerance': np.finfo('float').eps,             # tolerance to stop LCPA (set to 0 to return provably optimal solution)
     'display_cplex_progress': True,                     # print CPLEX progress on screen
     'loss_computation': 'normal',                       # how to compute the loss function ('normal','fast','lookup')
@@ -84,6 +85,8 @@ pprint(lcpa_info)
 
 # stats
 stats = get_accuracy_stats(model_info['solution'], data)
+
+pickle.dump(data, open( "data.p", "wb" ) )
 
 print('error_rate: {:.2f}'.format(100*stats['train_error_rate']))
 print('TPR: {:.2f}'.format(100*stats['train_true_positive_rate']))
