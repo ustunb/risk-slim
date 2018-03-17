@@ -2,6 +2,8 @@ import numpy as np
 import time
 from solution_classes import SolutionPool
 
+from debug import ipsh
+
 def sequential_rounding(rho,
                         Z,
                         C_0,
@@ -28,8 +30,8 @@ def sequential_rounding(rho,
 
     while len(dimensions_to_round) > 0:
 
-        objvals_at_floor = np.array([np.nan] * P)
-        objvals_at_ceil = np.array([np.nan] * P)
+        objvals_at_floor = np.repeat(np.nan, P)
+        objvals_at_ceil = np.repeat(np.nan, P)
         current_penalty = get_L0_penalty(rho)
 
         for dim_idx in dimensions_to_round:
@@ -86,8 +88,7 @@ def discrete_descent(rho,
                      rho_lb,
                      get_L0_penalty,
                      compute_loss_from_scores,
-                     descent_dimensions = None,
-                     print_flag = False):
+                     descent_dimensions = None):
     """
     given a initial feasible solution, rho, produces an improved solution that is 1-OPT
     (i.e. the objective value does not decrease by moving in any single dimension)
@@ -98,10 +99,17 @@ def discrete_descent(rho,
     # initialize key variables
     MAX_ITERATIONS = 500
     MIN_IMPROVEMENT_PER_STEP = float(1e-10)
-    rho = np.require(np.require(rho, dtype = np.int_), dtype = np.float_)
     P = len(rho)
+
+    # convert solution to integer
+    rho = np.require(np.require(rho, dtype = np.int_), dtype = np.float_)
+
+    # convert descent dimensions to integer values
     if descent_dimensions is None:
         descent_dimensions = np.arange(P)
+    else:
+        descent_dimensions = np.require(descent_dimensions, dtype = np.int_)
+        descent_dimensions = np.intersect1d(np.arange(P), descent_dimensions)
 
     search_dimensions = descent_dimensions
     base_scores = Z.dot(rho)
@@ -128,47 +136,27 @@ def discrete_descent(rho,
                                                   C_0 = C_0,
                                                   compute_loss_from_scores = compute_loss_from_scores)
 
-            dim_objvals[np.where(dim_objvals == base_objval)] = np.inf
-            best_objval_by_dim[k] = np.nanmin(dim_objvals)
-            best_coef_by_dim[k] = dim_coefs[np.nanargmin(dim_objvals)]
-
-        # check if there exists a move that yields an improvement
-        # print_log('ITERATION %d' % n_iterations)
-        # print_log('search dimensions has %d/%d dimensions' % (len(search_dimensions), P))
-        # print_log(search_dimensions)
-        # print_log('best_objval_by_dim')
-        # print_log(["{0:0.20f}".format(i) for i in best_objval_by_dim])
-        # print_log('IMPROVEMENT: %1.20f' % (base_objval - next_objval))
-        # get objval using the best step in the best direction
-
-        if np.all(np.isnan(np.repeat(np.nan, P))):
-            break
-
-        best_idx = np.nanargmin(best_objval_by_dim)
-        best_step = best_coef_by_dim[best_idx]
-        next_objval = best_objval_by_dim[best_idx]
-
-        if next_objval >= (base_objval - MIN_IMPROVEMENT_PER_STEP):
-            break
-        # if print_flag:
-        #     print_log("improving objective value from %1.16f to %1.16f" % (base_objval, next_objval))
-        #     print_log(
-        #         "changing rho[%d] from %1.0f to %1.0f" % (step_dim, rho[step_dim], best_coef_by_dim[step_dim]))
+            # mark points that will improve the current objective value by at least MIN_IMPROVEMENT_PER_STEP
+            best_dim_idx = np.nanargmin(dim_objvals)
+            best_objval_by_dim[k] = dim_objvals[best_dim_idx]
+            best_coef_by_dim[k] = dim_coefs[best_dim_idx]
 
         # recompute base objective value/loss/scores
-        rho[best_idx] = best_step
+        best_idx = np.nanargmin(best_objval_by_dim)
+        next_objval = best_objval_by_dim[best_idx]
+        threshold_objval = base_objval - MIN_IMPROVEMENT_PER_STEP
+
+        if next_objval >= threshold_objval:
+            break
+
+        rho[best_idx] = best_coef_by_dim[best_idx]
         base_objval = next_objval
-        base_loss = next_objval - get_L0_penalty(rho)
+        base_loss = base_objval - get_L0_penalty(rho)
         base_scores = Z.dot(rho)
 
         # remove the current best direction from the set of directions to explore
-        search_dimensions = descent_dimensions
-        search_dimensions.remove(best_idx)
+        search_dimensions = np.delete(descent_dimensions, best_idx)
         n_iterations += 1
-
-    # if print_flag:
-    #     print_log("completed %d iterations" % n_iterations)
-    #     print_log("current: %1.10f < best possible: %1.10f" % (base_objval, next_objval))
 
     return rho, base_loss, base_objval
 
@@ -262,7 +250,7 @@ def _compute_objvals_at_dim(Z,
         objval_at_coef_values[nonzero_coef_idx] = objval_at_coef_values[nonzero_coef_idx] + C_0[dim_idx]
 
         # compute value at coef[j] == 0 if needed
-        zero_coef_idx = np.where(dim_coefs == 0)[0]
+        zero_coef_idx = np.flatnonzero(dim_coefs == 0)
         if np.isnan(objval_at_coef_values[zero_coef_idx]):
             # steps_from_here_to_zero: step_from_here_to_base + step_from_base_to_zero
             # steps_from_here_to_zero: -step_from_base_to_here + -step_from_zero_to_base
