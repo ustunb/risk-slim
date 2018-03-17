@@ -1,23 +1,36 @@
 import numpy as np
-import time
-from solution_classes import SolutionPool
 
-from debug import ipsh
+#todo: finish specifications
+#todo: add input checking (with ability to turn off)
+#todo: Cython implementation
 
-def sequential_rounding(rho,
-                        Z,
-                        C_0,
-                        compute_loss_from_scores_real,
-                        get_L0_penalty,
-                        objval_cutoff = float('Inf')):
+def sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penalty, objval_cutoff = float('Inf')):
     """
-    :param rho: continuous solution st. rho_lb[i] <= rho[i] <= rho_ub[i]
-    :param objval_cutoff: cutoff value at which we return null
-    :return: rho: integer solution st. rho_lb[i] <= rho[i] <= rho_ub[i]
+
+    Parameters
+    ----------
+    rho:                                P x 1 vector of continuous coefficients
+    Z:                                  N x P data matrix computed as X * Y
+    C_0:                                N x 1 vector of L0 penalties. C_0[j] = L0 penalty for rho[j] for j = 0,..., P.
+    compute_loss_from_scores_real:      function handle to compute loss using N x 1 vector of scores, where scores = Z.dot(rho)
+    get_L0_penalty:                     function handle to compute L0_penalty from rho
+    objval_cutoff:                      objective value used for early stopping.
+                                        the procedure will stop if the objective value achieved by an intermediate solution will exceeds objval_cutoff
+
+    Returns
+    -------
+
+    rho:                                P x 1 vector of integer coefficients (if early_stop_flag = False, otherwise continuous solution)
+    best_objval:                        objective value achieved by rho (if early_stop_flag = False, otherwise NaN)
+    early_stop_flag:                    True if procedure was stopped early (in which case rho is not integer feasible)
+
     """
+
+    assert callable(compute_loss_from_scores_real)
+    assert callable(get_L0_penalty)
 
     P = rho.shape[0]
-    dimensions_to_round = np.flatnonzero(np.mod(rho, 1)).tolist()
+    dimensions_to_round = np.flatnonzero(np.mod(rho, 1))
     floor_is_zero = np.equal(np.floor(rho), 0)
     ceil_is_zero = np.equal(np.ceil(rho), 0)
 
@@ -76,25 +89,39 @@ def sequential_rounding(rho,
                 scores += dist_from_start_to_floor[best_dim] * Z[:, best_dim]
 
         # assert(np.all(np.isclose(scores, Z.dot(rho))))
-        dimensions_to_round.remove(best_dim)
+        dimensions_to_round = np.delete(dimensions_to_round, best_dim)
 
     return rho, best_objval, early_stop_flag
 
 
-def discrete_descent(rho,
-                     Z,
-                     C_0,
-                     rho_ub,
-                     rho_lb,
-                     get_L0_penalty,
-                     compute_loss_from_scores,
-                     descent_dimensions = None):
+def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_from_scores, descent_dimensions = None):
+
     """
-    given a initial feasible solution, rho, produces an improved solution that is 1-OPT
+    Given a initial feasible solution, rho, produces an improved solution that is 1-OPT
     (i.e. the objective value does not decrease by moving in any single dimension)
     at each iteration, the algorithm moves in the dimension that yields the greatest decrease in objective value
     the best step size is each dimension is computed using a directional search strategy that saves computation
+
+    Parameters
+    ----------
+    rho:                                P x 1 vector of continuous coefficients
+    Z:                                  N x P data matrix computed as X * Y
+    C_0:                                N x 1 vector of L0 penalties. C_0[j] = L0 penalty for rho[j] for j = 0,..., P.
+    rho_ub
+    rho_lb
+    compute_loss_from_scores_real:      function handle to compute loss using N x 1 vector of scores, where scores = Z.dot(rho)
+    get_L0_penalty:                     function handle to compute L0_penalty from rho
+    descent_dimensions
+
+    Returns
+    -------
+
     """
+    """
+    
+    """
+    assert callable(compute_loss_from_scores_real)
+    assert callable(get_L0_penalty)
 
     # initialize key variables
     MAX_ITERATIONS = 500
@@ -112,6 +139,8 @@ def discrete_descent(rho,
         descent_dimensions = np.intersect1d(np.arange(P), descent_dimensions)
 
     search_dimensions = descent_dimensions
+    coefficient_values = [np.arange(int(rho_lb[k]), int(rho_ub[k]) + 1) for k in descent_dimensions]
+
     base_scores = Z.dot(rho)
     base_loss = compute_loss_from_scores(base_scores)
     base_objval = base_loss + get_L0_penalty(rho)
@@ -125,13 +154,11 @@ def discrete_descent(rho,
 
         for k in search_dimensions:
 
-            dim_coefs = np.arange(int(rho_lb[k]), int(rho_ub[k]) + 1)  # TODO CHANGE THIS
-
             dim_objvals = _compute_objvals_at_dim(base_rho = rho,
                                                   base_scores = base_scores,
                                                   base_loss = base_loss,
                                                   dim_idx = k,
-                                                  dim_coefs = dim_coefs,
+                                                  dim_coefs = coefficient_values[k],
                                                   Z = Z,
                                                   C_0 = C_0,
                                                   compute_loss_from_scores = compute_loss_from_scores)
@@ -139,7 +166,7 @@ def discrete_descent(rho,
             # mark points that will improve the current objective value by at least MIN_IMPROVEMENT_PER_STEP
             best_dim_idx = np.nanargmin(dim_objvals)
             best_objval_by_dim[k] = dim_objvals[best_dim_idx]
-            best_coef_by_dim[k] = dim_coefs[best_dim_idx]
+            best_coef_by_dim[k] = coefficient_values[k][best_dim_idx]
 
         # recompute base objective value/loss/scores
         best_idx = np.nanargmin(best_objval_by_dim)
@@ -161,23 +188,25 @@ def discrete_descent(rho,
     return rho, base_loss, base_objval
 
 
-def _compute_objvals_at_dim(Z,
-                            C_0,
-                            base_rho,
-                            base_scores,
-                            base_loss,
-                            dim_coefs,
-                            dim_idx,
-                            compute_loss_from_scores):
+def _compute_objvals_at_dim(Z, C_0, base_rho, base_scores, base_loss, dim_coefs, dim_idx, compute_loss_from_scores):
+
     """
     finds the value of rho[j] in dim_coefs that minimizes log_loss(rho) + C_0j
-    :param dim_idx:
-    :param dim_coefs:
-    :param base_rho:
-    :param base_scores:
-    :param base_loss:
-    :param C_0:
-    :return:
+
+    Parameters
+    ----------
+    Z
+    C_0
+    base_rho
+    base_scores
+    base_loss
+    dim_coefs
+    dim_idx
+    compute_loss_from_scores
+
+    Returns
+    -------
+
     """
 
     # copy stuff because ctypes
