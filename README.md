@@ -1,18 +1,22 @@
 risk-slim
 ========
 
-``risk-slim`` is a new machine method to create *risk scores*. These are simple tools that let users quickly assess risk by adding and subtracting a few small numbers.
+``risk-slim`` is a new machine learning method to create simple *risk scores*. These are simple tools that let users quickly assess risk by adding and subtracting a few small numbers, like this:
 
-![customized risk score for seizure prediction built using RiskSLIM](https://github.com/ustunb/risk-slim/images/risk_slim_seizure.png)
+<p align="center">
+<img src="https://github.com/ustunb/risk-slim/blob/master/images/risk_score_seizure.png" width="640" height="480" border="0"/>
+</p>
 
+If you haven't seen these kinds of models before, check out the following links:
 
-
-
+- [3 minute video about RiskSLIM](http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw)
+- [**Repository of Medical Scoring Systems at www.mdcalc.com**](https://www.mdcalc.com/).
+- **Risk Score developed by the Pennsylvania Sentencing Commision 2018**
+[homepage](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/)
+[example](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/phase-i-reports/interim-report-7-validation-of-risk-scale/view)
 
 
 **NOTE: THIS PACKAGE IS CURRENTLY UNDER ACTIVE DEVELOPMENT. The internal code may change substantially with each commit.** 
-
-
 
 ## Installation
   
@@ -52,7 +56,7 @@ If you have problems installing CPLEX, check the [CPLEX user manual](http://www-
 - Specs/Unit Tests/Documentation
 - Analysis Tools (ROC Curves, Calibration Plots, Model reports)
  
-## Citation 
+## Reference 
 
 If you use ``risk-slim`` for in your research, please cite [our paper](https://arxiv.org/abs/1610.00168)!  
      
