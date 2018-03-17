@@ -8,7 +8,6 @@ from .bound_tightening import chained_updates
 from .solution_classes import SolutionPool
 from .debug import ipsh
 
-
 INITIALIZATION_SETTINGS = {
     'display_progress': True,  # print progress of initialization procedure
     'display_cplex_progress': False,  # print of CPLEX during intialization procedure
@@ -135,8 +134,9 @@ def round_solution_pool(pool, constraints):
     for solution in pool.solutions:
         # sort from largest to smallest coefficients
         feature_order = np.argsort([-abs(x) for x in solution])
-        rounded_solution = np.zeros(shape=(1, P))
+        rounded_solution = np.zeros(shape = (1, P))
         l0_norm_count = 0
+
         for k in range(P):
             j = feature_order[k]
             if not L0_reg_ind[j]:
@@ -145,7 +145,7 @@ def round_solution_pool(pool, constraints):
                 rounded_solution[0, j] = np.round(solution[j], 0)
                 l0_norm_count += L0_reg_ind[j]
 
-        rounded_pool.add(objvals=np.nan, solutions=rounded_solution)
+        rounded_pool.add(objvals = np.nan, solutions = rounded_solution)
 
     rounded_pool.distinct().sort()
     return rounded_pool
@@ -182,45 +182,47 @@ def sequential_round_solution_pool(pool,
     if len(pool) == 0:
         return pool, 0.0, 0
 
-    pool = pool.distinct().sort()
+    assert callable(get_L0_penalty)
+    assert callable(compute_loss_from_scores_real)
+
     P = pool.P
-    total_runtime = 0.0
-
-    #todo: filter out solutions that can only be rounded one way
-    #rho is integer
-
-    #if model size constraint is non-trivial, remove solutions that will violate the model size constraint
+    
+    # if model size constraint is non-trivial, remove solutions that violate the model size constraint beforehand
+    pool = pool.distinct().sort()
     if L0_min > 0 and L0_max < P:
-        L0_reg_ind = np.isnan(C_0)
 
         def rounded_model_size_is_ok(rho):
-            abs_rho = abs(rho)
-            rounded_rho_l0_min = np.count_nonzero(np.floor(abs_rho[L0_reg_ind]))
-            rounded_rho_l0_max = np.count_nonzero(np.ceil(abs_rho[L0_reg_ind]))
+            penalized_rho = abs(rho)[C_0 == 0.0]
+            rounded_rho_l0_min = np.count_nonzero(np.floor(penalized_rho))
+            rounded_rho_l0_max = np.count_nonzero(np.ceil(penalized_rho))
             return rounded_rho_l0_max >= L0_min and rounded_rho_l0_min <= L0_max
 
         pool = pool.remove_infeasible(rounded_model_size_is_ok)
+        pool = pool.distinct().sort()
 
-    pool = pool.sort()
     rounded_pool = SolutionPool(P)
-    n_to_round = int(min(max_solutions, len(pool)))
+    rounding_handle = lambda rho: sequential_rounding(rho = rho,
+                                                      Z = Z,
+                                                      C_0 = C_0,
+                                                      compute_loss_from_scores_real = compute_loss_from_scores_real,
+                                                      get_L0_penalty = get_L0_penalty,
+                                                      objval_cutoff = objval_cutoff)
 
-    #round solutions using sequential rounding
-    for n in range(n_to_round):
+
+    # apply sequential rounding to all solutions
+    total_runtime = 0.0
+    total_rounded = 0
+    for rho in pool.solutions:
 
         start_time = time.time()
-        solution, objval, early_stop = sequential_rounding(rho = pool.solutions[n, ],
-                                                           Z = Z,
-                                                           C_0 = C_0,
-                                                           compute_loss_from_scores_real = compute_loss_from_scores_real,
-                                                           get_L0_penalty = get_L0_penalty,
-                                                           objval_cutoff = objval_cutoff)
+        solution, objval, early_stop = rounding_handle(rho)
         total_runtime += time.time() - start_time
-
+        total_rounded += 1
+        
         if not early_stop:
             rounded_pool = rounded_pool.add(objvals = objval, solutions = solution)
 
-        if total_runtime > max_runtime:
+        if total_runtime > max_runtime or total_rounded > max_solutions:
             break
 
     n_rounded = len(rounded_pool)
@@ -257,30 +259,34 @@ def discrete_descent_solution_pool(pool,
     if len(pool) == 0:
         return pool, 0.0, 0
 
-
-    pool = pool.distinct().sort()
-
+    assert callable(get_L0_penalty)
+    assert callable(compute_loss_from_scores)
 
     rho_ub = constraints['coef_set'].ub
     rho_lb = constraints['coef_set'].lb
-    total_runtime = 0.0
-    pool = pool.sort()
+
+    polishing_handle = lambda rho: discrete_descent(rho,
+                                                    Z = Z,
+                                                    C_0 = C_0,
+                                                    rho_ub = rho_ub,
+                                                    rho_lb = rho_lb,
+                                                    get_L0_penalty = get_L0_penalty,
+                                                    compute_loss_from_scores = compute_loss_from_scores)
+
+    pool = pool.distinct().sort()
     polished_pool = SolutionPool(pool.P)
-    n_to_polish = min(max_solutions, len(pool))
+    total_runtime = 0.0
+    total_polished = 0
 
-    for n in range(n_to_polish):
+    for rho in pool.solutions:
+
         start_time = time.time()
-        polished_solution, _, polished_objval = discrete_descent(rho = pool.solutions[n],
-                                                                 Z = Z,
-                                                                 C_0 = C_0,
-                                                                 rho_ub = rho_ub,
-                                                                 rho_lb = rho_lb,
-                                                                 get_L0_penalty = get_L0_penalty,
-                                                                 compute_loss_from_scores = compute_loss_from_scores)
-
+        polished_solution, _, polished_objval = polishing_handle(rho)
         total_runtime += time.time() - start_time
+        total_polished += 1
         polished_pool = polished_pool.add(objvals = polished_objval, solutions = polished_solution)
-        if total_runtime > max_runtime:
+
+        if total_runtime > max_runtime or total_polished >= max_solutions:
             break
 
     n_polished = len(polished_pool)

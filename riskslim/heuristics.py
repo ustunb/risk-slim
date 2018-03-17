@@ -1,5 +1,5 @@
 import numpy as np
-
+from debug import ipsh
 #todo: finish specifications
 #todo: add input checking (with ability to turn off)
 #todo: Cython implementation
@@ -30,7 +30,7 @@ def sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penal
     assert callable(get_L0_penalty)
 
     P = rho.shape[0]
-    dimensions_to_round = np.flatnonzero(np.mod(rho, 1))
+    dimensions_to_round = np.flatnonzero(np.mod(rho, 1)).tolist()
     floor_is_zero = np.equal(np.floor(rho), 0)
     ceil_is_zero = np.equal(np.ceil(rho), 0)
 
@@ -40,7 +40,6 @@ def sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penal
     scores = Z.dot(rho)
     best_objval = float('inf')
     early_stop_flag = False
-
     while len(dimensions_to_round) > 0:
 
         objvals_at_floor = np.repeat(np.nan, P)
@@ -89,7 +88,8 @@ def sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penal
                 scores += dist_from_start_to_floor[best_dim] * Z[:, best_dim]
 
         # assert(np.all(np.isclose(scores, Z.dot(rho))))
-        dimensions_to_round = np.delete(dimensions_to_round, best_dim)
+        dimensions_to_round.remove(best_dim)
+
 
     return rho, best_objval, early_stop_flag
 
@@ -120,7 +120,7 @@ def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_f
     """
     
     """
-    assert callable(compute_loss_from_scores_real)
+    assert callable(compute_loss_from_scores)
     assert callable(get_L0_penalty)
 
     # initialize key variables
