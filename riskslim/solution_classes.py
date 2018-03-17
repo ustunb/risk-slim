@@ -5,6 +5,7 @@ class SolutionPool(object):
     """
 
     """
+
     def __init__(self,  obj):
 
         if isinstance(obj, SolutionPool):
@@ -123,12 +124,11 @@ class SolutionPool(object):
         return self
 
 
-    def sort(self):
-        idx = np.argsort(self._objvals)
+    def filter(self, filter_ind):
+        idx = np.require(filter_ind, dtype = 'bool').flatten()
         self._objvals = self._objvals[idx]
         self._solutions = self._solutions[idx, :]
         return self
-
 
     def distinct(self):
         _, idx = np.unique(self._solutions, return_index = True, axis = 0)
@@ -136,9 +136,8 @@ class SolutionPool(object):
         self._solutions = self._solutions[idx, :]
         return self
 
-
-    def filter(self, filter_ind):
-        idx = np.require(filter_ind, dtype = 'bool').flatten()
+    def sort(self):
+        idx = np.argsort(self._objvals)
         self._objvals = self._objvals[idx]
         self._solutions = self._solutions[idx, :]
         return self
@@ -157,38 +156,38 @@ class SolutionPool(object):
 
 
     @staticmethod
-    def isIntegral(solution):
+    def is_integral(solution):
         return np.all(solution == np.require(solution, dtype = 'int_'))
 
 
-    def computeObjvals(self, getObjval):
+    def compute_objvals(self, getObjval):
         objvals = self._objvals
         compute_ind = np.flatnonzero(np.isnan(objvals))
-        objvals[compute_ind] = map(getObjval, self._solutions[compute_ind])
+        objvals[compute_ind] = map(getObjval, self._solutions[compute_ind, :])
         return self._generate(objvals, self._solutions)
 
 
-    def removeSuboptimal(self, objval_cutoff):
+    def remove_suboptimal(self, objval_cutoff):
         return self.filter(self.objvals <= objval_cutoff)
 
 
-    def removeInfeasible(self, isFeasible):
+    def remove_infeasible(self, isFeasible):
         return self.filter(map(isFeasible, self.solutions))
 
 
-    def removeNonintegral(self):
-        return self.filter(map(self.isIntegral, self.solutions))
+    def remove_nonintegral(self):
+        return self.filter(map(self.is_integral, self.solutions))
 
 
-    def removeIntegral(self):
-        return self.filter(~map(self.isIntegral, self.solutions))
+    def remove_integral(self):
+        return self.filter(~map(self.is_integral, self.solutions))
 
 
     @staticmethod
-    def solutionString(solution):
+    def solution_string(solution):
         solution_string = ''
         for j in range(len(solution)):
-            if SolutionPool.isIntegral(solution[j]):
+            if SolutionPool.is_integral(solution[j]):
                 solution_string += ' ' + str(int(solution[j]))
             else:
                 solution_string += (' %1.4f' % solution[j])
@@ -198,15 +197,15 @@ class SolutionPool(object):
     def table(self):
         x = pt.PrettyTable(align = 'r', float_format = '1.4', hrules=pt.ALL)
         x.add_column("objval", self._objvals.tolist())
-        x.add_column("solution", map(self.solutionString, self._solutions))
+        x.add_column("solution", map(self.solution_string, self._solutions))
         return str(x)
 
 
     def __repr__(self):
-        print(self.table())
+        return self.table()
 
     def __str__(self):
-        print(self.table())
+        return self.table()
 
 
 
@@ -275,19 +274,19 @@ class SolutionQueue(object):
     def clear(self):
         self._objvals = np.empty(shape = 0)
         self._solutions = np.empty(shape = (0, self._P))
-
+        return self
 
     def table(self):
         x = pt.PrettyTable(align = 'r', float_format = '1.4', hrules=pt.ALL)
         x.add_column("objval", self._objvals.tolist())
-        x.add_column("solution", map(self.solutionString, self._solutions))
+        x.add_column("solution", map(self.solution_string, self._solutions))
         return str(x)
 
     @staticmethod
-    def solutionString(solution):
+    def solution_string(solution):
         solution_string = ''
         for j in range(len(solution)):
-            if SolutionPool.isIntegral(solution[j]):
+            if SolutionPool.is_integral(solution[j]):
                 solution_string += ' ' + str(int(solution[j]))
             else:
                 solution_string += (' %1.4f' % solution[j])

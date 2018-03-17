@@ -576,7 +576,10 @@ class LossCallback(LazyConstraintCallback):
         if self.initial_cuts is not None:
             print_log('adding initial cuts')
             for i in range(len(self.initial_cuts['coefs'])):
-                self.add(self.initial_cuts['coefs'][i], "G", rhs=self.initial_cuts['lhs'][i], use=self.loss_cut_purge_flag)
+                self.add(constraint = self.initial_cuts['coefs'][i],
+                         sense = "G",
+                         rhs = self.initial_cuts['lhs'][i],
+                         use = self.loss_cut_purge_flag)
             self.initial_cuts = None
 
         # get integer feasible solution
@@ -619,9 +622,10 @@ class LossCallback(LazyConstraintCallback):
                 for cut_rho in self.cut_queue.solutions:
                     cut_start_time = time.time()
                     [loss_value, loss_slope] = self.compute_loss_cut(cut_rho)
-                    cut_lhs = float(loss_value - loss_slope.dot(cut_rho))
-                    cut_constraint = [self.cut_idx, [1.0] + (-loss_slope).tolist()]
-                    self.add(constraint=cut_constraint, sense="G", rhs=cut_lhs, use=self.loss_cut_purge_flag)
+                    self.add(constraint = [self.cut_idx, [1.0] + (-loss_slope).tolist()],
+                             sense = "G",
+                             rhs = float(loss_value - loss_slope.dot(cut_rho)),
+                             use = self.loss_cut_purge_flag)
                     cuts_added += 1
                     cut_time += time.time() - cut_start_time
                 self.cut_queue.clear()
