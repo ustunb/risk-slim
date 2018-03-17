@@ -10,10 +10,10 @@ risk-slim
 If you haven't seen these kinds of models before, check out the following links:
 
 - [3 minute video about RiskSLIM](http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw)
-- [**Repository of Medical Scoring Systems at www.mdcalc.com**](https://www.mdcalc.com/).
-- **Risk Score developed by the Pennsylvania Sentencing Commision 2018**
-[homepage](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/)
-[example](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/phase-i-reports/interim-report-7-validation-of-risk-scale/view)
+- repository of current medical risk scores at [www.mdcalc.com**](https://www.mdcalc.com/).
+- recent risk score developed by the Pennsylvania Sentencing Commision
+([homepage](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/)
+[example](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/phase-i-reports/interim-report-7-validation-of-risk-scale/view))
 
 
 **NOTE: THIS PACKAGE IS CURRENTLY UNDER ACTIVE DEVELOPMENT. The internal code may change substantially with each commit.** 
@@ -40,7 +40,7 @@ CPLEX is cross-platform commercial optimization tool with a Python API. It is fr
 
 To get CPLEX:
 
-1. Sign up with[IBM OnTheHub](https://ibm.onthehub.com/WebStore/Account/VerifyEmailDomain.aspx)
+1. Sign up with [IBM OnTheHub](https://ibm.onthehub.com/WebStore/Account/VerifyEmailDomain.aspx)
 2. Download *IBM ILOG CPLEX Optimization Studio* from the [software catalog](https://ibm.onthehub.com/WebStore/ProductSearchOfferingList.aspx?srch=CPLEX)
 3. Install the CPLEX Optimization Studio on your compter.
 4. Setup the CPLEX Python API [as described here](https://www.ibm.com/support/knowledgecenter/SSSA5P_12.8.0/ilog.odms.cplex.help/CPLEX/GettingStarted/topics/set_up/Python_setup.html).
