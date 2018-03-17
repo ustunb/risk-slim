@@ -4,9 +4,11 @@ risk-slim
 ``risk-slim`` is a new machine learning method to create simple *risk scores*. These are simple tools that let users quickly assess risk by adding and subtracting a few small numbers. 
 
 
-# Background
+## Background
 
-### Risk Score for Seizure Prediction in the ICU
+### Example
+
+Here is a risk score for seizure prediction in the ICU, built using RiskSLIM:
 
 <div>
 <p align="center"><img src="https://github.com/ustunb/risk-slim/blob/master/images/risk_score_seizure.png" width="640" height="480" border="0"/></p>
@@ -14,7 +16,7 @@ risk-slim
 
 Details about this model can be found in our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf)
 
-### Other Links 
+#### Links
 
 - [3 minute video about RiskSLIM](http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw)
 - repository of current medical risk scores at [www.mdcalc.com**](https://www.mdcalc.com/).
@@ -22,12 +24,11 @@ Details about this model can be found in our [paper](http://www.berkustun.com/do
 ([homepage](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/)
 [example](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/phase-i-reports/interim-report-7-validation-of-risk-scale/view))
 
+## Package Details
 
 **NOTE: THIS PACKAGE IS CURRENTLY UNDER ACTIVE DEVELOPMENT. The internal code may change substantially with each commit.** 
 
-# Package Details
-
-## Installation
+### Installation
   
 Run the following snippet to install ``risk-slim`` in a Mac/Unix environment, and complete a test run.  
 
@@ -38,16 +39,14 @@ pip install -e . #install in editable mode
 bash batch/job_template.sh #batch run
 ```
 
-## Requirements
+### Requirements
 
 ``risk-slim`` was developed using Python 2.7.11 and CPLEX 12.6. It may work with older versions of Python and CPLEX. However this has not been tested and will not be supported.
 
 
-### CPLEX 
+#### CPLEX 
 
-CPLEX is cross-platform commercial optimization tool with a Python API. It is freely available to students and faculty members at accredited institutions. 
-
-To get CPLEX:
+CPLEX is cross-platform commercial optimization tool with a Python API. It is freely available to students and faculty members at accredited institutions. To get CPLEX:
 
 1. Sign up with [IBM OnTheHub](https://ibm.onthehub.com/WebStore/Account/VerifyEmailDomain.aspx)
 2. Download *IBM ILOG CPLEX Optimization Studio* from the [software catalog](https://ibm.onthehub.com/WebStore/ProductSearchOfferingList.aspx?srch=CPLEX)
@@ -56,7 +55,7 @@ To get CPLEX:
 
 If you have problems installing CPLEX, check the [CPLEX user manual](http://www-01.ibm.com/support/knowledgecenter/SSSA5P/welcome) or the [CPLEX forums](https://www.ibm.com/developerworks/community/forums/html/forum?id=11111111-0000-0000-0000-000000002059). 
 
-## Development Timeline
+### Development Timeline
 
 - ~~Simplify Installation~~ 
 - ~~Convenience functions for batch computing~~
@@ -65,7 +64,7 @@ If you have problems installing CPLEX, check the [CPLEX user manual](http://www-
 - Specs/Unit Tests/Documentation
 - Analysis Tools (ROC Curves, Calibration Plots, Model reports)
  
-# References
+## Reference
 
 If you use ``risk-slim`` for in your research, please cite [our paper](https://arxiv.org/abs/1610.00168)!  
      
@@ -78,7 +77,3 @@ If you use ``risk-slim`` for in your research, please cite [our paper](https://a
 	Year = {2017}}
 }
 ```
-
-
-
-
