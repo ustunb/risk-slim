@@ -118,25 +118,30 @@ class SolutionPool(object):
             objvals = float(objvals) #also assertion
             solutions = np.reshape(solutions, (1, self._P))
 
-        new = SolutionPool(self._P)
-        new.objvals = np.append(self._objvals, objvals)
-        new.solutions = np.append(self._solutions, solutions, axis = 0)
-        return new
+        self._objvals = np.append(self._objvals, objvals)
+        self._solutions = np.append(self._solutions, solutions, axis = 0)
+        return self
 
 
     def sort(self):
         idx = np.argsort(self._objvals)
-        return SolutionPool({'objvals': self._objvals[idx], 'solutions': self._solutions[idx, :]})
+        self._objvals = self._objvals[idx]
+        self._solutions = self._solutions[idx, :]
+        return self
 
 
     def distinct(self):
         _, idx = np.unique(self._solutions, return_index = True, axis = 0)
-        return SolutionPool({'objvals': self._objvals[idx], 'solutions': self._solutions[idx, :]})
+        self._objvals = self._objvals[idx]
+        self._solutions = self._solutions[idx, :]
+        return self
 
 
     def filter(self, filter_ind):
         idx = np.require(filter_ind, dtype = 'bool').flatten()
-        return SolutionPool({'objvals': self._objvals[idx], 'solutions': self._solutions[idx, :]})
+        self._objvals = self._objvals[idx]
+        self._solutions = self._solutions[idx, :]
+        return self
 
 
     def map(self, mapfun, target = 'all'):
@@ -198,7 +203,10 @@ class SolutionPool(object):
 
 
     def __repr__(self):
-        return self.table()
+        print(self.table())
+
+    def __str__(self):
+        print(self.table())
 
 
 
@@ -231,13 +239,14 @@ class SolutionQueue(object):
 
     def add(self, new_objvals, new_solutions):
         if isinstance(new_objvals, np.ndarray) or isinstance(new_objvals, list):
-            self._objvals = np.append(self._objvals, list(new_objvals))
             n = len(new_objvals)
+            self._objvals = np.append(self._objvals, list(new_objvals))
         else:
-            self._objvals = np.append(self._objvals, float(new_objvals))
             n = 1
+            self._objvals = np.append(self._objvals, float(new_objvals))
         new_solutions = np.reshape(new_solutions, (n, self._P))
         self._solutions = np.append(self._solutions, new_solutions, axis = 0)
+
 
     def get_best_objval_and_solution(self):
         idx = np.argmin(self._objvals)
@@ -256,13 +265,40 @@ class SolutionQueue(object):
             self._objvals = self._objvals[unique_idx]
             self._solutions = self._solutions[unique_idx,]
 
+        if len(self._objvals) > 0:
             sort_idx = np.argsort(self._objvals)
             self._objvals = self._objvals[sort_idx]
             self._solutions = self._solutions[sort_idx,]
 
+        return self
+
     def clear(self):
         self._objvals = np.empty(shape = 0)
         self._solutions = np.empty(shape = (0, self._P))
+
+
+    def table(self):
+        x = pt.PrettyTable(align = 'r', float_format = '1.4', hrules=pt.ALL)
+        x.add_column("objval", self._objvals.tolist())
+        x.add_column("solution", map(self.solutionString, self._solutions))
+        return str(x)
+
+    @staticmethod
+    def solutionString(solution):
+        solution_string = ''
+        for j in range(len(solution)):
+            if SolutionPool.isIntegral(solution[j]):
+                solution_string += ' ' + str(int(solution[j]))
+            else:
+                solution_string += (' %1.4f' % solution[j])
+        return solution_string
+
+    def __repr__(self):
+        return self.table()
+
+    def __str__(self):
+        return self.table()
+
 
 
 
