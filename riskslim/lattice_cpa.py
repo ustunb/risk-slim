@@ -55,7 +55,10 @@ DEFAULT_LCPA_SETTINGS = {
     'init_max_tolerance': 0.0001,  # tolerance of solution to stop CPA
     'init_max_runtime_per_iteration': 300.0,  # max time per iteration of CPA
     'init_max_cplex_time_per_iteration': 10.0,  # max time per iteration to solve surrogate problem in CPA
-    'init_use_sequential_rounding': True,  # use SeqRd in initialization procedure
+    'init_use_rounding': True,  # use Rd in initialization procedure
+    'init_rounding_max_solutions': 100, # max runtime for Rd in initialization procedure
+    'init_rounding_max_runtime': 20.0, # max runtime for Rd in initialization procedure
+    'init_use_sequential_rounding': False,  # use SeqRd in initialization procedure
     'init_sequential_rounding_max_runtime': 30.0,  # max runtime for SeqRd in initialization procedure
     'init_sequential_rounding_max_solutions': 5,  # max solutions to round using SeqRd
     'init_polishing_after': True,  # polish after rounding
@@ -72,7 +75,7 @@ DEFAULT_LCPA_SETTINGS = {
     'cplex_poolsize': 100,  # number of feasible solutions to keep in solution pool
     'cplex_poolrelgap': float('nan'),  # discard if solutions
     'cplex_poolreplace': 2,  # solution pool
-    'cplex_n_cores': 1,  # numbe`r of cores to use in B & B (must be 1)
+    'cplex_n_cores': 1,  # number of cores to use in B & B (must be 1)
     'cplex_nodefilesize': (120 * 1024) / 1,  # node file size
     #
     #  Internal Parameters

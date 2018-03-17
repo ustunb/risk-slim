@@ -2,9 +2,6 @@ import numpy as np
 import prettytable as pt
 
 class SolutionPool(object):
-    """
-
-    """
 
     def __init__(self,  obj):
 
@@ -47,6 +44,32 @@ class SolutionPool(object):
 
     def __len__(self):
         return len(self._objvals)
+
+
+    @staticmethod
+    def solution_string(solution, float_fmt = '%1.3f'):
+        solution_string = ''
+        for j in range(len(solution)):
+            if SolutionPool.is_integral(solution[j]):
+                solution_string += ' ' + str(int(solution[j]))
+            else:
+                solution_string += ((' ' + float_fmt) % solution[j])
+        return solution_string
+
+
+    def table(self):
+        x = pt.PrettyTable(align = 'r', float_format = '1.3', hrules = pt.ALL)
+        x.add_column("objval", self._objvals.tolist())
+        x.add_column("solution", list(map(self.solution_string, self._solutions)))
+        return str(x)
+
+
+    def __repr__(self):
+        return self.table()
+
+
+    def __str__(self):
+        return self.table()
 
 
     def copy(self):
@@ -93,10 +116,6 @@ class SolutionPool(object):
         self._solutions = np.copy(solutions)
 
 
-    def _generate(self, objvals, solutions):
-        return SolutionPool({'objvals': objvals, 'solutions': solutions})
-
-
     def append(self, pool):
         return self.add(pool.objvals, pool.solutions)
 
@@ -130,16 +149,20 @@ class SolutionPool(object):
         self._solutions = self._solutions[idx, :]
         return self
 
+
     def distinct(self):
-        _, idx = np.unique(self._solutions, return_index = True, axis = 0)
-        self._objvals = self._objvals[idx]
-        self._solutions = self._solutions[idx, :]
+        if len(self) > 0:
+            _, idx = np.unique(self._solutions, return_index = True, axis = 0)
+            self._objvals = self._objvals[idx]
+            self._solutions = self._solutions[idx, :]
         return self
 
+
     def sort(self):
-        idx = np.argsort(self._objvals)
-        self._objvals = self._objvals[idx]
-        self._solutions = self._solutions[idx, :]
+        if len(self) > 0:
+            idx = np.argsort(self._objvals)
+            self._objvals = self._objvals[idx]
+            self._solutions = self._solutions[idx, :]
         return self
 
 
@@ -160,21 +183,6 @@ class SolutionPool(object):
         return np.all(solution == np.require(solution, dtype = 'int_'))
 
 
-    def compute_objvals(self, getObjval):
-        objvals = self._objvals
-        compute_ind = np.flatnonzero(np.isnan(objvals))
-        objvals[compute_ind] = map(getObjval, self._solutions[compute_ind, :])
-        return self._generate(objvals, self._solutions)
-
-
-    def remove_suboptimal(self, objval_cutoff):
-        return self.filter(self.objvals <= objval_cutoff)
-
-
-    def remove_infeasible(self, isFeasible):
-        return self.filter(map(isFeasible, self.solutions))
-
-
     def remove_nonintegral(self):
         return self.filter(map(self.is_integral, self.solutions))
 
@@ -183,30 +191,18 @@ class SolutionPool(object):
         return self.filter(~map(self.is_integral, self.solutions))
 
 
-    @staticmethod
-    def solution_string(solution):
-        solution_string = ''
-        for j in range(len(solution)):
-            if SolutionPool.is_integral(solution[j]):
-                solution_string += ' ' + str(int(solution[j]))
-            else:
-                solution_string += (' %1.4f' % solution[j])
-        return solution_string
+    def compute_objvals(self, get_objval):
+        compute_idx = np.flatnonzero(np.isnan(self._objvals))
+        self._objvals[compute_idx] = np.array(map(get_objval, self._solutions[compute_idx, :]))
+        return self
 
 
-    def table(self):
-        x = pt.PrettyTable(align = 'r', float_format = '1.4', hrules=pt.ALL)
-        x.add_column("objval", self._objvals.tolist())
-        x.add_column("solution", map(self.solution_string, self._solutions))
-        return str(x)
+    def remove_suboptimal(self, objval_cutoff):
+        return self.filter(self.objvals <= objval_cutoff)
 
 
-    def __repr__(self):
-        return self.table()
-
-    def __str__(self):
-        return self.table()
-
+    def remove_infeasible(self, is_feasible):
+        return self.filter(map(is_feasible, self.solutions))
 
 
 class SolutionQueue(object):
@@ -239,13 +235,13 @@ class SolutionQueue(object):
     def add(self, new_objvals, new_solutions):
         if isinstance(new_objvals, np.ndarray) or isinstance(new_objvals, list):
             n = len(new_objvals)
-            self._objvals = np.append(self._objvals, list(new_objvals))
+            self._objvals = np.append(self._objvals, np.array(new_objvals).astype(dtype = np.float_).flatten())
         else:
             n = 1
             self._objvals = np.append(self._objvals, float(new_objvals))
+
         new_solutions = np.reshape(new_solutions, (n, self._P))
         self._solutions = np.append(self._solutions, new_solutions, axis = 0)
-
 
     def get_best_objval_and_solution(self):
         idx = np.argmin(self._objvals)
@@ -255,7 +251,7 @@ class SolutionQueue(object):
     def filter_sort_unique(self, max_objval = float('inf')):
         # filter
         if max_objval < float('inf'):
-            good_idx = self._objvals <= max_objval
+            good_idx = np.less_equal(self._objvals, max_objval)
             self._objvals = self._objvals[good_idx]
             self._solutions = self._solutions[good_idx,]
 

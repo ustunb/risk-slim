@@ -58,9 +58,11 @@ settings = {
     'round_flag': True,                                # round continuous solutions with SeqRd
     'polish_flag': True,                               # polish integer feasible solutions with DCD
     'chained_updates_flag': True,                      # use chained updates
-    'initialization_flag': True,                       # use initialization procedure
-    'init_max_runtime': 300.0,                          # max time to run CPA in initialization procedure
     'add_cuts_at_heuristic_solutions': True,            # add cuts at integer feasible solutions found using polishing/rounding
+    #
+    # Initialization
+    'initialization_flag': True,                       # use initialization procedure
+    'init_max_runtime': 300.0,                         # max time to run CPA in initialization procedure
     #
     # CPLEX Solver Parameters
     'cplex_randomseed': 0,                              # random seed

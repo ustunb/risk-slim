@@ -43,7 +43,7 @@ max_L0_value = min(max_L0_value, trivial_L0_max)
 constraints = {
     'L0_min': 0,
     'L0_max': max_L0_value,
-    'coef_set':coef_set,
+    'coef_set': coef_set,
 }
 
 # Run RiskSLIM

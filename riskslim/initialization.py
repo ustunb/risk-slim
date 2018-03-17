@@ -6,7 +6,6 @@ from .standard_cpa import run_standard_cpa
 from .heuristics import sequential_rounding, discrete_descent
 from .bound_tightening import chained_updates
 from .solution_classes import SolutionPool
-from .debug import ipsh
 
 INITIALIZATION_SETTINGS = {
     'display_progress': True,  # print progress of initialization procedure
@@ -16,6 +15,9 @@ INITIALIZATION_SETTINGS = {
     'max_tolerance': 0.0001,  # tolerance of solution to stop CPA
     'max_runtime_per_iteration': 300.0,  # max time per iteration of CPA
     'max_cplex_time_per_iteration': 10.0,  # max time per iteration to solve surrogate problem in CPA
+    'use_rounding': True,  # use SeqRd in initialization procedure
+    'rounding_max_runtime': 30.0,  # max runtime for Rs in initialization procedure
+    'rounding_max_solutions': 5,  # max solutions to round using Rd
     'use_sequential_rounding': True,  # use SeqRd in initialization procedure
     'sequential_rounding_max_runtime': 30.0,  # max runtime for SeqRd in initialization procedure
     'sequential_rounding_max_solutions': 5,  # max solutions to round using SeqRd
@@ -64,52 +66,67 @@ def initialize_lattice_cpa(Z,
     risk_slim_lp = set_cplex_mip_parameters(risk_slim_lp, cplex_settings, display_cplex_progress = settings['display_cplex_progress'])
 
     # solve risk_slim_lp LP using standard CPA
-    cpa_stats, cuts, pool = run_standard_cpa(risk_slim_lp, risk_slim_lp_indices, settings, compute_loss_real, compute_loss_cut_real)
+    cpa_stats, cuts, cpa_pool = run_standard_cpa(risk_slim_lp, risk_slim_lp_indices, settings, compute_loss_real, compute_loss_cut_real)
 
     # update bounds
     bounds = chained_updates(bounds, C_0_nnz, new_objval_at_relaxation = cpa_stats['lowerbound'])
 
-    # remove redundant solutions, remove infeasible solutions, order solutions by objective value of RiskSLIMLP
+    # build bool of feasible solutions by rounding and polishing cpa
+    pool = SolutionPool(cpa_pool.P)
+
+    # apply rounding to CPA solutions
+    if settings['use_rounding']:
+        rnd_pool, _, _ = round_solution_pool(cpa_pool, constraints,
+                                             max_runtime = settings['rounding_max_runtime'],
+                                             max_solutions = settings['rounding_max_solutions'])
+        rnd_pool = rnd_pool.compute_objvals(get_objval)
+        pool.append(rnd_pool)
+
+    # apply sequential rounding to CPA solutions
     if settings['use_sequential_rounding']:
 
-        pool, _, _ = sequential_round_solution_pool(pool = pool,
-                                                    Z = Z,
-                                                    C_0 = C_0,
-                                                    compute_loss_from_scores_real = compute_loss_from_scores_real,
-                                                    get_L0_penalty = get_L0_penalty,
-                                                    max_runtime = settings['sequential_rounding_max_runtime'],
-                                                    max_solutions = settings['sequential_rounding_max_solutions'],
-                                                    objval_cutoff = bounds['objval_max'],
-                                                    L0_min = bounds['L0_min'],
-                                                    L0_max = bounds['L0_max'])
+        sqrnd_pool, _, _ = sequential_round_solution_pool(pool = cpa_pool,
+                                                          Z = Z,
+                                                          C_0 = C_0,
+                                                          compute_loss_from_scores_real = compute_loss_from_scores_real,
+                                                          get_L0_penalty = get_L0_penalty,
+                                                          max_runtime = settings['sequential_rounding_max_runtime'],
+                                                          max_solutions = settings['sequential_rounding_max_solutions'],
+                                                          objval_cutoff = bounds['objval_max'],
+                                                          L0_min = bounds['L0_min'],
+                                                          L0_max = bounds['L0_max'])
 
-        bounds = chained_updates(bounds, C_0_nnz, new_objval_at_feasible = np.min(pool.objvals))
+        pool.append(sqrnd_pool)
 
-    else:
-        pool, _, _ = round_solution_pool(pool, constraints)
-        pool = pool.compute_objvals(get_objval)
+    # apply polishing to rounded solutions
+    if len(pool) > 0 and settings['polishing_after']:
 
-    if settings['polishing_after'] and len(pool) > 0:
-        pool, _, _ = discrete_descent_solution_pool(pool = pool,
-                                                    Z = Z,
-                                                    C_0 = C_0,
-                                                    constraints = constraints,
-                                                    compute_loss_from_scores = compute_loss_from_scores,
-                                                    get_L0_penalty = get_L0_penalty,
-                                                    max_runtime = settings['polishing_max_runtime'],
-                                                    max_solutions = settings['polishing_max_solutions'])
+        dcd_pool, _, _ = discrete_descent_solution_pool(pool = pool,
+                                                        Z = Z,
+                                                        C_0 = C_0,
+                                                        constraints = constraints,
+                                                        compute_loss_from_scores = compute_loss_from_scores,
+                                                        get_L0_penalty = get_L0_penalty,
+                                                        max_runtime = settings['polishing_max_runtime'],
+                                                        max_solutions = settings['polishing_max_solutions'])
 
+        pool.append(dcd_pool)
 
+    # remove solutions that are not feasible, not integer
     if len(pool) > 0:
-        pool = pool.remove_infeasible(is_feasible).distinct().sort()
+        pool = pool.remove_nonintegral().remove_infeasible(is_feasible).distinct().sort()
 
+    # update upper and lower bounds
     if len(pool) > 0:
         bounds = chained_updates(bounds, C_0_nnz, new_objval_at_feasible = np.min(pool.objvals))
 
     return pool, cuts, bounds
 
 
-def round_solution_pool(pool, constraints):
+def round_solution_pool(pool,
+                        constraints,
+                        max_runtime = float('inf'),
+                        max_solutions = float('inf'),):
     """
 
     Parameters
@@ -129,26 +146,37 @@ def round_solution_pool(pool, constraints):
     P = pool.P
     L0_reg_ind = np.isnan(constraints['coef_set'].C_0j)
     L0_max = constraints['L0_max']
+
+
+    total_runtime = 0.0
+    total_rounded = 0
     rounded_pool = SolutionPool(P)
 
-    for solution in pool.solutions:
+    for rho in pool.solutions:
+
+        start_time = time.time()
         # sort from largest to smallest coefficients
-        feature_order = np.argsort([-abs(x) for x in solution])
+        feature_order = np.argsort([-abs(x) for x in rho])
         rounded_solution = np.zeros(shape = (1, P))
         l0_norm_count = 0
 
         for k in range(P):
             j = feature_order[k]
             if not L0_reg_ind[j]:
-                rounded_solution[0, j] = np.round(solution[j], 0)
+                rounded_solution[0, j] = np.round(rho[j], 0)
             elif l0_norm_count < L0_max:
-                rounded_solution[0, j] = np.round(solution[j], 0)
+                rounded_solution[0, j] = np.round(rho[j], 0)
                 l0_norm_count += L0_reg_ind[j]
 
+        total_runtime += time.time() - start_time
+        total_rounded += 1
         rounded_pool.add(objvals = np.nan, solutions = rounded_solution)
 
-    rounded_pool.distinct().sort()
-    return rounded_pool
+        if total_runtime > max_runtime or total_rounded >= max_solutions:
+            break
+
+    rounded_pool = rounded_pool.distinct().sort()
+    return rounded_pool, total_runtime, total_rounded
 
 
 def sequential_round_solution_pool(pool,
@@ -161,13 +189,18 @@ def sequential_round_solution_pool(pool,
                                    objval_cutoff = float('inf'),
                                    L0_min = 0,
                                    L0_max = float('inf')):
-    """
 
+    """
+    runs sequential rounding for all solutions in a solution pool
+    can be stopped early using max_runtime or max_solutions
+    
     Parameters
     ----------
     pool
     Z
     C_0
+    compute_loss_from_scores_real
+    get_L0_penalty
     max_runtime
     max_solutions
     objval_cutoff
@@ -185,11 +218,9 @@ def sequential_round_solution_pool(pool,
     assert callable(get_L0_penalty)
     assert callable(compute_loss_from_scores_real)
 
-    P = pool.P
-    
     # if model size constraint is non-trivial, remove solutions that violate the model size constraint beforehand
     pool = pool.distinct().sort()
-    if L0_min > 0 and L0_max < P:
+    if L0_min > 0 and L0_max < pool.P:
 
         def rounded_model_size_is_ok(rho):
             penalized_rho = abs(rho)[C_0 == 0.0]
@@ -200,7 +231,10 @@ def sequential_round_solution_pool(pool,
         pool = pool.remove_infeasible(rounded_model_size_is_ok)
         pool = pool.distinct().sort()
 
-    rounded_pool = SolutionPool(P)
+        if len(pool) == 0:
+            return pool, 0.0, 0
+
+
     rounding_handle = lambda rho: sequential_rounding(rho = rho,
                                                       Z = Z,
                                                       C_0 = C_0,
@@ -212,13 +246,15 @@ def sequential_round_solution_pool(pool,
     # apply sequential rounding to all solutions
     total_runtime = 0.0
     total_rounded = 0
+    rounded_pool = SolutionPool(pool.P)
+
     for rho in pool.solutions:
 
         start_time = time.time()
         solution, objval, early_stop = rounding_handle(rho)
         total_runtime += time.time() - start_time
         total_rounded += 1
-        
+
         if not early_stop:
             rounded_pool = rounded_pool.add(objvals = objval, solutions = solution)
 
@@ -239,8 +275,10 @@ def discrete_descent_solution_pool(pool,
                                    max_runtime = float('inf'),
                                    max_solutions = float('inf')):
     """
-    runs DCD polishing for all solutions in the a solution pool
+
+    runs dcd polishing for all solutions in a solution pool
     can be stopped early using max_runtime or max_solutions
+
 
     Parameters
     ----------
@@ -248,13 +286,17 @@ def discrete_descent_solution_pool(pool,
     Z
     C_0
     constraints
+    get_L0_penalty
+    compute_loss_from_scores
     max_runtime
     max_solutions
 
     Returns
     -------
-    new solution pool, total polishing time, and # of solutions polished
+
     """
+    pool = pool.remove_nonintegral()
+
     # quick return
     if len(pool) == 0:
         return pool, 0.0, 0
@@ -272,7 +314,6 @@ def discrete_descent_solution_pool(pool,
                                                     rho_lb = rho_lb,
                                                     get_L0_penalty = get_L0_penalty,
                                                     compute_loss_from_scores = compute_loss_from_scores)
-
     pool = pool.distinct().sort()
     polished_pool = SolutionPool(pool.P)
     total_runtime = 0.0
@@ -290,7 +331,6 @@ def discrete_descent_solution_pool(pool,
             break
 
     n_polished = len(polished_pool)
-    polished_pool = polished_pool.append(pool)
     polished_pool = polished_pool.distinct().sort()
     return polished_pool, total_runtime, n_polished
 
