@@ -94,77 +94,77 @@ def discrete_descent(rho,
     at each iteration, the algorithm moves in the dimension that yields the greatest decrease in objective value
     the best step size is each dimension is computed using a directional search strategy that saves computation
     """
-    #print_flag = False
 
     # initialize key variables
     MAX_ITERATIONS = 500
     MIN_IMPROVEMENT_PER_STEP = float(1e-10)
-    n_iterations = 0
-    P = rho.shape[0]
-    rho = np.require(np.require(rho, dtype=np.int_), dtype=np.float_)
+    rho = np.require(np.require(rho, dtype = np.int_), dtype = np.float_)
+    P = len(rho)
     if descent_dimensions is None:
-        descent_dimensions = range(0, P)
+        descent_dimensions = np.arange(P)
 
     search_dimensions = descent_dimensions
     base_scores = Z.dot(rho)
     base_loss = compute_loss_from_scores(base_scores)
     base_objval = base_loss + get_L0_penalty(rho)
-    keep_searching = True
 
-    while keep_searching and n_iterations < MAX_ITERATIONS:
+    n_iterations = 0
+    while n_iterations < MAX_ITERATIONS:
 
         # compute the best objective value / step size in each dimension
-        best_objval_by_dim = np.array([np.nan] * P)
-        best_coef_by_dim = np.array([np.nan] * P)
+        best_objval_by_dim = np.repeat(np.nan, P)
+        best_coef_by_dim = np.repeat(np.nan, P)
 
         for k in search_dimensions:
-            feasible_coefs_for_dim = np.arange(int(rho_lb[k]), int(rho_ub[k]) + 1)  # TODO CHANGE THIS
-            objvals = _compute_objvals_at_dim(Z = Z,
-                                              C_0 = C_0,
-                                              compute_loss_from_scores = compute_loss_from_scores,
-                                              dim_index = k,
-                                              feasible_coef_values = feasible_coefs_for_dim,
-                                              base_rho = rho,
-                                              base_scores = base_scores,
-                                              base_loss = base_loss)
 
-            objvals[np.where(objvals == base_objval)] = np.inf
-            best_objval_by_dim[k] = np.nanmin(objvals)
-            best_coef_by_dim[k] = feasible_coefs_for_dim[np.nanargmin(objvals)]
+            dim_coefs = np.arange(int(rho_lb[k]), int(rho_ub[k]) + 1)  # TODO CHANGE THIS
+
+            dim_objvals = _compute_objvals_at_dim(base_rho = rho,
+                                                  base_scores = base_scores,
+                                                  base_loss = base_loss,
+                                                  dim_idx = k,
+                                                  dim_coefs = dim_coefs,
+                                                  Z = Z,
+                                                  C_0 = C_0,
+                                                  compute_loss_from_scores = compute_loss_from_scores)
+
+            dim_objvals[np.where(dim_objvals == base_objval)] = np.inf
+            best_objval_by_dim[k] = np.nanmin(dim_objvals)
+            best_coef_by_dim[k] = dim_coefs[np.nanargmin(dim_objvals)]
 
         # check if there exists a move that yields an improvement
-        # print_log('')
         # print_log('ITERATION %d' % n_iterations)
         # print_log('search dimensions has %d/%d dimensions' % (len(search_dimensions), P))
         # print_log(search_dimensions)
         # print_log('best_objval_by_dim')
         # print_log(["{0:0.20f}".format(i) for i in best_objval_by_dim])
-
-        next_objval = np.nanmin(best_objval_by_dim)
         # print_log('IMPROVEMENT: %1.20f' % (base_objval - next_objval))
+        # get objval using the best step in the best direction
 
-        if next_objval < (base_objval - MIN_IMPROVEMENT_PER_STEP):
-            # take the best step in the best direction
-            step_dim = int(np.nanargmin(best_objval_by_dim))
+        if np.all(np.isnan(np.repeat(np.nan, P))):
+            break
 
-            # if print_flag:
-            #     print_log("improving objective value from %1.16f to %1.16f" % (base_objval, next_objval))
-            #     print_log(
-            #         "changing rho[%d] from %1.0f to %1.0f" % (step_dim, rho[step_dim], best_coef_by_dim[step_dim]))
+        best_idx = np.nanargmin(best_objval_by_dim)
+        best_step = best_coef_by_dim[best_idx]
+        next_objval = best_objval_by_dim[best_idx]
 
-            rho[step_dim] = best_coef_by_dim[step_dim]
+        if next_objval >= (base_objval - MIN_IMPROVEMENT_PER_STEP):
+            break
+        # if print_flag:
+        #     print_log("improving objective value from %1.16f to %1.16f" % (base_objval, next_objval))
+        #     print_log(
+        #         "changing rho[%d] from %1.0f to %1.0f" % (step_dim, rho[step_dim], best_coef_by_dim[step_dim]))
 
-            # recompute base objective value/loss/scores
-            base_objval = next_objval
-            base_loss = base_objval - get_L0_penalty(rho)
-            base_scores = Z.dot(rho)
+        # recompute base objective value/loss/scores
+        rho[best_idx] = best_step
+        base_objval = next_objval
+        base_loss = next_objval - get_L0_penalty(rho)
+        base_scores = Z.dot(rho)
 
-            # remove the current best direction from the set of directions to explore
-            search_dimensions = descent_dimensions
-            search_dimensions.remove(step_dim)
-            n_iterations += 1
-        else:
-            keep_searching = False
+        # remove the current best direction from the set of directions to explore
+        search_dimensions = descent_dimensions
+        search_dimensions.remove(best_idx)
+        n_iterations += 1
 
     # if print_flag:
     #     print_log("completed %d iterations" % n_iterations)
@@ -175,16 +175,16 @@ def discrete_descent(rho,
 
 def _compute_objvals_at_dim(Z,
                             C_0,
-                            compute_loss_from_scores,
-                            dim_index,
-                            feasible_coef_values,
                             base_rho,
                             base_scores,
-                            base_loss):
+                            base_loss,
+                            dim_coefs,
+                            dim_idx,
+                            compute_loss_from_scores):
     """
-    finds the value of rho[j] in feasible_coef_values that minimizes log_loss(rho) + C_0j
-    :param dim_index:
-    :param feasible_coef_values:
+    finds the value of rho[j] in dim_coefs that minimizes log_loss(rho) + C_0j
+    :param dim_idx:
+    :param dim_coefs:
     :param base_rho:
     :param base_scores:
     :param base_loss:
@@ -197,15 +197,15 @@ def _compute_objvals_at_dim(Z,
 
     # initialize parameters
     P = base_rho.shape[0]
-    base_coef_value = base_rho[dim_index]
-    base_index = np.where(feasible_coef_values == base_coef_value)[0]
-    loss_at_coef_value = np.array([np.nan] * len(feasible_coef_values))
+    base_coef_value = base_rho[dim_idx]
+    base_index = np.flatnonzero(dim_coefs == base_coef_value)
+    loss_at_coef_value = np.repeat(np.nan, len(dim_coefs))
     loss_at_coef_value[base_index] = np.float(base_loss)
-    Z_dim = Z[:, dim_index]
+    Z_dim = Z[:, dim_idx]
 
     # start by moving forward
-    forward_indices = np.where(base_coef_value <= feasible_coef_values)[0]
-    forward_step_sizes = np.diff(feasible_coef_values[forward_indices] - base_coef_value)
+    forward_indices = np.flatnonzero(base_coef_value <= dim_coefs)
+    forward_step_sizes = np.diff(dim_coefs[forward_indices] - base_coef_value)
     n_forward_steps = len(forward_step_sizes)
     stop_after_first_forward_step = False
 
@@ -228,8 +228,8 @@ def _compute_objvals_at_dim(Z,
     if move_backward:
 
         # compute backward steps
-        backward_indices = np.flipud(np.where(feasible_coef_values <= base_coef_value)[0])
-        backward_step_sizes = np.diff(feasible_coef_values[backward_indices] - base_coef_value)
+        backward_indices = np.flipud(np.where(dim_coefs <= base_coef_value)[0])
+        backward_step_sizes = np.diff(dim_coefs[backward_indices] - base_coef_value)
         n_backward_steps = len(backward_step_sizes)
 
         # correct size of first backward step if you took 1 step forward
@@ -251,18 +251,18 @@ def _compute_objvals_at_dim(Z,
     # assert(all(np.isclose(scores, base_scores + total_distance_from_base * Z_dim)))
 
     # compute objective values by adding penalty values to all other indices
-    other_dim_idx = np.where(dim_index != np.arange(0, P))[0]
+    other_dim_idx = np.flatnonzero(dim_idx != np.arange(P))
     other_dim_penalty = np.sum(C_0[other_dim_idx] * (base_rho[other_dim_idx] != 0))
     objval_at_coef_values = loss_at_coef_value + other_dim_penalty
 
-    if C_0[dim_index] > 0.0:
+    if C_0[dim_idx] > 0.0:
 
         # increase objective value at every non-zero coefficient value by C_0j
-        nonzero_coef_idx = np.flatnonzero(feasible_coef_values)
-        objval_at_coef_values[nonzero_coef_idx] = objval_at_coef_values[nonzero_coef_idx] + C_0[dim_index]
+        nonzero_coef_idx = np.flatnonzero(dim_coefs)
+        objval_at_coef_values[nonzero_coef_idx] = objval_at_coef_values[nonzero_coef_idx] + C_0[dim_idx]
 
         # compute value at coef[j] == 0 if needed
-        zero_coef_idx = np.where(feasible_coef_values == 0)[0]
+        zero_coef_idx = np.where(dim_coefs == 0)[0]
         if np.isnan(objval_at_coef_values[zero_coef_idx]):
             # steps_from_here_to_zero: step_from_here_to_base + step_from_base_to_zero
             # steps_from_here_to_zero: -step_from_base_to_here + -step_from_zero_to_base

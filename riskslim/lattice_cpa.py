@@ -48,7 +48,7 @@ DEFAULT_LCPA_SETTINGS = {
     'polishing_stop_gap': 5.0,  # max optimality gap required to stop using polishing heuristic
     #
     # Initialization Procedure
-    'init_display_progress': True,  # print progress of initialization procedure
+    'init_display_progress': False,  # print progress of initialization procedure
     'init_display_cplex_progress': False,  # print of CPLEX during intialization procedure
     'init_max_runtime': 300.0,  # max time to run CPA in initialization procedure
     'init_max_iterations': 10000,  # max # of cuts needed to stop CPA
