@@ -54,16 +54,16 @@ If you have problems installing CPLEX, check the [CPLEX user manual](http://www-
 
 ### Development Timeline
 
-- ~~Simplify Installation~~ 
-- ~~Convenience functions for batch computing~~
-- Refactoring
-- [Sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) OO Interface for Risk Scores
-- Specs/Unit Tests/Documentation
-- Analysis Tools (ROC Curves, Calibration Plots, Model reports)
+- ~~simplify installation~~ 
+- ~~convenience functions for batch computing~~
+- refactoring package for future development
+- [sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) oo interface for risk scores
+- documentation
+- analysis tools (roc curves, calibration plots, model reports)
  
 ## Reference
 
-If you use ``risk-slim`` for in your research, please cite [our paper](https://arxiv.org/abs/1610.00168)!  
+If you use ``risk-slim`` for in your research, please cite [our paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf):
      
 ```
 @inproceedings{ustun2017kdd,
