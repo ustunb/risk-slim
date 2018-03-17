@@ -27,7 +27,6 @@ INITIALIZATION_SETTINGS = {
     }
 
 
-# Initialization Procedure
 def initialize_lattice_cpa(Z,
                            c0_value,
                            constraints,

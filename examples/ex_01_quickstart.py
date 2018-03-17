@@ -24,7 +24,7 @@ data = load_data_from_csv(dataset_csv_file = data_csv_file, sample_weights_csv_f
 N, P = data['X'].shape
 
 # create coefficient set and set the value of the offset parameter
-coef_set = CoefficientSet(variable_names = data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
+coef_set = CoefficientSet(variable_names = data['variable_names'], lb =-max_coefficient, ub = max_coefficient, sign = 0)
 conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
 max_offset = min(max_offset, conservative_offset)
 coef_set.set_field('lb', '(Intercept)', -max_offset)
