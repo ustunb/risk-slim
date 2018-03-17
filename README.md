@@ -1,7 +1,7 @@
 risk-slim
 ========
 
-``risk-slim`` is a Python package to train data-driven *risk scores*. These are simple classification models that let users quickly assess risk by adding, subtracting and multiplying a few small numbers.
+``risk-slim`` is a Python package to create *risk scores*. These are simple classification models that let users quickly assess risk by adding, subtracting and multiplying a few small numbers.
 
 **NOTE: THIS PACKAGE IS CURRENTLY WORKING BUT UNDER ACTIVE DEVELOPMENT. There may be bugs, and the internal code may change substantially with each commit.** 
 
@@ -25,14 +25,14 @@ bash batch/job_template.sh #batch run
 
 ### CPLEX 
 
-CPLEX is cross-platform commercial optimization tool with a Python API. It is freely available to students and faculty members at accredited institutions as part of the IBM Academic Initiative. 
+CPLEX is cross-platform commercial optimization tool with a Python API. It is freely available to students and faculty members at accredited institutions. 
 
 To get CPLEX:
 
-1. Sign up for the [IBM Academic Initiative](https://developer.ibm.com/academic/). Note that it may take up to a week to obtain approval.
-2. Download *IBM ILOG CPLEX Optimization Studio* from the [software catalog](https://ibm.onthehub.com/WebStore/OfferingDetails.aspx?o=6fcc1096-7169-e611-9420-b8ca3a5db7a1)
-3. Install the file on your computer. Note mac/unix users will [need to install a .bin file](http://www-01.ibm.com/support/docview.wss?uid=swg21444285).
-4. Setup the CPLEX Python API [as described here here](http://www.ibm.com/support/knowledgecenter/SSSA5P_12.6.3/ilog.odms.cplex.help/CPLEX/GettingStarted/topics/set_up/Python_setup.html).
+1. Sign up with[IBM OnTheHub](https://ibm.onthehub.com/WebStore/Account/VerifyEmailDomain.aspx)
+2. Download *IBM ILOG CPLEX Optimization Studio* from the [software catalog](https://ibm.onthehub.com/WebStore/ProductSearchOfferingList.aspx?srch=CPLEX)
+3. Install the CPLEX Optimization Studio on your compter.
+4. Setup the CPLEX Python API [as described here](https://www.ibm.com/support/knowledgecenter/SSSA5P_12.8.0/ilog.odms.cplex.help/CPLEX/GettingStarted/topics/set_up/Python_setup.html).
 
 If you have problems installing CPLEX, check the [CPLEX user manual](http://www-01.ibm.com/support/knowledgecenter/SSSA5P/welcome) or the [CPLEX forums](https://www.ibm.com/developerworks/community/forums/html/forum?id=11111111-0000-0000-0000-000000002059). 
 
@@ -40,12 +40,11 @@ If you have problems installing CPLEX, check the [CPLEX user manual](http://www-
 
 - ~~Simplify Installation~~ 
 - ~~Convenience functions for batch computing~~
-- Refactoring/Specs/Unit Tests/Documentation
-- Helper Functions for Performance Analysis
-- OO Interface for Risk Score Models
-- Compatability with [sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator)
+- Refactoring
+- [Sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) OO Interface for Risk Scores
+- Specs/Unit Tests/Documentation
+- Analysis Tools (ROC Curves, Calibration Plots, Model reports)
  
-
 ## Citation 
 
 If you use ``risk-slim`` for in your research, please cite [our paper](https://arxiv.org/abs/1610.00168)!  
