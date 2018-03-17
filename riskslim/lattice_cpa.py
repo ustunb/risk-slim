@@ -376,8 +376,8 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
                                 get_objval = get_objval,
                                 get_L0_norm = get_L0_norm,
                                 is_feasible = is_feasible,
-                                dcd_polishing = lambda rho, cutoff: sequential_rounding(rho, Z, C_0, cutoff),
-                                sequential_rounding = lambda rho: discrete_descent(rho, Z, C_0, rho_ub, rho_lb))
+                                dcd_polishing = lambda rho: discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_from_scores),
+                                sequential_rounding = lambda rho, cutoff: sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penalty, cutoff))
 
     else:
         loss_cb = risk_slim_mip.register_callback(LossCallback)
