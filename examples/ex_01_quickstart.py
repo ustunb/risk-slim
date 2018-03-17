@@ -60,7 +60,7 @@ settings = {
     'chained_updates_flag': True,                      # use chained updates
     'initialization_flag': True,                       # use initialization procedure
     'init_max_runtime': 300.0,                          # max time to run CPA in initialization procedure
-    'add_cuts_at_heuristic_solutions': False,            # add cuts at integer feasible solutions found using polishing/rounding
+    'add_cuts_at_heuristic_solutions': True,            # add cuts at integer feasible solutions found using polishing/rounding
     #
     # CPLEX Solver Parameters
     'cplex_randomseed': 0,                              # random seed
