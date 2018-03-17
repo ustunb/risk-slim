@@ -297,8 +297,3 @@ class SolutionQueue(object):
 
     def __str__(self):
         return self.table()
-
-
-
-
-

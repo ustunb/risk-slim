@@ -100,6 +100,8 @@ def initialize_lattice_cpa(Z,
                                                     max_runtime = settings['polishing_max_runtime'],
                                                     max_solutions = settings['polishing_max_solutions'])
 
+
+    if len(pool) > 0:
         pool = pool.remove_infeasible(is_feasible).distinct().sort()
 
     if len(pool) > 0:
@@ -120,6 +122,9 @@ def round_solution_pool(pool, constraints):
     -------
 
     """
+    # quick return
+    if len(pool) == 0:
+        return pool
 
     pool = pool.distinct().sort()
     P = pool.P
@@ -177,6 +182,7 @@ def sequential_round_solution_pool(pool,
     if len(pool) == 0:
         return pool, 0.0, 0
 
+    pool = pool.distinct().sort()
     P = pool.P
     total_runtime = 0.0
 
@@ -192,7 +198,8 @@ def sequential_round_solution_pool(pool,
             rounded_rho_l0_min = np.count_nonzero(np.floor(abs_rho[L0_reg_ind]))
             rounded_rho_l0_max = np.count_nonzero(np.ceil(abs_rho[L0_reg_ind]))
             return rounded_rho_l0_max >= L0_min and rounded_rho_l0_min <= L0_max
-            pool = pool.remove_infeasible(rounded_model_size_is_ok)
+
+        pool = pool.remove_infeasible(rounded_model_size_is_ok)
 
     pool = pool.sort()
     rounded_pool = SolutionPool(P)
@@ -246,9 +253,13 @@ def discrete_descent_solution_pool(pool,
     -------
     new solution pool, total polishing time, and # of solutions polished
     """
-
+    # quick return
     if len(pool) == 0:
         return pool, 0.0, 0
+
+
+    pool = pool.distinct().sort()
+
 
     rho_ub = constraints['coef_set'].ub
     rho_lb = constraints['coef_set'].lb
@@ -273,7 +284,8 @@ def discrete_descent_solution_pool(pool,
             break
 
     n_polished = len(polished_pool)
-    polished_pool = polished_pool.append(pool).sort()
+    polished_pool = polished_pool.append(pool)
+    polished_pool = polished_pool.distinct().sort()
     return polished_pool, total_runtime, n_polished
 
 
