@@ -112,8 +112,13 @@ def get_accuracy_stats(model, data, error_checking=True):
     return accuracy_stats
 
 
+#### TODO
+
+
 def get_calibration_metrics(model, data):
+
     scores = (data['X'] * data['Y']).dot(model)
+    raise NotImplementedError()
 
     #distinct scores
 
@@ -138,12 +143,15 @@ def get_calibration_metrics(model, data):
 
     pass
 
+
 def get_roc_metrics(model, data):
-    pass
+
+    raise NotImplementedError()
+
 
 # ROC Curve + AUC
 # adapted from scikit-learn/sklearn/metrics/ranking.py (did not want to import scikit-learn to reduce dependencies)
-def roc_curve(y_true, y_score, pos_label=None, sample_weight=None, drop_intermediate=True):
+def get_roc_curve(y_true, y_score, pos_label=None, sample_weight=None, drop_intermediate=True):
     """Compute Receiver operating characteristic (ROC)
     Note: this implementation is restricted to the binary classification task.
     Read more in the :ref:`User Guide <roc_metrics>`.
@@ -232,21 +240,20 @@ def roc_curve(y_true, y_score, pos_label=None, sample_weight=None, drop_intermed
 
     if fps[-1] <= 0:
         warnings.warn("No negative samples in y_true, "
-                      "false positive value should be meaningless",
-                      UndefinedMetricWarning)
+                      "false positive value should be meaningless")
         fpr = np.repeat(np.nan, fps.shape)
     else:
         fpr = fps / fps[-1]
 
     if tps[-1] <= 0:
-        warnings.warn("No positive samples in y_true, "
-                      "true positive value should be meaningless",
-                      UndefinedMetricWarning)
+        warnings.warn("No positive samples in y_true, ",
+                      "true positive value should be meaningless")
         tpr = np.repeat(np.nan, tps.shape)
     else:
         tpr = tps / tps[-1]
 
     return fpr, tpr, thresholds
+
 
 def _binary_clf_curve(y_true, y_score, pos_label=None, sample_weight=None):
     """Calculate true and false positives per binary classification threshold.
@@ -275,23 +282,23 @@ def _binary_clf_curve(y_true, y_score, pos_label=None, sample_weight=None):
     thresholds : array, shape = [n_thresholds]
         Decreasing score values.
     """
-    check_consistent_length(y_true, y_score)
-    y_true = column_or_1d(y_true)
-    y_score = column_or_1d(y_score)
-    assert_all_finite(y_true)
-    assert_all_finite(y_score)
+    np.check_consistent_length(y_true, y_score)
+    y_true = np.column_or_1d(y_true)
+    y_score = np.column_or_1d(y_score)
+    np.assert_all_finite(y_true)
+    np.assert_all_finite(y_score)
 
     if sample_weight is not None:
-        sample_weight = column_or_1d(sample_weight)
+        sample_weight = np.column_or_1d(sample_weight)
 
     # ensure binary classification if pos_label is not specified
     classes = np.unique(y_true)
     if (pos_label is None and
-        not (array_equal(classes, [0, 1]) or
-             array_equal(classes, [-1, 1]) or
-             array_equal(classes, [0]) or
-             array_equal(classes, [-1]) or
-             array_equal(classes, [1]))):
+        not (np.array_equal(classes, [0, 1]) or
+             np.array_equal(classes, [-1, 1]) or
+             np.array_equal(classes, [0]) or
+             np.array_equal(classes, [-1]) or
+             np.array_equal(classes, [1]))):
         raise ValueError("Data is not binary and pos_label is not specified")
     elif pos_label is None:
         pos_label = 1.
@@ -315,12 +322,13 @@ def _binary_clf_curve(y_true, y_score, pos_label=None, sample_weight=None):
     threshold_idxs = np.r_[distinct_value_indices, y_true.size - 1]
 
     # accumulate the true positives with decreasing threshold
-    tps = stable_cumsum(y_true * weight)[threshold_idxs]
+    tps = np.stable_cumsum(y_true * weight)[threshold_idxs]
     if sample_weight is not None:
-        fps = stable_cumsum(weight)[threshold_idxs] - tps
+        fps = np.stable_cumsum(weight)[threshold_idxs] - tps
     else:
         fps = 1 + threshold_idxs - tps
     return fps, tps, y_score[threshold_idxs]
+
 
 def auc(x, y, reorder=False):
     """Compute Area Under the Curve (AUC) using the trapezoidal rule

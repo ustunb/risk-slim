@@ -5,7 +5,7 @@ import riskslim.loss_functions.fast_log_loss as fast
 import riskslim.loss_functions.lookup_log_loss as lookup
 import riskslim.loss_functions.log_loss_weighted as weighted
 
-print "testing riskslim.loss_functions"
+print("testing riskslim.loss_functions")
 np.random.seed(seed = 0)
 
 #initialize data matrix X and label vector Y
@@ -106,7 +106,7 @@ for s in range(int(min_score), int(max_score)+1):
     assert(np.isclose(table_value, normal_value, rtol = 1e-06))
     assert(np.equal(table_value, lookup_value))
 
-print "all tests passed"
+print("all tests passed")
 
 #python implementations need to be 'C' aligned instead of D aligned
 Z_py = np.require(Z, requirements = ['C'])
@@ -160,7 +160,7 @@ weights[~pos_ind] = w_neg
 weights_match_unit_weights = all(weights == 1.0)
 
 if weights_match_unit_weights:
-    print "tests for match between normal and weighted loss function"
+    print("tests for match between normal and weighted loss function")
     #value
     assert(np.isclose(normal_value_test(), weighted_value_test(weights)))
     assert(np.isclose(normal_value_test(), weighted_scores_test(weights)))
@@ -171,7 +171,7 @@ if weights_match_unit_weights:
     assert(np.isclose(normal_cut[0], weighted_cut[0]))
     assert(all(np.isclose(normal_cut[1], weighted_cut[1])))
 
-print "passed all tests for weighted implementations when w_pos = w_neg = 1.0"
+print("passed all tests for weighted implementations when w_pos = w_neg = 1.0")
 
 
 #w_pos = w_neg = 1.0
@@ -197,7 +197,7 @@ assert(np.isclose(weighted_value, weighted_cut_scaled[0]))
 assert(np.isclose(weighted_cut[0], weighted_cut_scaled[0]))
 assert(np.all(np.isclose(weighted_cut[1], weighted_cut_scaled[1])))
 
-print "passed all tests for weighted loss functions when w_pos = %1.2f and w_neg = %1.2f" % (w_pos, w_neg)
+print("passed all tests for weighted loss functions when w_pos = %1.2f and w_neg = %1.2f" % (w_pos, w_neg))
 
 
 # print 'timing for loss value computation \n'

@@ -2,8 +2,9 @@ import os
 import numpy as np
 from pprint import pprint
 from riskslim.helper_functions import load_data_from_csv, print_model
+from riskslim.setup_functions import get_conservative_offset
 from riskslim.CoefficientSet import CoefficientSet
-from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa
+from riskslim.lattice_cpa import run_lattice_cpa
 
 #double check BLAS configuration
 np.__config__.show()
@@ -56,7 +57,6 @@ settings = {
     'max_tolerance': np.finfo('float').eps,             # tolerance to stop LCPA (set to 0 to return provably optimal solution)
     'display_cplex_progress': True,                     # set to True to print CPLEX progress
     'loss_computation': 'normal',                       # how to compute the loss function ('normal','fast','lookup')
-    'tight_formulation': True,                          # use a slightly formulation of surrogate MIP that provides a slightly improved formulation
     #
     # Other LCPA Heuristics
     'chained_updates_flag': True,                         # use chained updates

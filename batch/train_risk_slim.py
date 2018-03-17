@@ -31,7 +31,7 @@ from riskslim.CoefficientSet import CoefficientSet
 from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa, DEFAULT_LCPA_SETTINGS
 
 # uncomment for debugging
-#from riskslim.debugging import ipsh
+#from riskslim.debug import ipsh
 
 # TODO: run the following when building
 # with open(settings_json, 'w') as outfile:

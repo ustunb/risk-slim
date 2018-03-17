@@ -1,3 +1,5 @@
+IPython
+traitlets
 numpy
 scipy
 Cython

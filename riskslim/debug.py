@@ -1,11 +1,11 @@
 """
-This function provides MATLAB style debugging using iPython
+This provides MATLAB style debugging using iPython
 
 To use
-1. import the function "from debugging import ipsh"
+1. import the function "from debug import ipsh"
 2. add isph() right before use
 
-See post on StackExchange for more info
+Adapted from the following StackExchange post
 http://stackoverflow.com/a/23388116/568249
 """
 
@@ -21,17 +21,19 @@ prompt_config.in2_template = '   .\\D.: '
 prompt_config.out_template = 'N.Out<\\#>: '
 
 # Messages displayed when I drop into and exit the shell.
-banner_msg = ("\n**Nested Interpreter:\n"
-"Hit Ctrl-D to exit interpreter and continue program.\n"
-"Note that if you use %kill_embedded, you can fully deactivate\n"
-"This embedded instance so it will never turn on again")
-exit_msg = '**Leaving Nested interpreter'
+banner_msg = ["** ENTERING NESTED INTERPRETER **",
+              "Hit Ctrl-D to exit interpreter and continue program.",
+              "Note that if you use %kill_embedded, you can fully deactivate",
+              "This embedded instance so it will never turn on again." ]
 
-# Wrap it in a function that gives me more context:
+banner_msg = "\n".join(banner_msg)
+exit_msg = '** LEAVING NESTED INTERPRETER **'
+
+# Wrap it in a function for more context:
 def ipsh():
     ipshell = InteractiveShellEmbed(config=cfg, banner1=banner_msg, exit_msg=exit_msg)
     frame = inspect.currentframe().f_back
-    msg   = 'Stopped at {0.f_code.co_filename} at line {0.f_lineno}'.format(frame)
+    msg = 'Stopped at {0.f_code.co_filename} at line {0.f_lineno}'.format(frame)
     # Go back one level!
     # This is needed because the call to ipshell is inside the function ipsh()
     ipshell(msg, stack_depth=2)

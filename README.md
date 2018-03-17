@@ -1,10 +1,9 @@
 risk-slim
 ========
 
-``risk-slim`` is a package to create simple data-driven *risk scores* in Python. These are simple classification models that let users quickly assess risk by adding, subtracting and multiplying a few small numbers.
+``risk-slim`` is a Python package to train data-driven *risk scores*. These are simple classification models that let users quickly assess risk by adding, subtracting and multiplying a few small numbers.
 
 **NOTE: THIS PACKAGE IS CURRENTLY WORKING BUT UNDER ACTIVE DEVELOPMENT. There may be bugs, and the internal code may change substantially with each commit.** 
-
 
 
 
@@ -21,7 +20,7 @@ bash batch/job_template.sh #batch run
 
 ### Requirements
 
-``risk-slim`` was developed using Python 2.7 and CPLEX 12.6. It may work with older versions of Python and CPLEX. However this has not been tested and will not be supported.
+``risk-slim`` was developed using Python 2.7.11 and CPLEX 12.6. It may work with older versions of Python and CPLEX. However this has not been tested and will not be supported.
 
 
 ### CPLEX 
@@ -39,26 +38,20 @@ If you have problems installing CPLEX, check the [CPLEX user manual](http://www-
 
 ## Development Timeline
 
-##### Short Term:
-
 - ~~Simplify Installation~~ 
 - ~~Convenience functions for batch computing~~
-- Convenience functions for performance (ROC curves, calibration diagrams)
-- Examples / Jupyter Notebooks
-- Specs/Unit Tests/Documentation
-
-##### Long Term:
-
-- Ability to use an open-source MIP solver ([SYMPHONY](https://projects.coin-or.org/SYMPHONY)) 
+- Refactoring/Specs/Unit Tests/Documentation
+- Helper Functions for Performance Analysis
+- OO Interface for Risk Score Models
 - Compatability with [sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator)
-
+ 
 
 ## Citation 
 
 If you use ``risk-slim`` for in your research, please cite [our paper](https://arxiv.org/abs/1610.00168)!  
      
 ```
-@inproceedings{ustun2016kdd,
+@inproceedings{ustun2017kdd,
 	Author = {Ustun, Berk and Rudin, Cynthia},
 	Booktitle = {Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
 	Organization = {ACM},

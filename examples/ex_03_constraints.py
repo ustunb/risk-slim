@@ -3,8 +3,10 @@ import numpy as np
 import cplex as cplex
 from pprint import pprint
 from riskslim.helper_functions import load_data_from_csv, print_model
+from riskslim.setup_functions import get_conservative_offset
 from riskslim.CoefficientSet import CoefficientSet
-from riskslim.lattice_cpa import get_conservative_offset, setup_lattice_cpa, finish_lattice_cpa
+from riskslim.lattice_cpa import  setup_lattice_cpa, finish_lattice_cpa
+
 
 # data
 data_name = "breastcancer"                                  # name of the data
@@ -56,7 +58,6 @@ settings = {
     #
     # RiskSLIM MIP settings
     'drop_variables': False,
-    'tight_formulation': False,                          # use a slightly formulation of surrogate MIP that provides a slightly improved formulation
     #
     # LCPA Improvements
     'round_flag': False,                                # round continuous solutions with SeqRd

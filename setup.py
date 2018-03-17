@@ -14,7 +14,7 @@ from setuptools.extension import Extension
 DISTNAME = 'riskslim'
 DESCRIPTION = "optimized risk scores on large-scale datasets"
 AUTHOR = 'Berk Ustun'
-AUTHOR_EMAIL = 'ustunb@mit.edu'
+AUTHOR_EMAIL = 'berk@seas.harvard.edu'
 URL = 'https://github.com/ustunb/risk-slim'
 LICENSE = 'new BSD'
 DOWNLOAD_URL = 'https://github.com/ustunb/risk-slim'
