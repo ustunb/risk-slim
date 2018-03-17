@@ -1,9 +1,16 @@
 risk-slim
 ========
 
-``risk-slim`` is a Python package to create *risk scores*. These are simple classification models that let users quickly assess risk by adding, subtracting and multiplying a few small numbers.
+``risk-slim`` is a new machine method to create *risk scores*. These are simple tools that let users quickly assess risk by adding and subtracting a few small numbers.
 
-**NOTE: THIS PACKAGE IS CURRENTLY WORKING BUT UNDER ACTIVE DEVELOPMENT. There may be bugs, and the internal code may change substantially with each commit.** 
+![customized risk score for seizure prediction built using RiskSLIM](https://github.com/ustunb/risk-slim/images/risk_slim_seizure.png)
+
+
+
+
+
+
+**NOTE: THIS PACKAGE IS CURRENTLY UNDER ACTIVE DEVELOPMENT. The internal code may change substantially with each commit.** 
 
 
 
