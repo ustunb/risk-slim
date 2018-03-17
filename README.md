@@ -19,10 +19,9 @@ Details about this model can be found in our [paper](http://www.berkustun.com/do
 #### Links
 
 - [3 minute video about RiskSLIM](http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw)
-- repository of current medical risk scores at [www.mdcalc.com**](https://www.mdcalc.com/).
-- recent risk score developed by the Pennsylvania Sentencing Commision
-([homepage](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/)
-[example](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/phase-i-reports/interim-report-7-validation-of-risk-scale/view))
+- repository of current medical risk scores at [www.mdcalc.com](https://www.mdcalc.com/)
+- recent risk score developed by the Pennsylvania Sentencing Commision: [homepage](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/) |
+[example](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/phase-i-reports/interim-report-7-validation-of-risk-scale/view)
 
 ## Package Details
 
