@@ -4,9 +4,13 @@ from cplex import infinity as CPX_INFINITY, SparsePair
 from .helper_functions import print_log, print_update, get_or_set_default
 from .bound_tightening import chained_updates, chained_updates_for_lp
 from .solution_classes import SolutionPool
+from .default_settings import DEFAULT_CPA_SETTINGS
 
 # Standard CPA
-def run_standard_cpa(MIP, indices, settings, compute_loss, compute_loss_cut, print_flag = True):
+def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings = DEFAULT_CPA_SETTINGS, print_flag = True):
+
+    assert callable(compute_loss)
+    assert callable(compute_loss_cut)
 
     if print_flag:
         print_from_function = lambda msg: print_log(msg)
@@ -17,47 +21,48 @@ def run_standard_cpa(MIP, indices, settings, compute_loss, compute_loss_cut, pri
     settings = get_or_set_default(settings, 'update_bounds', True)
     settings = get_or_set_default(settings, 'display_progress', True)
     settings = get_or_set_default(settings, 'save_progress', True)
+    settings = get_or_set_default(settings, 'max_coefficient_gap', 0.5)
     settings = get_or_set_default(settings, 'max_tolerance', 0.00001)
     settings = get_or_set_default(settings, 'max_iterations', 10000)
     settings = get_or_set_default(settings, 'max_runtime', 100.0)
     settings = get_or_set_default(settings, 'max_runtime_per_iteration', 10000.0)
     settings = get_or_set_default(settings, 'max_cplex_time_per_iteration', 60.0)
 
-    rho_idx = indices["rho"]
-    loss_idx = indices["loss"]
-    alpha_idx = indices["alpha"]
+    rho_idx = cpx_indices["rho"]
+    loss_idx = cpx_indices["loss"]
+    alpha_idx = cpx_indices["alpha"]
     cut_idx = loss_idx + rho_idx
-    objval_idx = indices["objval"]
-    L0_idx = indices["L0_norm"]
+    objval_idx = cpx_indices["objval"]
+    L0_idx = cpx_indices["L0_norm"]
 
     if len(alpha_idx) == 0:
         get_alpha = lambda: np.array([])
     else:
-        get_alpha = lambda: np.array(MIP.solution.get_values(alpha_idx))
+        get_alpha = lambda: np.array(cpx.solution.get_values(alpha_idx))
 
     if type(loss_idx) is list and len(loss_idx) == 1:
         loss_idx = loss_idx[0]
 
-    C_0_alpha = np.array(indices['C_0_alpha'])
+    C_0_alpha = np.array(cpx_indices['C_0_alpha'])
     nnz_ind = np.flatnonzero(C_0_alpha)
     C_0_nnz = C_0_alpha[nnz_ind]
 
     if settings['update_bounds']:
 
         bounds = {
-            'loss_min': MIP.variables.get_lower_bounds(loss_idx),
-            'loss_max': MIP.variables.get_upper_bounds(loss_idx),
-            'objval_min': MIP.variables.get_lower_bounds(objval_idx),
-            'objval_max': MIP.variables.get_upper_bounds(objval_idx),
-            'L0_min': MIP.variables.get_lower_bounds(L0_idx),
-            'L0_max': MIP.variables.get_upper_bounds(L0_idx),
+            'loss_min': cpx.variables.get_lower_bounds(loss_idx),
+            'loss_max': cpx.variables.get_upper_bounds(loss_idx),
+            'objval_min': cpx.variables.get_lower_bounds(objval_idx),
+            'objval_max': cpx.variables.get_upper_bounds(objval_idx),
+            'L0_min': cpx.variables.get_lower_bounds(L0_idx),
+            'L0_max': cpx.variables.get_upper_bounds(L0_idx),
             }
 
         if settings['type'] == 'cvx':
             vtypes = 'C'
             update_problem_bounds = lambda bounds, lb, ub: chained_updates_for_lp(bounds, C_0_nnz, ub, lb)
         elif settings['type'] is 'ntree':
-            vtypes = MIP.variables.get_types(rho_idx)
+            vtypes = cpx.variables.get_types(rho_idx)
             update_problem_bounds = lambda bounds, lb, ub: chained_updates(bounds, C_0_nnz, ub, lb)
 
     else:
@@ -88,15 +93,15 @@ def run_standard_cpa(MIP, indices, settings, compute_loss, compute_loss_cut, pri
 
         iteration_start_time = time.time()
         current_timelimit = min(remaining_total_time, settings['max_cplex_time_per_iteration'])
-        MIP.parameters.timelimit.set(float(current_timelimit))
-        MIP.solve()
-        solution_status = MIP.solution.status[MIP.solution.get_status()]
+        cpx.parameters.timelimit.set(float(current_timelimit))
+        cpx.solve()
+        solution_status = cpx.solution.status[cpx.solution.get_status()]
 
         # get solution
         if solution_status in ('optimal', 'optimal_tolerance', 'MIP_optimal'):
-            rho = np.array(MIP.solution.get_values(rho_idx))
+            rho = np.array(cpx.solution.get_values(rho_idx))
             alpha = get_alpha()
-            simplex_iteration = int(MIP.solution.progress.get_num_iterations())
+            simplex_iteration = int(cpx.solution.progress.get_num_iterations())
         else:
             stop_reason = solution_status
             print_from_function('BREAKING NTREE CP LOOP NON-OPTIMAL SOLUTION FOUND: %s' % solution_status)
@@ -113,7 +118,7 @@ def run_standard_cpa(MIP, indices, settings, compute_loss, compute_loss_cut, pri
         # compute objective bounds
         objval = float(loss_value + alpha.dot(C_0_alpha))
         upperbound = min(upperbound, objval)
-        lowerbound = MIP.solution.get_objective_value()
+        lowerbound = cpx.solution.get_objective_value()
         relative_gap = (upperbound - lowerbound)/(upperbound + np.finfo('float').eps)
         bounds = update_problem_bounds(bounds, lb = lowerbound, ub = upperbound)
 
@@ -142,6 +147,14 @@ def run_standard_cpa(MIP, indices, settings, compute_loss, compute_loss_cut, pri
             progress_stats['simplex_iterations'].append(simplex_iteration)
 
         # check termination conditions
+        if len(solutions) >= 2:
+            prior_rho = solutions[-2]
+            coefficient_gap = np.abs(np.max(rho - prior_rho))
+            if np.all(np.round(rho) == np.round(prior_rho)) and coefficient_gap < settings['max_coefficient_gap']:
+                stop_reason = 'aborted:coefficient_gap_within_tolerance'
+                print_from_function('BREAKING NTREE CP LOOP - COEFS ACROSS ITERATIONS WITHIN TOLERANCE')
+                break
+
         if relative_gap < settings['max_tolerance']:
             stop_reason = 'converged:gap_within_tolerance'
             print_from_function('BREAKING NTREE CP LOOP - MAX TOLERANCE')
@@ -163,15 +176,15 @@ def run_standard_cpa(MIP, indices, settings, compute_loss, compute_loss_cut, pri
 
         # switch bounds
         if settings['update_bounds']:
-            MIP.variables.set_lower_bounds(L0_idx, bounds['L0_min'])
-            MIP.variables.set_upper_bounds(L0_idx, bounds['L0_max'])
-            MIP.variables.set_lower_bounds(loss_idx, bounds['loss_min'])
-            MIP.variables.set_upper_bounds(loss_idx, bounds['loss_max'])
-            MIP.variables.set_lower_bounds(objval_idx, bounds['objval_min'])
-            MIP.variables.set_upper_bounds(objval_idx, bounds['objval_max'])
+            cpx.variables.set_lower_bounds(L0_idx, bounds['L0_min'])
+            cpx.variables.set_upper_bounds(L0_idx, bounds['L0_max'])
+            cpx.variables.set_lower_bounds(loss_idx, bounds['loss_min'])
+            cpx.variables.set_upper_bounds(loss_idx, bounds['loss_max'])
+            cpx.variables.set_lower_bounds(objval_idx, bounds['objval_min'])
+            cpx.variables.set_upper_bounds(objval_idx, bounds['objval_max'])
 
         # add loss cut
-        MIP.linear_constraints.add(lin_expr = cut_constraint,
+        cpx.linear_constraints.add(lin_expr = cut_constraint,
                                    senses = ["G"],
                                    rhs = cut_lhs,
                                    names = cut_name)
@@ -200,17 +213,17 @@ def run_standard_cpa(MIP, indices, settings, compute_loss, compute_loss_cut, pri
         stats['solutions'] = solutions
 
     #collect cuts
-    idx = range(indices['n_constraints'], MIP.linear_constraints.get_num(), 1)
+    idx = range(cpx_indices['n_constraints'], cpx.linear_constraints.get_num(), 1)
     cuts = {
-        'coefs': MIP.linear_constraints.get_rows(idx),
-        'lhs': MIP.linear_constraints.get_rhs(idx)
+        'coefs': cpx.linear_constraints.get_rows(idx),
+        'lhs': cpx.linear_constraints.get_rhs(idx)
     }
 
     #create solution pool
     if settings['type'] == 'ntree':
-        C_0_rho = np.array(indices['C_0_rho'])
-        for i in range(MIP.solution.pool.get_num()):
-            rho = np.array(MIP.solution.pool.get_values(i, rho_idx))
+        C_0_rho = np.array(cpx_indices['C_0_rho'])
+        for i in range(cpx.solution.pool.get_num()):
+            rho = np.array(cpx.solution.pool.get_values(i, rho_idx))
             objval = compute_loss(rho) + np.sum(C_0_rho[np.flatnonzero(np.array(rho))])
             solutions.append(rho)
             objvals.append(objval)
@@ -218,6 +231,6 @@ def run_standard_cpa(MIP, indices, settings, compute_loss, compute_loss_cut, pri
     if len(objvals) > 1:
         pool = SolutionPool({'objvals': objvals, 'solutions': solutions})
     else:
-        pool = SolutionPool(len(indices["rho"]))
+        pool = SolutionPool(len(cpx_indices["rho"]))
 
     return stats, cuts, pool

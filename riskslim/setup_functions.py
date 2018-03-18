@@ -4,7 +4,6 @@ from .CoefficientSet import CoefficientSet
 import riskslim.loss_functions as lossfun
 
 
-
 def setup_training_weights(Y, sample_weights = None, w_pos = 1.0, w_neg = 1.0, w_total_target = 2.0):
 
     """
@@ -85,7 +84,7 @@ def setup_penalty_parameters(coef_set, c0_value = 1e-6):
     return c0_value, C_0, L0_reg_ind, C_0_nnz
 
 
-def setup_loss_functions(Z, loss_computation = "fast", sample_weights = None, rho_ub = None, rho_lb = None, L0_reg_ind = None, L0_max = None):
+def setup_loss_functions(Z, loss_computation = "normal", sample_weights = None, rho_ub = None, rho_lb = None, L0_reg_ind = None, L0_max = None):
     """
 
     Parameters
@@ -288,8 +287,6 @@ def get_conservative_offset(data, coef_set, max_L0_value = None):
     conservative_offset = max(abs(s_min), abs(s_max)) + 1
     return conservative_offset
 
-
-# Score-Based Bounds
 
 def get_score_bounds(Z_min, Z_max, rho_lb, rho_ub, L0_reg_ind = None, L0_max = None):
 

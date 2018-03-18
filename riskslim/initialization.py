@@ -7,26 +7,6 @@ from .heuristics import sequential_rounding, discrete_descent
 from .bound_tightening import chained_updates
 from .solution_classes import SolutionPool
 
-INITIALIZATION_SETTINGS = {
-    'display_progress': True,  # print progress of initialization procedure
-    'display_cplex_progress': False,  # print of CPLEX during intialization procedure
-    'max_runtime': 300.0,  # max time to run CPA in initialization procedure
-    'max_iterations': 10000,  # max # of cuts needed to stop CPA
-    'max_tolerance': 0.0001,  # tolerance of solution to stop CPA
-    'max_runtime_per_iteration': 300.0,  # max time per iteration of CPA
-    'max_cplex_time_per_iteration': 10.0,  # max time per iteration to solve surrogate problem in CPA
-    'use_rounding': True,  # use SeqRd in initialization procedure
-    'rounding_max_runtime': 30.0,  # max runtime for Rs in initialization procedure
-    'rounding_max_solutions': 5,  # max solutions to round using Rd
-    'use_sequential_rounding': True,  # use SeqRd in initialization procedure
-    'sequential_rounding_max_runtime': 30.0,  # max runtime for SeqRd in initialization procedure
-    'sequential_rounding_max_solutions': 5,  # max solutions to round using SeqRd
-    'polishing_after': True,  # polish after rounding
-    'polishing_max_runtime': 30.0,  # max runtime for polishing
-    'polishing_max_solutions': 5,  # max solutions to polish
-    }
-
-
 def initialize_lattice_cpa(Z,
                            c0_value,
                            constraints,
@@ -65,7 +45,11 @@ def initialize_lattice_cpa(Z,
     risk_slim_lp = set_cplex_mip_parameters(risk_slim_lp, cplex_settings, display_cplex_progress = settings['display_cplex_progress'])
 
     # solve risk_slim_lp LP using standard CPA
-    cpa_stats, cuts, cpa_pool = run_standard_cpa(risk_slim_lp, risk_slim_lp_indices, settings, compute_loss_real, compute_loss_cut_real)
+    cpa_stats, cuts, cpa_pool = run_standard_cpa(cpx = risk_slim_lp,
+                                                 cpx_indices = risk_slim_lp_indices,
+                                                 compute_loss = compute_loss_real,
+                                                 compute_loss_cut = compute_loss_cut_real,
+                                                 settings = settings)
 
     # update bounds
     bounds = chained_updates(bounds, C_0_nnz, new_objval_at_relaxation = cpa_stats['lowerbound'])
@@ -125,13 +109,15 @@ def initialize_lattice_cpa(Z,
 def round_solution_pool(pool,
                         constraints,
                         max_runtime = float('inf'),
-                        max_solutions = float('inf'),):
+                        max_solutions = float('inf')):
     """
 
     Parameters
     ----------
     pool
     constraints
+    max_runtime
+    max_solutions
 
     Returns
     -------
@@ -260,9 +246,8 @@ def sequential_round_solution_pool(pool,
         if total_runtime > max_runtime or total_rounded > max_solutions:
             break
 
-    n_rounded = len(rounded_pool)
     rounded_pool = rounded_pool.distinct().sort()
-    return rounded_pool, total_runtime, n_rounded
+    return rounded_pool, total_runtime, total_rounded
 
 
 def discrete_descent_solution_pool(pool,
@@ -329,8 +314,7 @@ def discrete_descent_solution_pool(pool,
         if total_runtime > max_runtime or total_polished >= max_solutions:
             break
 
-    n_polished = len(polished_pool)
     polished_pool = polished_pool.distinct().sort()
-    return polished_pool, total_runtime, n_polished
+    return polished_pool, total_runtime, total_polished
 
 

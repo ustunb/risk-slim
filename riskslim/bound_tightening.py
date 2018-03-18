@@ -1,5 +1,7 @@
 import numpy as np
 
+
+
 def chained_updates(old_bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, MAX_CHAIN_COUNT = 20):
 
     new_bounds = dict(old_bounds)
