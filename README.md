@@ -8,7 +8,7 @@ risk-slim
 
 ### Example
 
-Here is a risk score for seizure prediction in the ICU, built using RiskSLIM (details about this model can be found in our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf)):
+Here is a risk score for seizure prediction in the ICU, built using RiskSLIM (see our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf) for details):
 
 <div>
 <p align="center"><img src="https://github.com/ustunb/risk-slim/blob/master/images/risk_score_seizure.png" width="640" height="480" border="0"/></p>
