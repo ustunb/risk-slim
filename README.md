@@ -19,10 +19,6 @@ alt="RiskSLIM KDD" width="480" height="360" border="10" /></a>
 
 ## Links
 
-<<<<<<< HEAD
-=======
-- [Short video about RiskSLIM for KDD 2017](http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw)
->>>>>>> 6b1509c04dd5a11a7cf42659706bc8129bc7e16c
 - [MDCalc](https://www.mdcalc.com/): a large repository of medical scoring systems (also an [iOS app](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8))
 - Risk score developed by the Pennsylvania Sentencing Commission: [homepage](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/) | [report](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/phase-i-reports/interim-report-7-validation-of-risk-scale/view)
 
