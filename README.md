@@ -16,10 +16,9 @@ Here is a risk score for seizure prediction in the ICU, built using RiskSLIM (se
 
 ### Links
 
-- [3 minute video about RiskSLIM](http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw)
-- repository of current medical risk scores at [www.mdcalc.com](https://www.mdcalc.com/)
-- recent risk score developed by the Pennsylvania Sentencing Commision: [homepage](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/) |
-[example](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/phase-i-reports/interim-report-7-validation-of-risk-scale/view)
+- [Short video about RiskSLIM for KDD 2017](http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw)
+- [MDCalc](https://www.mdcalc.com/): a large repository of medical scoring systems (also an [iOS app](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8))
+- Risk score developed by the Pennsylvania Sentencing Commission: [homepage](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/) | [report](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/phase-i-reports/interim-report-7-validation-of-risk-scale/view)
 
 ## Package Details
 
