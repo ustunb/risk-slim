@@ -1,7 +1,7 @@
 risk-slim
 ========
 
-``risk-slim`` is a new machine learning method to create simple *risk scores*. These are simple tools that let users quickly assess risk by adding and subtracting a few small numbers. 
+``risk-slim`` is a new machine learning method to create *risk scores*. These are simple tools that let users quickly assess risk by adding and subtracting a few small numbers. 
 
 
 ## Background
