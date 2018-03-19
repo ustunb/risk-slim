@@ -27,8 +27,9 @@ import numpy as np
 # add the source directory to search path to avoid module import errors if riskslim has not been installed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from riskslim.helper_functions import load_data_from_csv, setup_logging
-from riskslim.CoefficientSet import CoefficientSet
-from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa, DEFAULT_LCPA_SETTINGS
+from riskslim.coefficient_set import CoefficientSet
+from riskslim.setup_functions import get_conservative_offset
+from riskslim.lattice_cpa import run_lattice_cpa, DEFAULT_LCPA_SETTINGS
 
 # uncomment for debugging
 #from riskslim.debug import ipsh
@@ -218,12 +219,12 @@ if __name__ == '__main__':
 
     conservative_offset = get_conservative_offset(data, coef_set, max_model_size)
     max_offset = min(max_offset, conservative_offset)
-    coef_set.set_field('lb', '(Intercept)', -max_offset)
-    coef_set.set_field('ub', '(Intercept)', max_offset)
+    coef_set['(Intercept)'].ub = max_offset
+    coef_set['(Intercept)'].lb = -max_offset
 
     #print coefficient set
     if not parsed.silent:
-        coef_set.view()
+        coef_set.table()
 
     constraints = {
         'L0_min': 0,

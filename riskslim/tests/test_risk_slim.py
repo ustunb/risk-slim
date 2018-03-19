@@ -2,8 +2,9 @@ import os
 import numpy as np
 from pprint import pprint
 from riskslim.helper_functions import load_data_from_csv, print_model
-from riskslim.CoefficientSet import CoefficientSet
-from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa
+from riskslim.coefficient_set import CoefficientSet
+from riskslim.setup_functions import get_conservative_offset
+from riskslim.lattice_cpa import run_lattice_cpa
 
 
 # Dataset Strategy
@@ -29,8 +30,8 @@ from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa
 
 # data
 data_name = "breastcancer"  # name of the data
-data_dir = os.getcwd() + '/datasets/'  # directory where datasets are stored
-data_csv_file = data_dir + data_name + '_processed.csv'  # csv file for the dataset
+data_dir = os.getcwd() + '/examples/data/'  # directory where datasets are stored
+data_csv_file = data_dir + data_name + '_data.csv'  # csv file for the dataset
 sample_weights_csv_file = None  # csv file of sample weights for the dataset (optional)
 
 default_settings = {
@@ -102,9 +103,8 @@ def test_risk_slim(data_csv_file, sample_weights_csv_file = None, max_coefficien
     coef_set = CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
     conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
     max_offset = min(max_offset, conservative_offset)
-    coef_set.set_field('lb', '(Intercept)', -max_offset)
-    coef_set.set_field('ub', '(Intercept)', max_offset)
-    coef_set.view()
+    coef_set['(Intercept)'].ub = max_offset
+    coef_set['(Intercept)'].lb = -max_offset
 
     # create constraint dictionary
     trivial_L0_max = P - np.sum(coef_set.C_0j == 0)
@@ -121,21 +121,18 @@ def test_risk_slim(data_csv_file, sample_weights_csv_file = None, max_coefficien
 
     #model info contains key results
     pprint(model_info)
-    print_model(model_info['solution'], data)
+
+    # lcpa_output contains detailed information about LCPA
+    pprint(lcpa_info)
+
+    # todo check solution
 
     # mip_output contains information to access the MIP
     mip_info['risk_slim_mip'] #CPLEX mip
     mip_info['risk_slim_idx'] #indices of the relevant constraints
 
-    # lcpa_output contains detailed information about LCPA
-    pprint(lcpa_info)
-    #todo check basic model
 
     return True
-
-def test_risk_slim_solution(solution, constraints):
-    constraints['coef_set'].check_set()
-    P = constraints['coef_set']
 
 
 test_risk_slim(data_csv_file = data_csv_file, max_coefficient = 5, max_L0_value = 5, max_offset = 50, settings = default_settings)

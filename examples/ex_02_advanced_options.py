@@ -3,7 +3,7 @@ import numpy as np
 from pprint import pprint
 from riskslim.helper_functions import load_data_from_csv, print_model
 from riskslim.setup_functions import get_conservative_offset
-from riskslim.CoefficientSet import CoefficientSet
+from riskslim.coefficient_set import CoefficientSet
 from riskslim.lattice_cpa import run_lattice_cpa
 
 #double check BLAS configuration
@@ -31,10 +31,10 @@ coef_set = CoefficientSet(variable_names=data['variable_names'], lb=-max_coeffic
 
 # offset value
 conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
+conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
 max_offset = min(max_offset, conservative_offset)
-coef_set.set_field('lb', '(Intercept)', -max_offset)
-coef_set.set_field('ub', '(Intercept)', max_offset)
-coef_set.view()
+coef_set['(Intercept)'].ub = max_offset
+coef_set['(Intercept)'].lb = -max_offset
 
 # create constraint dictionary
 trivial_L0_max = P - np.sum(coef_set.C_0j == 0)
@@ -92,9 +92,14 @@ settings = {
     'init_max_runtime_per_iteration': 300.0,            # max time per iteration of CPA
     'init_max_cplex_time_per_iteration': 10.0,          # max time per iteration to solve surrogate problem in CPA
     #
+    'init_use_rounding': True,                          # use Rd in initialization procedure
+    'init_rounding_max_runtime': 30.0,                  # max runtime for Rd in initialization procedure
+    'init_rounding_max_solutions': 5,                   # max solutions to round using Rd
+    #
     'init_use_sequential_rounding': True,               # use SeqRd in initialization procedure
     'init_sequential_rounding_max_runtime': 30.0,       # max runtime for SeqRd in initialization procedure
     'init_sequential_rounding_max_solutions': 5,        # max solutions to round using SeqRd
+    #
     'init_polishing_after': True,                       # polish after rounding
     'init_polishing_max_runtime': 30.0,                 # max runtime for polishing
     'init_polishing_max_solutions': 5,                  # max solutions to polish

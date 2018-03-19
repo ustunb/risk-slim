@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from cplex import infinity as CPX_INFINITY, SparsePair
+from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
 from .helper_functions import print_log, print_update, get_or_set_default
 from .bound_tightening import chained_updates, chained_updates_for_lp
 from .solution_classes import SolutionPool
@@ -9,6 +9,9 @@ from .default_settings import DEFAULT_CPA_SETTINGS
 # Standard CPA
 def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings = DEFAULT_CPA_SETTINGS, print_flag = True):
 
+    assert isinstance(cpx, Cplex)
+    assert isinstance(cpx_indices, dict)
+    assert isinstance(settings, dict)
     assert callable(compute_loss)
     assert callable(compute_loss_cut)
 
@@ -104,7 +107,7 @@ def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings 
             simplex_iteration = int(cpx.solution.progress.get_num_iterations())
         else:
             stop_reason = solution_status
-            print_from_function('BREAKING NTREE CP LOOP NON-OPTIMAL SOLUTION FOUND: %s' % solution_status)
+            print_from_function('stopping standard CPA (status: %s)' % solution_status)
             break
 
         # compute cut
@@ -152,26 +155,38 @@ def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings 
             coefficient_gap = np.abs(np.max(rho - prior_rho))
             if np.all(np.round(rho) == np.round(prior_rho)) and coefficient_gap < settings['max_coefficient_gap']:
                 stop_reason = 'aborted:coefficient_gap_within_tolerance'
-                print_from_function('BREAKING NTREE CP LOOP - COEFS ACROSS ITERATIONS WITHIN TOLERANCE')
+                print_from_function('stopping standard CPA')
+                print_from_function('status: change in coefficient is within tolerance of %1.4f (1.4%f))' %
+                                    (settings['max_coefficient_gap'], coefficient_gap))
                 break
 
         if relative_gap < settings['max_tolerance']:
             stop_reason = 'converged:gap_within_tolerance'
-            print_from_function('BREAKING NTREE CP LOOP - MAX TOLERANCE')
+            print_from_function('stopping standard CPA')
+            print_from_function('status: optimality gap is within tolerance of %1.1f%% (%1.1f%%))' %
+                                (100 * settings['max_tolerance'], 100 * relative_gap))
             break
 
         if cplex_time > settings['max_cplex_time_per_iteration']:
             stop_reason = 'aborted:reached_max_train_time'
+            print_from_function('stopping standard CPA')
+            print_from_function('status: reached max training time per iteration of %d secs (%d secs)' %
+                                (settings['max_cplex_time_per_iteration'], cplex_time))
+
             break
 
         if iteration_time > settings['max_runtime_per_iteration']:
             stop_reason = 'aborted:reached_max_train_time'
-            print_from_function('BREAKING NTREE CP LOOP - REACHED MAX RUNTIME PER ITERATION')
+            print_from_function('stopping standard CPA')
+            print_from_function('status: reached max runtime time per iteration of %d secs (%d secs)' %
+                                (settings['max_runtime_per_iteration'], iteration_time))
             break
 
         if (total_time > settings['max_runtime']) or (remaining_total_time == 0.0):
             stop_reason = 'aborted:reached_max_train_time'
-            print_from_function('BREAKING NTREE CP LOOP - REACHED MAX RUNTIME')
+            print_from_function('stopping standard CPA')
+            print_from_function('status: reached max runtime time per iteration of %d secs (%d secs)' %
+                                (settings['max_runtime'], total_time))
             break
 
         # switch bounds

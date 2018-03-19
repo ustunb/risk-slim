@@ -5,7 +5,14 @@ from math import ceil, floor
 from cplex import infinity as CPX_INFINITY
 from cplex.exceptions import CplexError
 from .helper_functions import print_log, get_or_set_default
-from debug import *
+
+
+#todo: add loss cut
+#todo: add constraint function
+#todo: default cplex parameters
+#todo: check cores
+#todo: pass compute_loss to convert_risk_slim_cplex_solution
+
 def create_risk_slim(input):
     """
     create RiskSLIM MIP object
@@ -216,25 +223,25 @@ def create_risk_slim(input):
 
     # drop L0_norm_lb constraint for any variable with rho_lb >= 0
     dropped_variables = []
-    if input['drop_variables']:
-
-        sign_pos_ind = np.flatnonzero(input['coef_set'].sign > 0)
-        sign_neg_ind = np.flatnonzero(input['coef_set'].sign < 0)
-        fixed_value_ind = np.flatnonzero(input['coef_set'].ub == input['coef_set'].lb)
-
-        # drop L0_norm_ub/lb constraint for any variable with rho_ub/rho_lb >= 0
-        constraints_to_drop = ["L0_norm_lb_" + str(j) for j in sign_pos_ind] + ["L0_norm_ub_" + str(j) for j in sign_neg_ind]
-        cons.delete(constraints_to_drop)
-
-        # drop alpha for any variable where rho_ub = rho_lb = 0
-        variables_to_drop = ["alpha_" + str(j) for j in fixed_value_ind]
-        vars.delete(variables_to_drop)
-        dropped_variables += variables_to_drop
-        alpha_names = [alpha_names[j] for j in range(P) if alpha_names[j] not in dropped_variables]
+    # if input['drop_variables']:
+    #
+    #     sign_pos_ind = np.flatnonzero(input['coef_set'].sign > 0)
+    #     sign_neg_ind = np.flatnonzero(input['coef_set'].sign < 0)
+    #     fixed_value_ind = np.flatnonzero(input['coef_set'].ub == input['coef_set'].lb)
+    #
+    #     # drop L0_norm_ub/lb constraint for any variable with rho_ub/rho_lb >= 0
+    #     constraints_to_drop = ["L0_norm_lb_" + str(j) for j in sign_pos_ind] + ["L0_norm_ub_" + str(j) for j in sign_neg_ind]
+    #     cons.delete(constraints_to_drop)
+    #
+    #     # drop alpha for any variable where rho_ub = rho_lb = 0
+    #     variables_to_drop = ["alpha_" + str(j) for j in fixed_value_ind]
+    #     vars.delete(variables_to_drop)
+    #     dropped_variables += variables_to_drop
+    #     alpha_names = [alpha_names[j] for j in range(P) if alpha_names[j] not in dropped_variables]
 
     # drop alpha, L0_norm_ub and L0_norm_lb for ('Intercept')
     try:
-        offset_idx = input['coef_set'].get_field_as_list('variable_names').index('(Intercept)')
+        offset_idx = input['coef_set'].variable_names.index('(Intercept)')
         variables_to_drop = ['alpha_' + str(offset_idx)]
         vars.delete(variables_to_drop)
         alpha_names.pop(alpha_names.index('alpha_' + str(offset_idx)))
@@ -244,7 +251,7 @@ def create_risk_slim(input):
         pass
 
     try:
-        offset_idx = input['coef_set'].get_field_as_list('variable_names').index('(Intercept)')
+        offset_idx = input['coef_set'].variable_names.index('(Intercept)')
         cons.delete(["L0_norm_lb_" + str(offset_idx), "L0_norm_ub_" + str(offset_idx)])
         print_from_function("dropped L0 constraints for intercept variable")
     except CplexError:
@@ -345,7 +352,7 @@ def set_cplex_mip_parameters(mip, param, display_cplex_progress = False):
     return mip
 
 
-def add_mip_starts(mip, indices, pool, max_mip_starts=float('inf'), mip_start_effort_level=4):
+def add_mip_starts(mip, indices, pool, max_mip_starts = float('inf'), mip_start_effort_level=4):
     """
 
     Parameters
@@ -360,22 +367,26 @@ def add_mip_starts(mip, indices, pool, max_mip_starts=float('inf'), mip_start_ef
     -------
 
     """
+    # todo remove suboptimal using pool filter
+    assert isinstance(mip, cplex.Cplex)
+
     try:
         obj_cutoff = mip.parameters.mip.tolerances.uppercutoff.get()
     except:
-        obj_cutoff = np.inf
+        obj_cutoff = float('inf')
 
+    pool = pool.distinct().sort()
 
     #todo iterate over solution pool
     n_added = 0
-    for k in range(len(pool)):
-        if n_added < max_mip_starts:
-            if pool.objvals[0] <= (obj_cutoff + np.finfo('float').eps):
-                mip_start_name = "mip_start_" + str(n_added)
-                mip_start_obj, _ = convert_to_risk_slim_cplex_solution(rho = pool.solutions[k,], indices = indices, objval = pool.objvals[k])
-                mip.MIP_starts.add(mip_start_obj, mip_start_effort_level, mip_start_name)
-                n_added += 1
-        else:
+    for objval, rho in zip(pool.objvals, pool.solutions):
+        if pool.objvals[0] <= (obj_cutoff + np.finfo('float').eps):
+            mip_start_name = "mip_start_" + str(n_added)
+            mip_start_obj, _ = convert_to_risk_slim_cplex_solution(rho = rho, indices = indices, objval = objval)
+            mip.MIP_starts.add(mip_start_obj, mip_start_effort_level, mip_start_name)
+            n_added += 1
+
+        if n_added >= max_mip_starts:
             break
 
     return mip

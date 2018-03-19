@@ -191,8 +191,8 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     lcpa_settings = {key: settings[key] for key in settings if settings if not (key.startswith('init_') or key.startswith('cplex_'))}
 
     # data
-    N, P = data['X'].shape
     Z = data['X'] * data['Y']
+    N, P = Z.shape
 
     # unpack variables from setup_risk_slim
     risk_slim_mip = mip_objects['mip']
@@ -321,7 +321,6 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
                            get_L0_penalty_from_alpha = get_L0_penalty_from_alpha,
                            initial_cuts = initial_cuts)
 
-
     # attach solution pool
     if len(initial_pool) > 0:
         if lcpa_settings['polish_flag']:
@@ -355,8 +354,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     control['cplex_status'] = risk_slim_mip.solution.get_status_string()
     control['total_callback_time'] = control['total_cut_callback_time'] + control['total_heuristic_callback_time']
     control['total_solver_time'] = control['total_run_time'] - control['total_callback_time']
-    control['total_data_time'] = control['total_cut_time'] + control['total_polish_time'] + control[
-        'total_round_time'] + control['total_round_then_polish_time']
+    control['total_data_time'] = control['total_cut_time'] + control['total_polish_time'] + control['total_round_time'] + control['total_round_then_polish_time']
 
     # General Output
 

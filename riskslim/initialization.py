@@ -30,6 +30,15 @@ def initialize_lattice_cpa(Z,
     bounds
 
     """
+    #To-Do recompute function handles here if required
+    assert callable(compute_loss_real)
+    assert callable(compute_loss_cut_real)
+    assert callable(compute_loss_from_scores_real)
+    assert callable(compute_loss_from_scores)
+    assert callable(get_objval)
+    assert callable(get_L0_penalty)
+    assert callable(is_feasible)
+
     # trade-off parameter
     _, C_0, L0_reg_ind, C_0_nnz = setup_penalty_parameters(c0_value = c0_value, coef_set = constraints['coef_set'])
 

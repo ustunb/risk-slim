@@ -42,14 +42,18 @@ DEFAULT_LCPA_SETTINGS = {
     'init_max_runtime': 300.0,  # max time to run CPA in initialization procedure
     'init_max_iterations': 10000,  # max # of cuts needed to stop CPA
     'init_max_tolerance': 0.0001,  # tolerance of solution to stop CPA
+    'init_max_rounding_gap': 0.49,
     'init_max_runtime_per_iteration': 300.0,  # max time per iteration of CPA
     'init_max_cplex_time_per_iteration': 10.0,  # max time per iteration to solve surrogate problem in CPA
+    #
     'init_use_rounding': True,  # use Rd in initialization procedure
     'init_rounding_max_solutions': 100, # max runtime for Rd in initialization procedure
     'init_rounding_max_runtime': 20.0, # max runtime for Rd in initialization procedure
+    #
     'init_use_sequential_rounding': False,  # use SeqRd in initialization procedure
     'init_sequential_rounding_max_runtime': 30.0,  # max runtime for SeqRd in initialization procedure
     'init_sequential_rounding_max_solutions': 5,  # max solutions to round using SeqRd
+    #
     'init_polishing_after': True,  # polish after rounding
     'init_polishing_max_runtime': 30.0,  # max runtime for polishing
     'init_polishing_max_solutions': 5,  # max solutions to polish

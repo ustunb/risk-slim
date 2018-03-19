@@ -1,6 +1,6 @@
 import numpy as np
 from .helper_functions import print_log
-from .CoefficientSet import CoefficientSet
+from .coefficient_set import CoefficientSet
 import riskslim.loss_functions as lossfun
 
 
@@ -257,11 +257,7 @@ def get_conservative_offset(data, coef_set, max_L0_value = None):
 
     """
     if '(Intercept)' not in coef_set.variable_names:
-        raise ValueError("coef_set must contain a variable for the offset called 'Intercept'")
-
-    Z = data['X'] * data['Y']
-    Z_min = np.min(Z, axis=0)
-    Z_max = np.max(Z, axis=0)
+        raise ValueError("coef_set must contain a variable for the offset called '(Intercept)'")
 
     # get idx of intercept/variables
     offset_idx = coef_set.variable_names.index('(Intercept)')
@@ -274,6 +270,10 @@ def get_conservative_offset(data, coef_set, max_L0_value = None):
         max_L0_value = min(trivial_L0_max, max_L0_value)
     else:
         max_L0_value = trivial_L0_max
+
+    Z = data['X'] * data['Y']
+    Z_min = np.min(Z, axis = 0)
+    Z_max = np.max(Z, axis = 0)
 
     # get smallest / largest score
     s_min, s_max = get_score_bounds(Z_min = Z_min[variable_idx],
