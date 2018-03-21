@@ -5,8 +5,10 @@ DEFAULT_LCPA_SETTINGS = {
     #
     'c0_value': 1e-6,
     'w_pos': 1.00,
-    'tight_formulation': True,     #use a slightly tighter MIP formulation
+    #
+    #  MIP Formulation
     'drop_variables': True,        #drop variables
+    'tight_formulation': True,     #use a slightly tighter MIP formulation
     #
     # LCPA Settings
     'max_runtime': 300.0,  # max runtime for LCPA
@@ -89,6 +91,16 @@ DEFAULT_CPA_SETTINGS = {
     }
 
 DEFAULT_INITIALIZATION_SETTINGS = {
+    #
+    'display_progress': True,  # print progress of initialization procedure
+    'display_cplex_progress': False,  # print of CPLEX during intialization procedure
+    #
+    'max_runtime': 300.0,  # max time to run CPA in initialization procedure
+    'max_iterations': 10000,  # max # of cuts needed to stop CPA
+    'max_tolerance': 0.0001,  # tolerance of solution to stop CPA
+    'max_rounding_gap': 0.49,
+    'max_runtime_per_iteration': 300.0,  # max time per iteration of CPA
+    'max_cplex_time_per_iteration': 10.0,  # max time per iteration to solve surrogate problem in CPA
     #
     'use_rounding': True,  # use SeqRd in initialization procedure
     'rounding_max_runtime': 30.0,  # max runtime for Rs in initialization procedure

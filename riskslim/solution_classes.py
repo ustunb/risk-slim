@@ -122,6 +122,7 @@ class SolutionPool(object):
         else:
             return self.add(pool.objvals, pool.solutions)
 
+
     def add(self, objvals, solutions):
 
         if isinstance(objvals, np.ndarray) or isinstance(objvals, list):

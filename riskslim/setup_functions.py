@@ -1,10 +1,8 @@
 import numpy as np
 from .helper_functions import print_log
 from .coefficient_set import CoefficientSet
-import riskslim.loss_functions as lf
 
-
-def setup_loss_functions(Z, coef_set, sample_weights, loss_computation = "normal", L0_max = None):
+def setup_loss_functions(Z, coef_set, sample_weights, loss_computation = None, L0_max = None):
     """
 
     Parameters
@@ -19,100 +17,105 @@ def setup_loss_functions(Z, coef_set, sample_weights, loss_computation = "normal
     -------
 
     """
-    # todo fix magic number 20
-    # todo load loss based on constraints
-    # check if fast/lookup loss is installed
-    assert isinstance(coef_set, CoefficientSet)
-    assert loss_computation in ['normal', 'fast', 'lookup']
+    #todo check if fast/lookup loss is installed
+    assert loss_computation in [None, 'weighted', 'normal', 'fast', 'lookup']
     MAX_DISTINCT_XY_VALUES_FOR_LOOKUP_ON_NONINTEGER_DATA = 20
-    has_sample_weights = (sample_weights is not None) and (len(np.unique(sample_weights)) > 1)
 
-    if has_sample_weights:
+    integer_data_flag = np.all(Z == np.require(Z, dtype = np.int_))
+    distinct_points_flag = np.unique(Z) <= MAX_DISTINCT_XY_VALUES_FOR_LOOKUP_ON_NONINTEGER_DATA
+    use_weighted = sample_weights is not None and not np.all(np.equal(sample_weights, np.ones_like(sample_weights)))
+    use_lookup_table = not use_weighted and isinstance(coef_set, CoefficientSet) and (integer_data_flag or distinct_points_flag)
 
-        Z = np.require(Z, requirements=['C'])
+    if use_weighted:
+        final_loss_computation = 'weighted'
+    elif use_lookup_table:
+        final_loss_computation = 'lookup'
+    else:
+        final_loss_computation = 'fast'
+
+    if final_loss_computation != loss_computation:
+        print_log("switching loss computation from %s to %s" % (loss_computation, final_loss_computation))
+
+
+    if final_loss_computation == 'weighted':
+
+        from riskslim.loss_functions.log_loss_weighted import \
+            log_loss_value, \
+            log_loss_value_and_slope, \
+            log_loss_value_from_scores
+
+        Z = np.require(Z, requirements = ['C'])
         total_sample_weights = np.sum(sample_weights)
 
-        compute_loss = lambda rho: lf.log_loss_weighted.log_loss_value(Z, sample_weights, total_sample_weights, rho)
-        compute_loss_cut = lambda rho: lf.log_loss_weighted.log_loss_value_and_slope(Z, sample_weights, total_sample_weights, rho)
-        compute_loss_from_scores = lambda scores: lf.log_loss_weighted.log_loss_value_from_scores(sample_weights, total_sample_weights, scores)
+        compute_loss = lambda rho: log_loss_value(Z, sample_weights, total_sample_weights, rho)
+        compute_loss_cut = lambda rho: log_loss_value_and_slope(Z, sample_weights, total_sample_weights, rho)
+        compute_loss_from_scores = lambda scores: log_loss_value_from_scores(sample_weights, total_sample_weights, scores)
+
+    elif final_loss_computation == 'normal':
+
+        from riskslim.loss_functions.log_loss import \
+            log_loss_value, \
+            log_loss_value_and_slope, \
+            log_loss_value_from_scores
+
+        Z = np.require(Z, requirements=['C'])
+        compute_loss = lambda rho: log_loss_value(Z, rho)
+        compute_loss_cut = lambda rho: log_loss_value_and_slope(Z, rho)
+        compute_loss_from_scores = lambda scores: log_loss_value_from_scores(scores)
+
+    elif final_loss_computation == 'fast':
+
+        from riskslim.loss_functions.fast_log_loss import \
+            log_loss_value, \
+            log_loss_value_and_slope, \
+            log_loss_value_from_scores
+
+        Z = np.require(Z, requirements=['F'])
+        compute_loss = lambda rho: log_loss_value(Z, rho)
+        compute_loss_cut = lambda rho: log_loss_value_and_slope(Z, rho)
+        compute_loss_from_scores = lambda scores: log_loss_value_from_scores(scores)
+
+    elif final_loss_computation == 'lookup':
+
+        from riskslim.loss_functions.lookup_log_loss import \
+            get_loss_value_and_prob_tables, \
+            log_loss_value, \
+            log_loss_value_and_slope, \
+            log_loss_value_from_scores
+
+        s_min, s_max = get_score_bounds(Z_min = np.min(Z, axis=0),
+                                        Z_max = np.max(Z, axis=0),
+                                        rho_lb = coef_set.lb,
+                                        rho_ub = coef_set.ub,
+                                        L0_reg_ind = np.array(coef_set.c0) == 0.0,
+                                        L0_max = L0_max)
+
+
+        Z = np.require(Z, requirements=['F'], dtype = np.float)
+        print_log("%d rows in lookup table" % (s_max - s_min + 1))
+
+        loss_value_tbl, prob_value_tbl, tbl_offset = get_loss_value_and_prob_tables(s_min, s_max)
+        compute_loss = lambda rho: log_loss_value(Z, rho, loss_value_tbl, tbl_offset)
+        compute_loss_cut = lambda rho: log_loss_value_and_slope(Z, rho, loss_value_tbl, prob_value_tbl, tbl_offset)
+        compute_loss_from_scores = lambda scores: log_loss_value_from_scores(scores, loss_value_tbl, tbl_offset)
+
+    # real loss functions
+    if final_loss_computation == 'lookup':
+
+        from riskslim.loss_functions.fast_log_loss import \
+            log_loss_value as loss_value_real, \
+            log_loss_value_and_slope as loss_value_and_slope_real,\
+            log_loss_value_from_scores as loss_value_from_scores_real
+
+        compute_loss_real = lambda rho: loss_value_real(Z, rho)
+        compute_loss_cut_real = lambda rho: loss_value_and_slope_real(Z, rho)
+        compute_loss_from_scores_real = lambda scores: loss_value_from_scores_real(scores)
+
+    else:
 
         compute_loss_real = compute_loss
         compute_loss_cut_real = compute_loss_cut
         compute_loss_from_scores_real = compute_loss_from_scores
-
-    else:
-
-        integer_data_flag = np.all(Z == np.require(Z, dtype = np.int_))
-        use_lookup_table = integer_data_flag or (np.unique(Z) <= MAX_DISTINCT_XY_VALUES_FOR_LOOKUP_ON_NONINTEGER_DATA)
-
-        if loss_computation == 'lookup':
-
-            if coef_set is None:
-                print_log("missing input 'coef_set' for loss computation via lookup table method")
-
-            if not use_lookup_table:
-                print_log("wrong data type for lookup loss computation X * Y must be int or contains <= %d distinct values" %
-                          MAX_DISTINCT_XY_VALUES_FOR_LOOKUP_ON_NONINTEGER_DATA)
-
-            print_log("switching loss computation from FAST to LOOKUP")
-            loss_computation = 'fast'
-
-        elif loss_computation == 'fast' and use_lookup_table:
-            print_log("switching loss computation from LOOKUP to FAST")
-            loss_computation = 'lookup'
-
-
-        if loss_computation == 'normal':
-
-            print_log("USING NORMAL LOSS COMPUTATION")
-            Z = np.require(Z, requirements=['C'])
-
-            compute_loss = lambda rho: lf.log_loss.log_loss_value(Z, rho)
-            compute_loss_cut = lambda rho: lf.log_loss.log_loss_value_and_slope(Z, rho)
-            compute_loss_from_scores = lambda scores: lf.log_loss.log_loss_value_from_scores(scores)
-
-            compute_loss_real = compute_loss
-            compute_loss_cut_real = compute_loss_cut
-            compute_loss_from_scores_real = compute_loss_from_scores
-
-        if loss_computation == 'fast':
-
-            print_log("USING FAST LOSS COMPUTATION")
-
-            Z = np.require(Z, requirements=['F'])
-
-            compute_loss = lambda rho: lf.fast_log_loss.log_loss_value(Z, rho)
-            compute_loss_cut = lambda rho: lf.fast_log_loss.log_loss_value_and_slope(Z, rho)
-            compute_loss_from_scores = lambda scores: lf.fast_log_loss.log_loss_value_from_scores(scores)
-
-            compute_loss_real = compute_loss
-            compute_loss_cut_real = compute_loss_cut
-            compute_loss_from_scores_real = compute_loss_from_scores
-
-        if loss_computation == 'lookup':
-
-            s_min, s_max = get_score_bounds(Z_min = np.min(Z, axis=0),
-                                            Z_max = np.max(Z, axis=0),
-                                            rho_lb = coef_set.lb,
-                                            rho_ub = coef_set.ub,
-                                            L0_reg_ind = np.array(coef_set.c0) == 0.0,
-                                            L0_max = L0_max)
-
-
-            Z = np.require(Z, requirements=['F'], dtype = np.float)
-
-            print_log("using lookup table loss computation (%d rows in lookup table)" % (s_max - s_min + 1))
-
-            loss_value_tbl, prob_value_tbl, tbl_offset = lf.lookup_log_loss.get_loss_value_and_prob_tables(s_min, s_max)
-
-            compute_loss = lambda rho: lf.lookup_log_loss.log_loss_value(Z, rho, loss_value_tbl, tbl_offset)
-            compute_loss_cut = lambda rho: lf.lookup_log_loss.log_loss_value_and_slope(Z, rho, loss_value_tbl, prob_value_tbl, tbl_offset)
-            compute_loss_from_scores = lambda scores: lf.lookup_log_loss.log_loss_value_from_scores(scores, loss_value_tbl, tbl_offset)
-
-            compute_loss_real = lambda rho: lf.fast_log_loss.log_loss_value(Z, rho)
-            compute_loss_cut_real = lambda rho: lf.fast_log_loss.log_loss_value_and_slope(Z, rho)
-            compute_loss_from_scores_real = lambda scores: lf.fast_log_loss.log_loss_value_from_scores(scores)
-
 
     return (compute_loss,
             compute_loss_cut,
@@ -241,8 +244,8 @@ def get_conservative_offset(data, coef_set, max_L0_value = None):
         raise ValueError("coef_set must contain a variable for the offset called '(Intercept)'")
 
     # get idx of intercept/variables
-    offset_idx = coef_set.variable_names.index('(Intercept)')
-    variable_idx = [i for i in range(len(coef_set)) if not i == offset_idx]
+    variable_idx = range(len(coef_set))
+    variable_idx.remove(coef_set.variable_names.index('(Intercept)'))
 
     # get max # of non-zero coefficients given model size limit
     L0_reg_ind = np.isnan(coef_set.C_0j)[variable_idx]

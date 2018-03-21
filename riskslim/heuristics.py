@@ -90,7 +90,7 @@ def sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penal
     return rho, best_objval, early_stop_flag
 
 
-def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_from_scores, descent_dimensions = None):
+def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_from_scores, descent_dimensions = None, active_set_flag = True):
 
     """
     Given a initial feasible solution, rho, produces an improved solution that is 1-OPT
@@ -133,13 +133,17 @@ def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_f
     else:
         descent_dimensions = np.require(descent_dimensions, dtype = np.int_)
 
-    coefficient_values = [np.arange(int(rho_lb[k]), int(rho_ub[k]) + 1) for k in descent_dimensions]
+    if active_set_flag:
+        descent_dimensions = np.intersect1d(np.flatnonzero(rho), descent_dimensions)
+
+    descent_dimensions = descent_dimensions.tolist()
 
     base_scores = Z.dot(rho)
     base_loss = compute_loss_from_scores(base_scores)
     base_objval = base_loss + get_L0_penalty(rho)
-
     n_iterations = 0
+
+    coefficient_values = {k: np.arange(int(rho_lb[k]), int(rho_ub[k]) + 1) for k in descent_dimensions}
     search_dimensions = descent_dimensions
     while n_iterations < MAX_ITERATIONS:
 
@@ -171,13 +175,15 @@ def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_f
         if next_objval >= threshold_objval:
             break
 
-        rho[best_idx] = best_coef_by_dim[best_idx]
+        best_step = best_coef_by_dim[best_idx] - rho[best_idx]
+        rho[best_idx] += best_step
         base_objval = next_objval
         base_loss = base_objval - get_L0_penalty(rho)
-        base_scores = Z.dot(rho)
+        base_scores = base_scores + (best_step * Z[:, best_idx])
 
         # remove the current best direction from the set of directions to explore
-        search_dimensions = np.delete(descent_dimensions, best_idx)
+        search_dimensions = list(descent_dimensions)
+        search_dimensions.remove(best_idx)
         n_iterations += 1
 
     return rho, base_loss, base_objval

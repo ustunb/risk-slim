@@ -40,6 +40,10 @@ def initialize_lattice_cpa(Z,
     assert callable(get_L0_penalty)
     assert callable(is_feasible)
 
+    print_log('-' * 60)
+    print_log('runnning initialization procedure')
+    print_log('-' * 60)
+
     # trade-off parameter
     _, C_0, _, C_0_nnz = setup_penalty_parameters(c0_value = c0_value, coef_set = constraints['coef_set'])
 
@@ -109,9 +113,7 @@ def initialize_lattice_cpa(Z,
                                                           get_L0_penalty = get_L0_penalty,
                                                           max_runtime = settings['sequential_rounding_max_runtime'],
                                                           max_solutions = settings['sequential_rounding_max_solutions'],
-                                                          objval_cutoff = bounds['objval_max'],
-                                                          L0_min = bounds['L0_min'],
-                                                          L0_max = bounds['L0_max'])
+                                                          objval_cutoff = bounds['objval_max'])
 
         if len(sqrnd_pool) > 0:
             print_log('sequential rounding produced %d solutions' % len(sqrnd_pool))
@@ -156,6 +158,9 @@ def initialize_lattice_cpa(Z,
     if len(pool) > 0:
         bounds = chained_updates(bounds, C_0_nnz, new_objval_at_feasible = np.min(pool.objvals))
 
+    print_log('-' * 60)
+    print_log('ran initialization procedure')
+    print_log('-' * 60)
     return pool, cuts, bounds
 
 
@@ -224,9 +229,7 @@ def sequential_round_solution_pool(pool,
                                    get_L0_penalty,
                                    max_runtime = float('inf'),
                                    max_solutions = float('inf'),
-                                   objval_cutoff = float('inf'),
-                                   L0_min = 0,
-                                   L0_max = float('inf')):
+                                   objval_cutoff = float('inf')):
 
     """
     runs sequential rounding for all solutions in a solution pool

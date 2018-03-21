@@ -217,6 +217,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     c0_value, C_0, L0_reg_ind, C_0_nnz = setup_penalty_parameters(c0_value = lcpa_settings['c0_value'],
                                                                   coef_set = constraints['coef_set'])
 
+
     # setup function handles for key functions
     # major components
     (get_objval,
@@ -231,6 +232,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     rho_ub = np.array(constraints['coef_set'].ub)
     L0_min = constraints['L0_min']
     L0_max = constraints['L0_max']
+    trivial_L0_max = np.sum(constraints['coef_set'].penalized_indices())
 
     def is_feasible(rho, L0_min = L0_min, L0_max = L0_max, rho_lb = rho_lb, rho_ub = rho_ub):
         return np.all(rho_ub >= rho) and np.all(rho_lb <= rho) and (L0_min <= np.count_nonzero(rho[L0_reg_ind]) <= L0_max)
@@ -256,8 +258,8 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
         'total_round_then_polish_time': 0.0,
         #
         'cut_callback_times_called': 0,
-        'total_cut_callback_time': 0.00,
         'heuristic_callback_times_called': 0,
+        'total_cut_callback_time': 0.00,
         'total_heuristic_callback_time': 0.00,
         #
         # number of times solutions were updates
@@ -283,6 +285,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     lcpa_polish_queue = SolutionQueue(P)
 
     heuristic_flag = lcpa_settings['round_flag'] or lcpa_settings['polish_flag']
+
     if heuristic_flag:
 
         loss_cb = risk_slim_mip.register_callback(LossCallback)
@@ -305,7 +308,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
                                 get_objval = get_objval,
                                 get_L0_norm = get_L0_norm,
                                 is_feasible = is_feasible,
-                                polishing_handle = lambda rho: discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_from_scores),
+                                polishing_handle = lambda rho: discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_from_scores, active_set_flag = L0_max <= trivial_L0_max),
                                 rounding_handle = lambda rho, cutoff: sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penalty, cutoff))
 
     else:
@@ -398,7 +401,7 @@ class LossCallback(LazyConstraintCallback):
     - add an initial set of cutting planes found by warm starting
       requires initial_cuts
 
-    - store integer feasible solutions to 'polish' queue so that they can be polished with DCD in the PolishAndRoundCallback
+    - pass integer feasible solutions to 'polish' queue so that they can be polished with DCD in the PolishAndRoundCallback
       requires settings['polish_flag'] = True
 
     - adds cuts at integer feasible solutions found by the PolishAndRoundCallback
@@ -475,7 +478,6 @@ class LossCallback(LazyConstraintCallback):
 
         return loss_value
 
-
     def update_bounds(self):
 
         #print_log('in update bounds')
@@ -511,8 +513,6 @@ class LossCallback(LazyConstraintCallback):
             self.control['n_bound_updates_objval_max'] += 1
 
         return
-
-
 
     def __call__(self):
 
@@ -606,7 +606,7 @@ class PolishAndRoundCallback(HeuristicCallback):
 
     Optional:
 
-    - Feasible solutions are passed to LazyCutConstraintCallback using the cut_queue
+    - Feasible solutions are passed to LazyCutConstraintCallback via cut_queue
 
     Known issues:
 
@@ -685,12 +685,14 @@ class PolishAndRoundCallback(HeuristicCallback):
 
 
     def __call__(self):
+        # todo write rounding/polishing as separate function calls
 
         #print_log('in heuristic callback')
         if not (self.round_flag or self.polish_flag):
             return
 
         callback_start_time = time.time()
+        self.control['heuristic_callback_times_called'] += 1
         self.control['upperbound'] = self.get_incumbent_objective_value()
         self.control['lowerbound'] = self.get_best_objective_value()
         self.control['relative_gap'] = self.get_MIP_relative_gap()
