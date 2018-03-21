@@ -197,10 +197,10 @@ if __name__ == '__main__':
     # check if sample weights file was specified, if not set as None
     logger.info("loading data and sample weights")
 
-    data = load_data_from_csv(dataset_csv_file=parsed.data,
-                              sample_weights_csv_file=parsed.weights,
-                              fold_csv_file=parsed.cvindices,
-                              fold_num=parsed.fold)
+    data = load_data_from_csv(dataset_csv_file = parsed.data,
+                              sample_weights_csv_file = parsed.weights,
+                              fold_csv_file = parsed.cvindices,
+                              fold_num = parsed.fold)
     N, P = data['X'].shape
 
     # initialize coefficient set and offset parameter
@@ -209,10 +209,10 @@ if __name__ == '__main__':
     max_model_size = parsed.max_size if parsed.max_size >= 0 else float('inf')
     max_offset = parsed.max_offset if parsed.max_offset >= 0 else float('inf')
 
-    coef_set = CoefficientSet(variable_names=data['variable_names'],
-                              lb=-max_coefficient,
-                              ub=max_coefficient,
-                              sign=0)
+    coef_set = CoefficientSet(variable_names = data['variable_names'],
+                              lb = -max_coefficient,
+                              ub = max_coefficient,
+                              sign = 0)
 
     trivial_model_size = P - np.sum(coef_set.C_0j == 0)
     max_model_size = min(max_model_size, trivial_model_size)

@@ -1,13 +1,13 @@
 import numpy as np
 import time
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
-from .helper_functions import print_log, print_update, get_or_set_default
+from .helper_functions import print_log, get_rho_string, get_or_set_default
 from .bound_tightening import chained_updates, chained_updates_for_lp
 from .solution_classes import SolutionPool
 from .default_settings import DEFAULT_CPA_SETTINGS
 
-# Standard CPA
-def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings = DEFAULT_CPA_SETTINGS, print_flag = True):
+
+def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings = DEFAULT_CPA_SETTINGS, print_flag = False):
 
     assert isinstance(cpx, Cplex)
     assert isinstance(cpx_indices, dict)
@@ -18,7 +18,7 @@ def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings 
     if print_flag:
         print_from_function = lambda msg: print_log(msg)
     else:
-        print_from_function = lambda: None
+        print_from_function = lambda msg: None
 
     settings = get_or_set_default(settings, 'type', 'cvx')
     settings = get_or_set_default(settings, 'update_bounds', True)
@@ -139,7 +139,8 @@ def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings 
 
         # print information
         if settings['display_progress']:
-            print_update(rho, n_iterations, upperbound, lowerbound, relative_gap, vtypes)
+            print_from_function("cuts = %d \t UB = %.5f \t LB = %.5f \t GAP = %.5f%%" % (n_iterations, upperbound, lowerbound, 100.0 * relative_gap))
+            print_from_function('rho:%s\n' % get_rho_string(rho, vtypes))
 
         #save progress
         if settings['save_progress']:
@@ -156,7 +157,7 @@ def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings 
             if np.all(np.round(rho) == np.round(prior_rho)) and coefficient_gap < settings['max_coefficient_gap']:
                 stop_reason = 'aborted:coefficient_gap_within_tolerance'
                 print_from_function('stopping standard CPA')
-                print_from_function('status: change in coefficient is within tolerance of %1.4f (1.4%f))' %
+                print_from_function('status: change in coefficient is within tolerance of %1.4f (%1.4f))' %
                                     (settings['max_coefficient_gap'], coefficient_gap))
                 break
 
@@ -243,9 +244,9 @@ def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings 
             solutions.append(rho)
             objvals.append(objval)
 
-    if len(objvals) > 1:
-        pool = SolutionPool({'objvals': objvals, 'solutions': solutions})
-    else:
-        pool = SolutionPool(len(cpx_indices["rho"]))
+    pool = SolutionPool(len(cpx_indices["rho"]))
+    if len(objvals) > 0:
+        pool.add(objvals, solutions)
+
 
     return stats, cuts, pool

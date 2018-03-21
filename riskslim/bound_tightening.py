@@ -1,10 +1,9 @@
 import numpy as np
 
 
+def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, MAX_CHAIN_COUNT = 20):
 
-def chained_updates(old_bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, MAX_CHAIN_COUNT = 20):
-
-    new_bounds = dict(old_bounds)
+    new_bounds = dict(bounds)
 
     # update objval_min using new_value (only done once)
     if new_objval_at_relaxation is not None:
@@ -78,9 +77,9 @@ def chained_updates(old_bounds, C_0_nnz, new_objval_at_feasible = None, new_objv
     return new_bounds
 
 
-def chained_updates_for_lp(old_bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, MAX_CHAIN_COUNT = 20):
+def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, MAX_CHAIN_COUNT = 20):
 
-    new_bounds = dict(old_bounds)
+    new_bounds = dict(bounds)
 
     # update objval_min using new_value (only done once)
     if new_objval_at_relaxation is not None:

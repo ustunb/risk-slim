@@ -25,10 +25,8 @@ DEFAULT_BOUNDS = {
 
 def run_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
 
-    # initialize MIP for lattice CPA
     mip_objects = setup_lattice_cpa(data, constraints, settings)
 
-    # solve MIP using lattice CPA
     model_info, mip_info, lcpa_info = finish_lattice_cpa(data, constraints, mip_objects, settings)
 
     return model_info, mip_info, lcpa_info
@@ -62,18 +60,14 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
     N, P = Z.shape
 
     # sample weights and case weights
-    training_weights = setup_training_weights(Y = data['Y'], sample_weights = data['sample_weights'],
+    training_weights = setup_training_weights(Y = data['Y'],
+                                              sample_weights = data['sample_weights'],
                                               w_pos = settings['w_pos'])
 
     # trade-off parameters
     c0_value, C_0, L0_reg_ind, C_0_nnz = setup_penalty_parameters(c0_value = lcpa_settings['c0_value'],
                                                                   coef_set = constraints['coef_set'])
 
-    # constraints
-    rho_lb = np.array(constraints['coef_set'].lb)
-    rho_ub = np.array(constraints['coef_set'].ub)
-    L0_min = constraints['L0_min']
-    L0_max = constraints['L0_max']
 
     # loss functions
     (compute_loss,
@@ -84,9 +78,7 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
      compute_loss_from_scores_real) = setup_loss_functions(Z,
                                                            sample_weights = training_weights,
                                                            loss_computation = settings['loss_computation'],
-                                                           rho_ub = constraints['coef_set'].ub,
-                                                           rho_lb = constraints['coef_set'].lb,
-                                                           L0_reg_ind = np.isnan(constraints['coef_set'].C_0j),
+                                                           coef_set = constraints['coef_set'],
                                                            L0_max = constraints['L0_max'])
 
     # major components
@@ -96,9 +88,13 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
      get_alpha,
      get_L0_penalty_from_alpha) = setup_objective_functions(compute_loss, L0_reg_ind, C_0_nnz)
 
+    rho_lb = np.array(constraints['coef_set'].lb)
+    rho_ub = np.array(constraints['coef_set'].ub)
+    L0_min = constraints['L0_min']
+    L0_max = constraints['L0_max']
+
     def is_feasible(rho, L0_min = L0_min, L0_max = L0_max, rho_lb = rho_lb, rho_ub = rho_ub):
-        return np.all(rho_ub >= rho) and np.all(rho_lb <= rho) and (
-                L0_min <= np.count_nonzero(rho[L0_reg_ind]) <= L0_max)
+        return np.all(rho_ub >= rho) and np.all(rho_lb <= rho) and (L0_min <= np.count_nonzero(rho[L0_reg_ind]) <= L0_max)
 
     # compute bounds on objective value
     bounds = dict(DEFAULT_BOUNDS)
@@ -151,9 +147,7 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
 
     # create risk_slim mip
     risk_slim_mip, risk_slim_indices = create_risk_slim(risk_slim_settings)
-    risk_slim_mip = set_cplex_mip_parameters(risk_slim_mip, cplex_settings,
-                                             display_cplex_progress = lcpa_settings['display_cplex_progress'])
-    risk_slim_mip.parameters.timelimit.set(lcpa_settings['max_runtime'])
+    risk_slim_mip = set_cplex_mip_parameters(risk_slim_mip, cplex_settings, display_cplex_progress = lcpa_settings['display_cplex_progress'])
     risk_slim_indices['C_0_nnz'] = C_0_nnz
     risk_slim_indices['L0_reg_ind'] = L0_reg_ind
 
@@ -202,18 +196,12 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     initial_cuts = mip_objects['initial_cuts']
 
     # sample weights and case weights
-    training_weights = setup_training_weights(Y = data['Y'], sample_weights = data['sample_weights'], w_pos = settings['w_pos'])
-
-    # trade-off parameter
-    c0_value, C_0, L0_reg_ind, C_0_nnz = setup_penalty_parameters(c0_value = lcpa_settings['c0_value'], coef_set = constraints['coef_set'])
-
-    # constraints
-    rho_lb = np.array(constraints['coef_set'].lb)
-    rho_ub = np.array(constraints['coef_set'].ub)
-    L0_min = constraints['L0_min']
-    L0_max = constraints['L0_max']
+    training_weights = setup_training_weights(Y = data['Y'],
+                                              sample_weights = data['sample_weights'],
+                                              w_pos = settings['w_pos'])
 
     # get handles for loss functions
+    # loss functions
     (compute_loss,
      compute_loss_cut,
      compute_loss_from_scores,
@@ -222,10 +210,12 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
      compute_loss_from_scores_real) = setup_loss_functions(Z,
                                                            sample_weights = training_weights,
                                                            loss_computation = settings['loss_computation'],
-                                                           rho_ub = constraints['coef_set'].ub,
-                                                           rho_lb = constraints['coef_set'].lb,
-                                                           L0_reg_ind = np.isnan(constraints['coef_set'].C_0j),
+                                                           coef_set = constraints['coef_set'],
                                                            L0_max = constraints['L0_max'])
+
+    # trade-off parameter
+    c0_value, C_0, L0_reg_ind, C_0_nnz = setup_penalty_parameters(c0_value = lcpa_settings['c0_value'],
+                                                                  coef_set = constraints['coef_set'])
 
     # setup function handles for key functions
     # major components
@@ -235,6 +225,13 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
      get_alpha,
      get_L0_penalty_from_alpha) = setup_objective_functions(compute_loss, L0_reg_ind, C_0_nnz)
 
+
+    # constraints
+    rho_lb = np.array(constraints['coef_set'].lb)
+    rho_ub = np.array(constraints['coef_set'].ub)
+    L0_min = constraints['L0_min']
+    L0_max = constraints['L0_max']
+
     def is_feasible(rho, L0_min = L0_min, L0_max = L0_max, rho_lb = rho_lb, rho_ub = rho_ub):
         return np.all(rho_ub >= rho) and np.all(rho_lb <= rho) and (L0_min <= np.count_nonzero(rho[L0_reg_ind]) <= L0_max)
 
@@ -243,7 +240,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
 
     # setup callback functions
     control = {
-        'incumbent': np.nan * np.zeros(P),
+        'incumbent': np.repeat(np.nan, P),
         'upperbound': float('inf'),
         'bounds': dict(bounds),
         'lowerbound': 0.0,
@@ -308,8 +305,8 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
                                 get_objval = get_objval,
                                 get_L0_norm = get_L0_norm,
                                 is_feasible = is_feasible,
-                                dcd_polishing = lambda rho: discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_from_scores),
-                                sequential_rounding = lambda rho, cutoff: sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penalty, cutoff))
+                                polishing_handle = lambda rho: discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_from_scores),
+                                rounding_handle = lambda rho, cutoff: sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penalty, cutoff))
 
     else:
         loss_cb = risk_slim_mip.register_callback(LossCallback)
@@ -357,8 +354,10 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     control['total_data_time'] = control['total_cut_time'] + control['total_polish_time'] + control['total_round_time'] + control['total_round_then_polish_time']
 
     # General Output
-
     model_info = {
+        'c0_value': c0_value,
+        'w_pos': settings['w_pos'],
+        #
         'solution': control['incumbent'],
         'objective_value': get_objval(control['incumbent']) if control['found_solution'] else float('inf'),
         'loss_value': compute_loss(control['incumbent']) if control['found_solution'] else float('inf'),
@@ -369,11 +368,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
         'callback_time': control['total_callback_time'],
         'data_time': control['total_data_time'],
         'nodes_processed': control['nodes_processed'],
-        #
-        'c0_value': c0_value,
-        'w_pos': settings['w_pos'],
         }
-
     model_info.update(constraints)
 
     # MIP object
@@ -392,9 +387,9 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
 
 class LossCallback(LazyConstraintCallback):
     """
-    This callback has to be initialized after construction using the initialize() method.
+    Must be initialized after construction using the initialize() method.
 
-    LossCallback is only called when CPLEX finds an integer feasible solution. By default, it will add a cut at this
+    LossCallback is called when CPLEX finds an integer feasible solution. By default, it will add a cut at this
     solution to improve the cutting-plane approximation of the loss function. The cut is added as a 'lazy' constraint
     into the surrogate LP so that it is evaluated only when necessary.
 
@@ -415,16 +410,27 @@ class LossCallback(LazyConstraintCallback):
 
     def initialize(self, indices, control, settings, compute_loss_cut, get_alpha, get_L0_penalty_from_alpha, initial_cuts = None, cut_queue = None, polish_queue = None):
 
+        assert isinstance(indices, dict)
+        assert isinstance(control, dict)
+        assert isinstance(settings, dict)
+        assert callable(compute_loss_cut)
+        assert callable(get_alpha)
+        assert callable(get_L0_penalty_from_alpha)
+
+
         self.settings = settings  #store pointer to shared settings so that settings can be turned on/off during B&B
         self.control = control  # dict containing information for flow
+
+
+        # todo (validate initial cutting planes)
+        self.initial_cuts = initial_cuts
+
+        # indices
         self.rho_idx = indices['rho']
         self.cut_idx = indices['loss'] + indices['rho']
         self.alpha_idx = indices['alpha']
         self.L0_reg_ind = indices['L0_reg_ind']
         self.C_0_nnz = indices['C_0_nnz']
-
-        # todo (validate initial cutting planes)
-        self.initial_cuts = initial_cuts
         self.compute_loss_cut = compute_loss_cut
         self.get_alpha = get_alpha
         self.get_L0_penalty_from_alpha = get_L0_penalty_from_alpha
@@ -433,18 +439,23 @@ class LossCallback(LazyConstraintCallback):
         self.loss_cut_purge_flag = self.use_constraint.purge if self.settings['purge_loss_cuts'] else self.use_constraint.force
 
         # setup pointer to cut_queue to receive cuts from PolishAndRoundCallback
-        if self.settings['add_cuts_at_heuristic_solutions'] and cut_queue is not None:
-            self.cut_queue = cut_queue
-        else:
-            self.cut_queue = SolutionQueue(len(self.rho_idx))
+        if self.settings['add_cuts_at_heuristic_solutions']:
+            if cut_queue is None:
+                self.cut_queue = SolutionQueue(len(self.rho_idx))
+            else:
+                assert isinstance(cut_queue, SolutionQueue)
+                self.cut_queue = cut_queue
+
 
         # setup pointer to polish_queue to send integer solutions to PolishAndRoundCallback
-        if self.settings['polish_flag'] and polish_queue is not None:
-            self.polish_queue = cut_queue
-        else:
-            self.polish_queue = SolutionQueue(len(self.rho_idx))
+        if self.settings['polish_flag']:
+            if polish_queue is None:
+                self.polish_queue = SolutionQueue(len(self.rho_idx))
+            else:
+                assert isinstance(polish_queue, SolutionQueue)
+                self.polish_queue = polish_queue
 
-        # for update_bounds
+        # setup indices for update bounds
         if self.settings['chained_updates_flag']:
             self.loss_cut_constraint = [indices['loss'], [1.0]]
             self.L0_cut_constraint = [[indices['L0_norm']], [1.0]]
@@ -453,13 +464,25 @@ class LossCallback(LazyConstraintCallback):
 
         return
 
+    def add_loss_cut(self, rho):
+
+        loss_value, loss_slope = self.compute_loss_cut(rho)
+
+        self.add(constraint = [self.cut_idx, [1.0] + (-loss_slope).tolist()],
+                 sense = "G",
+                 rhs = float(loss_value - loss_slope.dot(rho)),
+                 use = self.loss_cut_purge_flag)
+
+        return loss_value
+
+
     def update_bounds(self):
 
         #print_log('in update bounds')
-        bounds = chained_updates(old_bounds = self.control['bounds'],
+        bounds = chained_updates(bounds = self.control['bounds'],
                                  C_0_nnz = self.C_0_nnz,
-                                 new_objval_at_relaxation=self.control['lowerbound'],
-                                 new_objval_at_feasible=self.control['upperbound'])
+                                 new_objval_at_relaxation = self.control['lowerbound'],
+                                 new_objval_at_feasible = self.control['upperbound'])
 
         #add cuts if bounds need to be tighter
         if bounds['loss_min'] > self.control['bounds']['loss_min']:
@@ -487,8 +510,9 @@ class LossCallback(LazyConstraintCallback):
             self.control['bounds']['objval_max'] = bounds['objval_max']
             self.control['n_bound_updates_objval_max'] += 1
 
-        #print_log('left update bounds')
         return
+
+
 
     def __call__(self):
 
@@ -505,11 +529,8 @@ class LossCallback(LazyConstraintCallback):
         # add initial cuts first time the callback is used
         if self.initial_cuts is not None:
             print_log('adding initial cuts')
-            for i in range(len(self.initial_cuts['coefs'])):
-                self.add(constraint = self.initial_cuts['coefs'][i],
-                         sense = "G",
-                         rhs = self.initial_cuts['lhs'][i],
-                         use = self.loss_cut_purge_flag)
+            for cut, lhs in zip(self.initial_cuts['coefs'], self.initial_cuts['lhs']):
+                self.add(constraint = cut, sense = "G", rhs = lhs, use = self.loss_cut_purge_flag)
             self.initial_cuts = None
 
         # get integer feasible solution
@@ -517,16 +538,13 @@ class LossCallback(LazyConstraintCallback):
         alpha = np.array(self.get_values(self.alpha_idx))
 
         # check that CPLEX is actually integer. if not, then recast as int
-        if ~is_integer(rho):
+        if not is_integer(rho):
             rho = cast_to_integer(rho)
             alpha = self.get_alpha(rho)
 
         # add cutting plane at integer feasible solution
         cut_start_time = time.time()
-        loss_value, loss_slope = self.compute_loss_cut(rho)
-        cut_lhs = float(loss_value - loss_slope.dot(rho))
-        cut_constraint = [self.cut_idx, [1.0] + (-loss_slope).tolist()]
-        self.add(constraint=cut_constraint, sense="G", rhs=cut_lhs, use=self.loss_cut_purge_flag)
+        loss_value = self.add_loss_cut(rho)
         cut_time = time.time() - cut_start_time
         cuts_added = 1
 
@@ -539,7 +557,6 @@ class LossCallback(LazyConstraintCallback):
             self.control['upperbound'] = current_upperbound
             self.control['n_incumbent_updates'] += 1
 
-
         if self.settings['polish_flag']:
             polishing_cutoff = self.control['upperbound'] * (1.0 + self.settings['polishing_tolerance'])
             if current_upperbound < polishing_cutoff:
@@ -549,15 +566,11 @@ class LossCallback(LazyConstraintCallback):
         if self.settings['add_cuts_at_heuristic_solutions']:
             if len(self.cut_queue) > 0:
                 self.cut_queue.filter_sort_unique()
+                cut_start_time = time.time()
                 for cut_rho in self.cut_queue.solutions:
-                    cut_start_time = time.time()
-                    [loss_value, loss_slope] = self.compute_loss_cut(cut_rho)
-                    self.add(constraint = [self.cut_idx, [1.0] + (-loss_slope).tolist()],
-                             sense = "G",
-                             rhs = float(loss_value - loss_slope.dot(cut_rho)),
-                             use = self.loss_cut_purge_flag)
-                    cuts_added += 1
-                    cut_time += time.time() - cut_start_time
+                    self.add_loss_cut(cut_rho)
+                cut_time += time.time() - cut_start_time
+                cuts_added += len(self.cut_queue)
                 self.cut_queue.clear()
 
         # update bounds
@@ -600,9 +613,20 @@ class PolishAndRoundCallback(HeuristicCallback):
     - Sometimes CPLEX does not return an integer feasible solution (in which case we correct this manually)
     """
 
-    def initialize(self, indices, control, settings, cut_queue, polish_queue, get_objval, get_L0_norm, is_feasible, dcd_polishing, sequential_rounding):
+    def initialize(self, indices, control, settings, cut_queue, polish_queue, get_objval, get_L0_norm, is_feasible, polishing_handle, rounding_handle):
 
         #todo: add basic assertions to make sure that nothing weird is going on
+        assert isinstance(indices, dict)
+        assert isinstance(control, dict)
+        assert isinstance(settings, dict)
+        assert isinstance(cut_queue, SolutionQueue)
+        assert isinstance(polish_queue, SolutionQueue)
+        assert callable(get_objval)
+        assert callable(get_L0_norm)
+        assert callable(is_feasible)
+        assert callable(polishing_handle)
+        assert callable(rounding_handle)
+
         self.rho_idx = indices['rho']
         self.L0_reg_ind = indices['L0_reg_ind']
         self.C_0_nnz = indices['C_0_nnz']
@@ -610,54 +634,60 @@ class PolishAndRoundCallback(HeuristicCallback):
         self.previous_lowerbound = 0.0
         self.control = control
         self.settings = settings
-        self.cut_queue = cut_queue #pointer to cut_queue
+
 
         self.round_flag = settings['round_flag']
         self.polish_rounded_solutions = settings['polish_rounded_solutions']
         self.polish_flag = settings['polish_flag']
         self.polish_queue = polish_queue
 
-        assert callable(get_objval)
-        assert callable(get_L0_norm)
-        assert callable(is_feasible)
-        assert callable(dcd_polishing)
-        assert callable(sequential_rounding)
+        self.cut_queue = cut_queue  # pointer to cut_queue
+
+        self.rounding_tolerance = float(1.0 + settings['rounding_tolerance'])
+        self.rounding_start_cuts = settings['rounding_start_cuts']
+        self.rounding_stop_cuts = settings['rounding_stop_cuts']
+        self.rounding_stop_gap = settings['rounding_stop_gap']
+        self.rounding_start_gap = settings['rounding_start_gap']
+
+        self.polishing_tolerance = float(1.0 + settings['polishing_tolerance'])
+        self.polishing_start_cuts = settings['polishing_start_cuts']
+        self.polishing_stop_cuts = settings['polishing_stop_cuts']
+        self.polishing_stop_gap = settings['polishing_stop_gap']
+        self.polishing_start_gap = settings['polishing_start_gap']
+        self.polishing_max_solutions = settings['polishing_max_solutions']
+        self.polishing_max_runtime = settings['polishing_max_runtime']
+
 
         self.get_objval = get_objval
         self.get_L0_norm = get_L0_norm
         self.is_feasible = is_feasible
-        self.sequential_rounding = sequential_rounding
-        self.dcd_polishing = dcd_polishing
+        self.polishing_handle = polishing_handle
+        self.rounding_handle = rounding_handle
+
         return
 
 
-    def update_heuristic_flags(self):
+    def update_heuristic_flags(self, n_cuts, relative_gap):
 
         # keep on rounding?
-        keep_rounding = (self.settings['rounding_start_cuts'] <= self.control['n_cuts'] <= self.settings['rounding_stop_cuts'] and
-                         self.settings['rounding_stop_gap'] <= self.control['relative_gap'] <= self.settings['rounding_start_gap'])
+        keep_rounding = (self.rounding_start_cuts <= n_cuts <= self.rounding_stop_cuts) and \
+                        (self.rounding_stop_gap <= relative_gap <= self.rounding_start_gap)
 
         # keep on polishing?
-        keep_polishing = (self.settings['polishing_start_cuts'] <= self.control['n_cuts'] <= self.settings['polishing_stop_cuts'] and
-                          self.settings['polishing_stop_gap'] <= self.control['relative_gap'] <= self.settings['polishing_start_gap'])
+        keep_polishing = (self.polishing_start_cuts <= n_cuts <= self.polishing_stop_cuts) and \
+                         (self.polishing_stop_gap <=  relative_gap <= self.polishing_start_gap)
 
-        self.polish_flag &= keep_polishing
         self.round_flag &= keep_rounding
+        self.polish_flag &= keep_polishing
         self.polish_rounded_solutions &= self.round_flag
+
         return
 
 
-    def get_L0_range_of_rounded_solution(self, rho):
-        abs_rho = abs(rho)
-        rounded_L0_min = self.get_L0_norm(np.floor(abs_rho))
-        rounded_L0_max = self.get_L0_norm(np.ceil(abs_rho))
-        return rounded_L0_min, rounded_L0_max
-
     def __call__(self):
-        #print_log('in heuristic callback')
 
-        #fast exit if rounding is off & (polishing is off / no solution to polish)
-        if (self.round_flag is False) and (self.polish_flag is False or len(self.polish_queue) == 0):
+        #print_log('in heuristic callback')
+        if not (self.round_flag or self.polish_flag):
             return
 
         callback_start_time = time.time()
@@ -674,8 +704,7 @@ class PolishAndRoundCallback(HeuristicCallback):
         # if incumbent solution is not integer, then recast as integer and update objective value manually
         if self.has_incumbent():
             cplex_incumbent = np.array(self.get_incumbent_values(self.rho_idx))
-
-            cplex_rounding_issue = ~is_integer(cplex_incumbent)
+            cplex_rounding_issue = not is_integer(cplex_incumbent)
             if cplex_rounding_issue:
                 cplex_incumbent = cast_to_integer(cplex_incumbent)
 
@@ -687,8 +716,9 @@ class PolishAndRoundCallback(HeuristicCallback):
                 if cplex_rounding_issue:
                     self.control['upperbound'] = self.get_objval(cplex_incumbent)
 
-        #decide whether to keep on rounding/polishing
-        self.update_heuristic_flags()
+        # update flags on whether or not to keep rounding / polishing
+        self.update_heuristic_flags(n_cuts = self.control['n_cuts'], relative_gap = self.control['relative_gap'])
+
         #variables to store best objective value / solution from heuristics
         best_objval = float('inf')
         best_solution = None
@@ -697,35 +727,40 @@ class PolishAndRoundCallback(HeuristicCallback):
         if self.round_flag and lowerbound_update:
 
             rho_cts = np.array(self.get_values(self.rho_idx))
-            min_l0_norm, max_l0_norm = self.get_L0_range_of_rounded_solution(rho_cts)
+            zero_idx_rho_ceil = np.equal(np.ceil(rho_cts), 0)
+            zero_idx_rho_floor = np.equal(np.floor(rho_cts), 0)
+            cannot_round_to_zero = np.logical_not(np.logical_or(zero_idx_rho_ceil, zero_idx_rho_floor))
+            min_l0_norm = np.count_nonzero(cannot_round_to_zero[self.L0_reg_ind])
+            max_l0_norm = np.count_nonzero(rho_cts[self.L0_reg_ind])
             rounded_solution_is_feasible = (min_l0_norm < self.control['bounds']['L0_max'] and max_l0_norm > self.control['bounds']['L0_min'])
 
             if rounded_solution_is_feasible:
-                rounding_cutoff = self.control['upperbound'] * (1.0 + self.settings['rounding_tolerance'])
-                rounding_start_time = time.time()
-                rounded_solution, rounded_objval, early_stop = self.sequential_rounding(rho_cts, rounding_cutoff)
-                self.control['n_rounded'] += 1
-                self.control['total_round_time'] += time.time() - rounding_start_time
 
-                #round solution is sequential rounding did not stop early
+                rounding_cutoff = self.rounding_tolerance * self.control['upperbound']
+                rounding_start_time = time.time()
+                rounded_solution, rounded_objval, early_stop = self.rounding_handle(rho_cts, rounding_cutoff)
+                self.control['total_round_time'] += time.time() - rounding_start_time
+                self.control['n_rounded'] += 1
+
+                # round solution if sequential rounding did not stop early
                 if not early_stop:
 
                     if self.settings['add_cuts_at_heuristic_solutions']:
                         self.cut_queue.add(rounded_objval, rounded_solution)
 
-                    if self.is_feasible(rounded_solution, L0_min=  self.control['bounds']['L0_min'], L0_max = self.control['bounds']['L0_max']):
+                    if self.is_feasible(rounded_solution, L0_min = self.control['bounds']['L0_min'], L0_max = self.control['bounds']['L0_max']):
                         best_solution = rounded_solution
                         best_objval = rounded_objval
 
                     if self.polish_rounded_solutions:
                         current_upperbound = min(rounded_objval, self.control['upperbound'])
-                        polishing_cutoff = current_upperbound * (1.0 + self.settings['polishing_tolerance'])
+                        polishing_cutoff = current_upperbound * self.polishing_tolerance
 
                         if rounded_objval < polishing_cutoff:
                             start_time = time.time()
-                            polished_solution, _, polished_objval = self.dcd_polishing(rounded_solution)
-                            self.control['n_rounded_then_polished'] += 1
+                            polished_solution, _, polished_objval = self.polishing_handle(rounded_solution)
                             self.control['total_round_then_polish_time'] += time.time() - start_time
+                            self.control['n_rounded_then_polished'] += 1
 
                             if self.settings['add_cuts_at_heuristic_solutions']:
                                 self.cut_queue.add(polished_objval, polished_solution)
@@ -739,53 +774,53 @@ class PolishAndRoundCallback(HeuristicCallback):
 
             #get current upperbound
             current_upperbound = min(best_objval, self.control['upperbound'])
-            polishing_cutoff = current_upperbound * (1.0 + self.settings['polishing_tolerance'])
+            polishing_cutoff = self.polishing_tolerance * current_upperbound
+            self.polish_queue.filter_sort_unique(max_objval = polishing_cutoff)
 
-            #only polish solutions in queue that <= cutoff
-            self.polish_queue.filter_sort_unique(polishing_cutoff)
-            n_to_polish = min(len(self.polish_queue), self.settings['polishing_max_solutions'])
+            if len(self.polish_queue) > 0:
 
-            if n_to_polish > 0:
+                polished_queue = SolutionQueue(self.polish_queue.P)
                 polish_time = 0
                 n_polished = 0
-                polished_queue = SolutionQueue(self.polish_queue.P)
+                for objval, solution in zip(self.polish_queue.objvals, self.polish_queue.solutions):
 
-                for i in range(n_to_polish):
-
-                    if self.polish_queue.objvals[i] >= polishing_cutoff:
+                    if objval >= polishing_cutoff:
                         break
 
                     polish_start_time = time.time()
-                    polished_solution, _, polished_objval = self.dcd_polishing(self.polish_queue.solutions[i])
+                    polished_solution, _, polished_objval = self.polishing_handle(solution)
                     polish_time += time.time() - polish_start_time
                     n_polished += 1
 
-                    #update cutoff when polishing returns feasible solution
+                    # update cutoff whenever the solution returns an infeasible solutions
                     if self.is_feasible(polished_solution, L0_min = self.control['bounds']['L0_min'], L0_max = self.control['bounds']['L0_max']):
                         polished_queue.add(polished_objval, polished_solution)
                         current_upperbound = min(polished_objval, polished_objval)
-                        polishing_cutoff = current_upperbound * (1.0 + self.settings['polishing_tolerance'])
+                        polishing_cutoff = self.polishing_tolerance * current_upperbound
 
-                    if polish_time > self.settings['polishing_max_runtime']:
+                    if polish_time > self.polishing_max_runtime:
                         break
 
-                if self.settings['add_cuts_at_heuristic_solutions']:
-                    self.cut_queue.add(polished_queue.objvals, polished_queue.solutions)
-
-                # check if the best polished solution will improve the queue
-                if len(polished_queue) > 0 and np.min(polished_queue.objvals) < best_objval:
-                    best_objval, best_solution = polished_queue.get_best_objval_and_solution()
+                    if n_polished > self.polishing_max_solutions:
+                        break
 
                 self.polish_queue.clear()
                 self.control['total_polish_time'] += polish_time
                 self.control['n_polished'] += n_polished
 
+                if self.settings['add_cuts_at_heuristic_solutions']:
+                    self.cut_queue.add(polished_queue.objvals, polished_queue.solutions)
+
+                # check if the best polished solution will improve the queue
+                polished_queue.filter_sort_unique(max_objval = best_objval)
+                if len(polished_queue) > 0:
+                    best_objval, best_solution = polished_queue.get_best_objval_and_solution()
+
         # if heuristics produces a better solution then update the incumbent
         heuristic_update = best_objval < self.control['upperbound']
         if heuristic_update:
-            # note that solution is not always accepted by CPLEX
             self.control['n_heuristic_updates'] += 1
-            proposed_solution, proposed_objval = convert_to_risk_slim_cplex_solution(rho=best_solution, indices=self.indices, objval=best_objval)
+            proposed_solution, proposed_objval = convert_to_risk_slim_cplex_solution(indices = self.indices, rho = best_solution, objval = best_objval)
             self.set_solution(solution = proposed_solution, objective_value = proposed_objval)
 
         self.control['total_heuristic_callback_time'] += time.time() - callback_start_time

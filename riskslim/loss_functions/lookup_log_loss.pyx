@@ -25,12 +25,12 @@ def get_loss_value_table(int min_score, int max_score):
         i += 1
         s += 1
 
-    if (s == 0):
+    if s == 0:
         loss_value_table[i] = math.M_LN2
         i += 1
         s += 1
 
-    while (s <= max_score):
+    while s <= max_score:
         loss_value_table[i] = math.log1p(math.exp(-s))
         i += 1
         s += 1

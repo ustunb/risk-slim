@@ -30,67 +30,63 @@ def sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penal
     assert callable(get_L0_penalty)
 
     P = rho.shape[0]
-    dimensions_to_round = np.flatnonzero(np.mod(rho, 1)).tolist()
-    floor_is_zero = np.equal(np.floor(rho), 0)
-    ceil_is_zero = np.equal(np.ceil(rho), 0)
 
-    dist_from_start_to_ceil = np.ceil(rho) - rho
-    dist_from_start_to_floor = np.floor(rho) - rho
+    rho_floor = np.floor(rho)
+    floor_is_zero = np.equal(rho_floor, 0)
+    dist_from_start_to_floor = rho_floor - rho
+
+    rho_ceil = np.ceil(rho)
+    ceil_is_zero = np.equal(rho_ceil, 0)
+    dist_from_start_to_ceil = rho_ceil - rho
+
+    dimensions_to_round = np.flatnonzero(np.not_equal(rho_floor, rho_ceil)).tolist()
 
     scores = Z.dot(rho)
-    best_objval = float('inf')
-    early_stop_flag = False
-    while len(dimensions_to_round) > 0:
+    best_objval = compute_loss_from_scores_real(scores) + get_L0_penalty(rho)
+    while len(dimensions_to_round) > 0 and best_objval < objval_cutoff:
 
         objvals_at_floor = np.repeat(np.nan, P)
         objvals_at_ceil = np.repeat(np.nan, P)
         current_penalty = get_L0_penalty(rho)
 
-        for dim_idx in dimensions_to_round:
+        for idx in dimensions_to_round:
 
             # scores go from center to ceil -> center + dist_from_start_to_ceil
-            scores += dist_from_start_to_ceil[dim_idx] * Z[:, dim_idx]
-            objvals_at_ceil[dim_idx] = compute_loss_from_scores_real(scores)
+            Z_dim = Z[:, idx]
+            base_scores = scores + dist_from_start_to_ceil[idx] * Z_dim
+            objvals_at_ceil[idx] = compute_loss_from_scores_real(base_scores)
 
             # move from ceil to floor => -1*Z_j
-            scores -= Z[:, dim_idx]
-            objvals_at_floor[dim_idx] = compute_loss_from_scores_real(scores)
+            base_scores -= Z_dim
+            objvals_at_floor[idx] = compute_loss_from_scores_real(base_scores)
 
-            # scores go from floor to center -> floor - dist_from_start_to_floor
-            scores -= dist_from_start_to_floor[dim_idx] * Z[:, dim_idx]
-            # assert(np.all(np.isclose(scores, base_scores)))
+            if ceil_is_zero[idx]:
+                objvals_at_ceil[idx] -= C_0[idx]
+            elif floor_is_zero[idx]:
+                objvals_at_floor[idx] -= C_0[idx]
 
-            if ceil_is_zero[dim_idx]:
-                objvals_at_ceil[dim_idx] -= C_0[dim_idx]
-            elif floor_is_zero[dim_idx]:
-                objvals_at_floor[dim_idx] -= C_0[dim_idx]
 
         # adjust for penalty value
         objvals_at_ceil += current_penalty
         objvals_at_floor += current_penalty
-
         best_objval_at_ceil = np.nanmin(objvals_at_ceil)
         best_objval_at_floor = np.nanmin(objvals_at_floor)
-        best_objval = min(best_objval_at_ceil, best_objval_at_floor)
 
-        if best_objval > objval_cutoff:
-            best_objval = float('nan')
-            early_stop_flag = True
-            break
+        if best_objval_at_ceil <= best_objval_at_floor:
+            best_objval = best_objval_at_ceil
+            best_dim = np.nanargmin(objvals_at_ceil)
+            rho[best_dim] += dist_from_start_to_ceil[best_dim]
+            scores += dist_from_start_to_ceil[best_dim] * Z[:, best_dim]
         else:
-            if best_objval_at_ceil <= best_objval_at_floor:
-                best_dim = np.nanargmin(objvals_at_ceil)
-                rho[best_dim] += dist_from_start_to_ceil[best_dim]
-                scores += dist_from_start_to_ceil[best_dim] * Z[:, best_dim]
-            else:
-                best_dim = np.nanargmin(objvals_at_floor)
-                rho[best_dim] += dist_from_start_to_floor[best_dim]
-                scores += dist_from_start_to_floor[best_dim] * Z[:, best_dim]
+            best_objval = best_objval_at_floor
+            best_dim = np.nanargmin(objvals_at_floor)
+            rho[best_dim] += dist_from_start_to_floor[best_dim]
+            scores += dist_from_start_to_floor[best_dim] * Z[:, best_dim]
 
-        # assert(np.all(np.isclose(scores, Z.dot(rho))))
         dimensions_to_round.remove(best_dim)
+        #assert(np.all(np.isclose(scores, Z.dot(rho))))
 
-
+    early_stop_flag = best_objval > objval_cutoff
     return rho, best_objval, early_stop_flag
 
 
@@ -125,7 +121,7 @@ def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_f
 
     # initialize key variables
     MAX_ITERATIONS = 500
-    MIN_IMPROVEMENT_PER_STEP = float(1e-10)
+    MIN_IMPROVEMENT_PER_STEP = float(1e-8)
     P = len(rho)
 
     # convert solution to integer
@@ -136,9 +132,7 @@ def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_f
         descent_dimensions = np.arange(P)
     else:
         descent_dimensions = np.require(descent_dimensions, dtype = np.int_)
-        descent_dimensions = np.intersect1d(np.arange(P), descent_dimensions)
 
-    search_dimensions = descent_dimensions
     coefficient_values = [np.arange(int(rho_lb[k]), int(rho_ub[k]) + 1) for k in descent_dimensions]
 
     base_scores = Z.dot(rho)
@@ -146,6 +140,7 @@ def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_f
     base_objval = base_loss + get_L0_penalty(rho)
 
     n_iterations = 0
+    search_dimensions = descent_dimensions
     while n_iterations < MAX_ITERATIONS:
 
         # compute the best objective value / step size in each dimension
@@ -217,7 +212,7 @@ def _compute_objvals_at_dim(Z, C_0, base_rho, base_scores, base_loss, dim_coefs,
     base_coef_value = base_rho[dim_idx]
     base_index = np.flatnonzero(dim_coefs == base_coef_value)
     loss_at_coef_value = np.repeat(np.nan, len(dim_coefs))
-    loss_at_coef_value[base_index] = np.float(base_loss)
+    loss_at_coef_value[base_index] = float(base_loss)
     Z_dim = Z[:, dim_idx]
 
     # start by moving forward
@@ -234,7 +229,7 @@ def _compute_objvals_at_dim(Z, C_0, base_rho, base_scores, base_loss, dim_coefs,
         total_distance_from_base += forward_step_sizes[i]
         current_loss = compute_loss_from_scores(scores)
         if current_loss >= best_loss:
-            stop_after_first_forward_step = (i == 0)
+            stop_after_first_forward_step = i == 0
             break
         loss_at_coef_value[forward_indices[i + 1]] = current_loss
         best_loss = current_loss

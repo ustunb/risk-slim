@@ -50,7 +50,7 @@ DEFAULT_LCPA_SETTINGS = {
     'init_rounding_max_solutions': 100, # max runtime for Rd in initialization procedure
     'init_rounding_max_runtime': 20.0, # max runtime for Rd in initialization procedure
     #
-    'init_use_sequential_rounding': False,  # use SeqRd in initialization procedure
+    'init_use_sequential_rounding': True,  # use SeqRd in initialization procedure
     'init_sequential_rounding_max_runtime': 30.0,  # max runtime for SeqRd in initialization procedure
     'init_sequential_rounding_max_solutions': 5,  # max solutions to round using SeqRd
     #

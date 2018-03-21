@@ -85,12 +85,6 @@ def get_rho_string(rho, vtypes = 'I'):
     return rho_string
 
 
-def print_update(rho, n_iterations, upperbound, lowerbound, relative_gap, vtypes = 'C'):
-    rho_string = get_rho_string(rho, vtypes)
-    print_log("cuts = %d \t UB = %.5f \t LB = %.5f \t GAP = %.5f%%" % (n_iterations, upperbound, lowerbound, 100.0 * relative_gap))
-    print_log('rho:%s\n' % rho_string)
-
-
 def easy_type(data_value):
     type_name = type(data_value).__name__
     if type_name in {"list", "set"}:

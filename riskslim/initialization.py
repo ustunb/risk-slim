@@ -6,6 +6,7 @@ from .standard_cpa import run_standard_cpa
 from .heuristics import sequential_rounding, discrete_descent
 from .bound_tightening import chained_updates
 from .solution_classes import SolutionPool
+from .helper_functions import print_log
 
 def initialize_lattice_cpa(Z,
                            c0_value,
@@ -40,7 +41,7 @@ def initialize_lattice_cpa(Z,
     assert callable(is_feasible)
 
     # trade-off parameter
-    _, C_0, L0_reg_ind, C_0_nnz = setup_penalty_parameters(c0_value = c0_value, coef_set = constraints['coef_set'])
+    _, C_0, _, C_0_nnz = setup_penalty_parameters(c0_value = c0_value, coef_set = constraints['coef_set'])
 
     risk_slim_settings = dict(risk_slim_settings)
     risk_slim_settings.update(bounds)
@@ -63,20 +64,44 @@ def initialize_lattice_cpa(Z,
     # update bounds
     bounds = chained_updates(bounds, C_0_nnz, new_objval_at_relaxation = cpa_stats['lowerbound'])
 
+    def rounded_model_size_is_ok(rho):
+        reg_idx = C_0 > 0.0
+        zero_idx_rho_ceil = np.equal(np.ceil(rho), 0)
+        zero_idx_rho_floor = np.equal(np.floor(rho), 0)
+        cannot_round_to_zero = np.logical_not(np.logical_or(zero_idx_rho_ceil, zero_idx_rho_floor))
+        rounded_rho_L0_min = np.count_nonzero(cannot_round_to_zero[reg_idx])
+        rounded_rho_L0_max = np.count_nonzero(rho[reg_idx])
+        return rounded_rho_L0_min >= constraints['L0_min'] and rounded_rho_L0_max <= constraints['L0_max']
+
+    cpa_pool = cpa_pool.remove_infeasible(rounded_model_size_is_ok).distinct().sort()
+
+    if len(cpa_pool) == 0:
+        print_log('all solutions from CPA are infeasible')
+
     # build bool of feasible solutions by rounding and polishing cpa
     pool = SolutionPool(cpa_pool.P)
 
     # apply rounding to CPA solutions
-    if settings['use_rounding']:
-        rnd_pool, _, _ = round_solution_pool(cpa_pool, constraints,
+    if settings['use_rounding'] and len(cpa_pool) > 0:
+        print_log('running normal rounding on %d solutions' % len(cpa_pool))
+        print_log('best objective value is %1.4f' %np.min(cpa_pool.objvals))
+        rnd_pool, _, _ = round_solution_pool(cpa_pool,
+                                             constraints,
                                              max_runtime = settings['rounding_max_runtime'],
                                              max_solutions = settings['rounding_max_solutions'])
         rnd_pool = rnd_pool.compute_objvals(get_objval)
-        pool.append(rnd_pool)
+
+        if len(rnd_pool) > 0:
+            print_log('rounding produced %d solutions' % len(rnd_pool))
+            print_log('best objective value is %1.4f' % np.min(rnd_pool.objvals))
+            pool.append(rnd_pool)
+        else:
+            print_log('all solutions produced by rounding were infeasible')
 
     # apply sequential rounding to CPA solutions
-    if settings['use_sequential_rounding']:
-
+    if settings['use_sequential_rounding'] and len(cpa_pool) > 0:
+        print_log('running sequential rounding on %d solutions' % len(cpa_pool))
+        print_log('best objective value is %1.4f' % np.min(cpa_pool.objvals))
         sqrnd_pool, _, _ = sequential_round_solution_pool(pool = cpa_pool,
                                                           Z = Z,
                                                           C_0 = C_0,
@@ -88,11 +113,21 @@ def initialize_lattice_cpa(Z,
                                                           L0_min = bounds['L0_min'],
                                                           L0_max = bounds['L0_max'])
 
-        pool.append(sqrnd_pool)
+        if len(sqrnd_pool) > 0:
+            print_log('sequential rounding produced %d solutions' % len(sqrnd_pool))
+            print_log('best objective value is %1.4f' % np.min(sqrnd_pool.objvals))
+            pool.append(sqrnd_pool)
+        else:
+            print_log('all solutions produced by rounding were infeasible')
+
+    pool = pool.remove_infeasible(is_feasible)
+    if len(pool) == 0:
+        print_log('all rounded solutions from CPA are infeasible')
 
     # apply polishing to rounded solutions
-    if len(pool) > 0 and settings['polishing_after']:
-
+    if settings['polishing_after'] and len(pool) > 0:
+        print_log('running polishing on %d solutions' % len(pool))
+        print_log('best objective value is %1.4f' % np.min(pool.objvals))
         dcd_pool, _, _ = discrete_descent_solution_pool(pool = pool,
                                                         Z = Z,
                                                         C_0 = C_0,
@@ -102,11 +137,20 @@ def initialize_lattice_cpa(Z,
                                                         max_runtime = settings['polishing_max_runtime'],
                                                         max_solutions = settings['polishing_max_solutions'])
 
-        pool.append(dcd_pool)
+        dcd_pool = dcd_pool.remove_infeasible(is_feasible)
+        if len(dcd_pool) > 0:
+            print_log('polishing produced %d feasible solutions' % len(dcd_pool))
+            print_log('best objective value is %1.4f' % np.min(dcd_pool.objvals))
+            pool.append(dcd_pool)
+        else:
+            print_log('all solutions produced by polishing were infeasible')
 
     # remove solutions that are not feasible, not integer
     if len(pool) > 0:
         pool = pool.remove_nonintegral().remove_infeasible(is_feasible).distinct().sort()
+        print_log('initial pool statistics')
+        print_log('number of feasible solutions: %d' % len(pool))
+        print_log('objective value of best solution: %1.4f' % np.min(pool.objvals))
 
     # update upper and lower bounds
     if len(pool) > 0:
@@ -138,7 +182,7 @@ def round_solution_pool(pool,
 
     pool = pool.distinct().sort()
     P = pool.P
-    L0_reg_ind = np.isnan(constraints['coef_set'].C_0j)
+    L0_reg_ind = np.isnan(constraints['coef_set'].c0)
     L0_max = constraints['L0_max']
 
 
@@ -214,21 +258,6 @@ def sequential_round_solution_pool(pool,
 
     # if model size constraint is non-trivial, remove solutions that violate the model size constraint beforehand
     pool = pool.distinct().sort()
-    if L0_min > 0 and L0_max < pool.P:
-
-        def rounded_model_size_is_ok(rho):
-            penalized_rho = abs(rho)[C_0 == 0.0]
-            rounded_rho_l0_min = np.count_nonzero(np.floor(penalized_rho))
-            rounded_rho_l0_max = np.count_nonzero(np.ceil(penalized_rho))
-            return rounded_rho_l0_max >= L0_min and rounded_rho_l0_min <= L0_max
-
-        pool = pool.remove_infeasible(rounded_model_size_is_ok)
-        pool = pool.distinct().sort()
-
-        if len(pool) == 0:
-            return pool, 0.0, 0
-
-
     rounding_handle = lambda rho: sequential_rounding(rho = rho,
                                                       Z = Z,
                                                       C_0 = C_0,

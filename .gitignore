@@ -20,6 +20,7 @@ ci_scripts/
 skltemplate/
 
 # riskslim specific
+riskslim_todo.ft
 batch/data/
 batch/results/
 batch/log/

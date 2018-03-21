@@ -117,23 +117,34 @@ class SolutionPool(object):
 
 
     def append(self, pool):
-        return self.add(pool.objvals, pool.solutions)
-
+        if len(pool) == 0:
+            return self
+        else:
+            return self.add(pool.objvals, pool.solutions)
 
     def add(self, objvals, solutions):
 
         if isinstance(objvals, np.ndarray) or isinstance(objvals, list):
             n = len(objvals)
-            if solutions.ndim == 2:
-                assert n in solutions.shape
-                assert self._P in solutions.shape
-                if solutions.shape[0] == self._P and solutions.shape[1] != self._P:
-                    solutions = np.transpose(solutions)
-            elif solutions.ndim == 1:
-                assert n == 1
-                solutions = np.reshape(solutions, (1, solutions.size))
+            if n == 0:
+                return self
+            if isinstance(solutions, np.ndarray):
+                if solutions.ndim == 2:
+                    assert n in solutions.shape
+                    assert self._P in solutions.shape
+                    if solutions.shape[0] == self._P and solutions.shape[1] != self._P:
+                        solutions = np.transpose(solutions)
+                elif solutions.ndim == 1:
+                    assert n == 1
+                    solutions = np.reshape(solutions, (1, solutions.size))
+                else:
+                    raise ValueError('incorrect solution dimensions')
+            elif isinstance(solutions, list):
+                solutions = np.array(solutions)
+                assert solutions.shape[0] == n
+                assert solutions.shape[1] == self._P
             else:
-                raise ValueError('incorrect solution dimensions')
+                raise TypeError('incorrect solution type')
         else:
             objvals = float(objvals) #also assertion
             solutions = np.reshape(solutions, (1, self._P))
@@ -145,8 +156,9 @@ class SolutionPool(object):
 
     def filter(self, filter_ind):
         idx = np.require(filter_ind, dtype = 'bool').flatten()
-        self._objvals = self._objvals[idx]
-        self._solutions = self._solutions[idx, :]
+        if len(self) > 0 and any(idx == 0):
+            self._objvals = self._objvals[idx]
+            self._solutions = self._solutions[idx, :]
         return self
 
 
@@ -182,14 +194,8 @@ class SolutionPool(object):
     def is_integral(solution):
         return np.all(solution == np.require(solution, dtype = 'int_'))
 
-
     def remove_nonintegral(self):
         return self.filter(map(self.is_integral, self.solutions))
-
-
-    def remove_integral(self):
-        return self.filter(~map(self.is_integral, self.solutions))
-
 
     def compute_objvals(self, get_objval):
         compute_idx = np.flatnonzero(np.isnan(self._objvals))
@@ -215,6 +221,7 @@ class SolutionQueue(object):
         self._P = int(P)
         self._objvals = np.empty(shape = 0)
         self._solutions = np.empty(shape = (0, P))
+
 
     def __len__(self):
         return len(self._objvals)
@@ -243,10 +250,13 @@ class SolutionQueue(object):
         new_solutions = np.reshape(new_solutions, (n, self._P))
         self._solutions = np.append(self._solutions, new_solutions, axis = 0)
 
-    def get_best_objval_and_solution(self):
-        idx = np.argmin(self._objvals)
-        return float(self._objvals[idx]), np.copy(self._solutions[idx,])
 
+    def get_best_objval_and_solution(self):
+        if len(self) > 0:
+            idx = np.argmin(self._objvals)
+            return float(self._objvals[idx]), np.copy(self._solutions[idx,])
+        else:
+            return np.empty(shape = 0), np.empty(shape = (0, P))
 
     def filter_sort_unique(self, max_objval = float('inf')):
         # filter
@@ -255,22 +265,24 @@ class SolutionQueue(object):
             self._objvals = self._objvals[good_idx]
             self._solutions = self._solutions[good_idx,]
 
-        if len(self._objvals) > 0:
+        if len(self._objvals) >= 2:
             _, unique_idx = np.unique(self._solutions, axis = 0, return_index = True)
             self._objvals = self._objvals[unique_idx]
             self._solutions = self._solutions[unique_idx,]
 
-        if len(self._objvals) > 0:
+        if len(self._objvals) >= 2:
             sort_idx = np.argsort(self._objvals)
             self._objvals = self._objvals[sort_idx]
             self._solutions = self._solutions[sort_idx,]
 
         return self
 
+
     def clear(self):
         self._objvals = np.empty(shape = 0)
         self._solutions = np.empty(shape = (0, self._P))
         return self
+
 
     def table(self):
         x = pt.PrettyTable(align = 'r', float_format = '1.4', hrules=pt.ALL)
@@ -290,6 +302,7 @@ class SolutionQueue(object):
 
     def __repr__(self):
         return self.table()
+
 
     def __str__(self):
         return self.table()
