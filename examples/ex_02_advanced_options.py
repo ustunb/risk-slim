@@ -24,10 +24,9 @@ w_pos = 1.00                                                # relative weight on
 
 # load dataset
 data = load_data_from_csv(dataset_csv_file = data_csv_file, sample_weights_csv_file = sample_weights_csv_file)
-N, P = data['X'].shape
 
 # coefficient set
-coef_set = CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
+coef_set = CoefficientSet(variable_names = data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
 
 # offset value
 conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)

@@ -335,10 +335,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
         control['incumbent'] = np.array(risk_slim_mip.solution.get_values(indices['rho']))
         control['upperbound'] = risk_slim_mip.solution.get_objective_value()
         control['lowerbound'] = risk_slim_mip.solution.MIP.get_best_objective()
-        try:
-            control['relative_gap'] = risk_slim_mip.solution.MIP.get_mip_relative_gap()
-        except CplexError:
-            control['relative_gap'] = 1.0 - (control['lowerbound'] / (control['upperbound'] + np.finfo('float').eps))
+        control['relative_gap'] = risk_slim_mip.solution.MIP.get_mip_relative_gap()
         control['found_solution'] = True
     except CplexError:
         control['found_solution'] = False
@@ -348,7 +345,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     control['total_solver_time'] = control['total_run_time'] - control['total_callback_time']
     control['total_data_time'] = control['total_cut_time'] + control['total_polish_time'] + control['total_round_time'] + control['total_round_then_polish_time']
 
-    # General Output
+    # Output for Model
     model_info = {
         'c0_value': c0_value,
         'w_pos': settings['w_pos'],
@@ -366,16 +363,18 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
         }
     model_info.update(constraints)
 
-    # MIP object
+    # Output for MIP
     mip_info = {
         'risk_slim_mip': risk_slim_mip,
         'risk_slim_idx': indices
         }
 
-    # LCPA
+    # Output for LCPA
     lcpa_info = dict(control)
-    lcpa_info['bounds'] = dict(bounds)
-    lcpa_info['settings'] = dict(settings)
+    lcpa_info.update({
+        'bounds': dict(bounds),
+        'settings': dict(settings)
+        })
 
     return model_info, mip_info, lcpa_info
 
@@ -572,7 +571,6 @@ class LossCallback(LazyConstraintCallback):
                 self.update_bounds()
 
         # record metrics at end
-        #print_log('last metrics')
         self.control['n_cuts'] += cuts_added
         self.control['total_cut_time'] += cut_time
         self.control['total_cut_callback_time'] += time.time() - callback_start_time

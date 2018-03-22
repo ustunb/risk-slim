@@ -1,5 +1,5 @@
 import numpy as np
-from debug import ipsh
+
 #todo: finish specifications
 #todo: add input checking (with ability to turn off)
 #todo: Cython implementation
