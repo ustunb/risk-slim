@@ -193,15 +193,13 @@ def setup_penalty_parameters(coef_set, c0_value = 1e-6):
     C_0_nnz
 
     """
-
-    assert c0_value > 0.0, 'default L0_parameter should be positive'
     assert isinstance(coef_set, CoefficientSet)
+    assert c0_value > 0.0, 'default L0_parameter should be positive'
     c0_value = float(c0_value)
     C_0 = np.array(coef_set.c0)
     L0_reg_ind = np.isnan(C_0)
     C_0[L0_reg_ind] = c0_value
     C_0_nnz = C_0[L0_reg_ind]
-
     return c0_value, C_0, L0_reg_ind, C_0_nnz
 
 

@@ -2,7 +2,7 @@ import time
 import numpy as np
 from cplex.exceptions import CplexError
 from cplex.callbacks import LazyConstraintCallback, HeuristicCallback
-from .mip import *
+from .mip import create_risk_slim, set_cplex_mip_parameters, add_mip_starts, convert_to_risk_slim_cplex_solution
 from .helper_functions import print_log, is_integer, cast_to_integer
 from .setup_functions import get_loss_bounds, setup_loss_functions, setup_training_weights, setup_penalty_parameters, setup_objective_functions
 from .solution_classes import SolutionQueue, SolutionPool
@@ -146,8 +146,8 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
         risk_slim_settings.update(initial_bounds)
 
     # create risk_slim mip
-    risk_slim_mip, risk_slim_indices = create_risk_slim(risk_slim_settings)
-    risk_slim_mip = set_cplex_mip_parameters(risk_slim_mip, cplex_settings, display_cplex_progress = lcpa_settings['display_cplex_progress'])
+    risk_slim_mip, risk_slim_indices = create_risk_slim(coef_set = constraints['coef_set'],
+                                                        input = risk_slim_settings)
     risk_slim_indices['C_0_nnz'] = C_0_nnz
     risk_slim_indices['L0_reg_ind'] = L0_reg_ind
 

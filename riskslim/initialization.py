@@ -47,15 +47,17 @@ def initialize_lattice_cpa(Z,
     # trade-off parameter
     _, C_0, _, C_0_nnz = setup_penalty_parameters(c0_value = c0_value, coef_set = constraints['coef_set'])
 
-    risk_slim_settings = dict(risk_slim_settings)
-    risk_slim_settings.update(bounds)
 
     settings = dict(settings)
     settings['type'] = 'cvx'
 
     #create RiskSLIM LP
+    risk_slim_settings = dict(risk_slim_settings)
+    risk_slim_settings.update(bounds)
     risk_slim_settings['relax_integer_variables'] = True
-    risk_slim_lp, risk_slim_lp_indices = create_risk_slim(risk_slim_settings)
+    risk_slim_lp, risk_slim_lp_indices = create_risk_slim(coef_set = constraints['coef_set'],
+                                                          input = risk_slim_settings)
+
     risk_slim_lp = set_cplex_mip_parameters(risk_slim_lp, cplex_settings, display_cplex_progress = settings['display_cplex_progress'])
 
     # solve risk_slim_lp LP using standard CPA

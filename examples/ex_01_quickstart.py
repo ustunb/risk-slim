@@ -7,7 +7,7 @@ from riskslim.coefficient_set import CoefficientSet
 from riskslim.lattice_cpa import run_lattice_cpa
 
 # data
-data_name = "breastcancer"                                  # name of the data
+data_name = "mushroom"                                  # name of the data
 data_dir = os.getcwd() + '/examples/data/'                  # directory where datasets are stored
 data_csv_file = data_dir + data_name + '_data.csv'          # csv file for the dataset
 sample_weights_csv_file = None                              # csv file of sample weights for the dataset (optional)
@@ -43,7 +43,7 @@ settings = {
     'w_pos': w_pos,
     #
     # LCPA Settings
-    'max_runtime': 300.0,                               # max runtime for LCPA
+    'max_runtime': 30.0,                               # max runtime for LCPA
     'max_tolerance': np.finfo('float').eps,             # tolerance to stop LCPA (set to 0 to return provably optimal solution)
     'display_cplex_progress': True,                     # print CPLEX progress on screen
     'loss_computation': 'fast',                         # how to compute the loss function ('normal','fast','lookup')
