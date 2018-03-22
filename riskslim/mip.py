@@ -41,12 +41,12 @@ def create_risk_slim(coef_set, input):
     input = update_parameter('w_pos', 1.0)
     input = update_parameter('w_neg', 2.0 - input['w_pos'])
     input = update_parameter('C_0', 0.01)
+    input = update_parameter('include_auxillary_variable_for_objval', True)
+    input = update_parameter('include_auxillary_variable_for_L0_norm', True)
     input = update_parameter('loss_min', 0.00)
     input = update_parameter('loss_max', float(CPX_INFINITY))
-    input = update_parameter('include_auxillary_variable_for_L0_norm', False)
     input = update_parameter('L0_min', 0)
     input = update_parameter('L0_max', len(coef_set))
-    input = update_parameter('include_auxillary_variable_for_objval', False)
     input = update_parameter('objval_min', 0.00)
     input = update_parameter('objval_max', float(CPX_INFINITY))
     input = update_parameter('relax_integer_variables', False)
@@ -265,21 +265,17 @@ def create_risk_slim(coef_set, input):
     indices = {
         'n_variables': vars.get_num(),
         'n_constraints': cons.get_num(),
-        'loss': [vars.get_indices("loss")],
-        'loss_names': loss_names,
         'names': vars.get_names(),
-        'rho': vars.get_indices(rho_names),
+        'loss_names': loss_names,
         'rho_names': rho_names,
-        'alpha': vars.get_indices(alpha_names),
         'alpha_names': alpha_names,
+        'loss': vars.get_indices(loss_names),
+        'rho': vars.get_indices(rho_names),
+        'alpha': vars.get_indices(alpha_names),
         'L0_reg_ind': L0_reg_ind,
         'C_0_rho': C_0_rho,
-    }
-
-    if len(indices['alpha']) == 0:
-        indices['C_0_alpha'] = []
-    else:
-        indices['C_0_alpha'] = mip.objective.get_linear(indices['alpha'])
+        'C_0_alpha': mip.objective.get_linear(alpha_names) if len(alpha_names) > 0 else [],
+        }
 
     if include_auxillary_variable_for_objval:
         indices.update({
