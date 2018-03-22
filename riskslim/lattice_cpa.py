@@ -4,7 +4,7 @@ from cplex.exceptions import CplexError
 from cplex.callbacks import LazyConstraintCallback, HeuristicCallback
 from .mip import create_risk_slim, set_cplex_mip_parameters, add_mip_starts, convert_to_risk_slim_cplex_solution
 from .helper_functions import print_log, is_integer, cast_to_integer
-from .setup_functions import get_loss_bounds, setup_loss_functions, setup_training_weights, setup_penalty_parameters, setup_objective_functions
+from .setup_functions import get_loss_bounds, setup_loss_functions, setup_penalty_parameters, setup_objective_functions
 from .solution_classes import SolutionQueue, SolutionPool
 from .bound_tightening import chained_updates
 from .heuristics import discrete_descent, sequential_rounding
@@ -55,31 +55,27 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
     lcpa_settings = {key: settings[key] for key in settings if settings if
                      not (key.startswith('init_') or key.startswith('cplex_'))}
 
-    # data
-    Z = data['X'] * data['Y']
-    N, P = Z.shape
 
-    # sample weights and case weights
-    training_weights = setup_training_weights(Y = data['Y'],
-                                              sample_weights = data['sample_weights'],
-                                              w_pos = settings['w_pos'])
-
-    # trade-off parameters
-    c0_value, C_0, L0_reg_ind, C_0_nnz = setup_penalty_parameters(c0_value = lcpa_settings['c0_value'],
-                                                                  coef_set = constraints['coef_set'])
-
-
+    # get handles for loss functions
     # loss functions
-    (compute_loss,
+    (Z,
+     compute_loss,
      compute_loss_cut,
      compute_loss_from_scores,
      compute_loss_real,
      compute_loss_cut_real,
-     compute_loss_from_scores_real) = setup_loss_functions(Z,
-                                                           sample_weights = training_weights,
-                                                           loss_computation = settings['loss_computation'],
+     compute_loss_from_scores_real) = setup_loss_functions(data = data,
                                                            coef_set = constraints['coef_set'],
-                                                           L0_max = constraints['L0_max'])
+                                                           L0_max = constraints['L0_max'],
+                                                           loss_computation = settings['loss_computation'],
+                                                           w_pos = settings['w_pos'])
+
+    # data
+    N, P = Z.shape
+
+    # trade-off parameters
+    c0_value, C_0, L0_reg_ind, C_0_nnz = setup_penalty_parameters(c0_value = lcpa_settings['c0_value'],
+                                                                  coef_set = constraints['coef_set'])
 
     # major components
     (get_objval,
@@ -184,9 +180,6 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     cplex_settings = {key.lstrip('cplex_'): settings[key] for key in settings if key.startswith('cplex_')}
     lcpa_settings = {key: settings[key] for key in settings if settings if not (key.startswith('init_') or key.startswith('cplex_'))}
 
-    # data
-    Z = data['X'] * data['Y']
-    N, P = Z.shape
 
     # unpack variables from setup_risk_slim
     risk_slim_mip = mip_objects['mip']
@@ -195,23 +188,22 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     initial_pool = mip_objects['initial_pool']
     initial_cuts = mip_objects['initial_cuts']
 
-    # sample weights and case weights
-    training_weights = setup_training_weights(Y = data['Y'],
-                                              sample_weights = data['sample_weights'],
-                                              w_pos = settings['w_pos'])
-
     # get handles for loss functions
     # loss functions
-    (compute_loss,
+    (Z,
+     compute_loss,
      compute_loss_cut,
      compute_loss_from_scores,
      compute_loss_real,
      compute_loss_cut_real,
-     compute_loss_from_scores_real) = setup_loss_functions(Z,
-                                                           sample_weights = training_weights,
-                                                           loss_computation = settings['loss_computation'],
+     compute_loss_from_scores_real) = setup_loss_functions(data = data,
                                                            coef_set = constraints['coef_set'],
-                                                           L0_max = constraints['L0_max'])
+                                                           L0_max = constraints['L0_max'],
+                                                           loss_computation = settings['loss_computation'],
+                                                           w_pos = settings['w_pos'])
+
+    # data
+    N, P = Z.shape
 
     # trade-off parameter
     c0_value, C_0, L0_reg_ind, C_0_nnz = setup_penalty_parameters(c0_value = lcpa_settings['c0_value'],

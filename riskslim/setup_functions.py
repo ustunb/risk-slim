@@ -2,16 +2,17 @@ import numpy as np
 from .helper_functions import print_log
 from .coefficient_set import CoefficientSet
 
-def setup_loss_functions(Z, coef_set, sample_weights, loss_computation = None, L0_max = None):
+
+def setup_loss_functions(data, coef_set, L0_max = None, loss_computation = None, w_pos = 1.0):
     """
 
     Parameters
     ----------
-    Z
-    loss_computation
-    sample_weights
+    data
     coef_set
     L0_max
+    loss_computation
+    w_pos
 
     Returns
     -------
@@ -21,10 +22,17 @@ def setup_loss_functions(Z, coef_set, sample_weights, loss_computation = None, L
     assert loss_computation in [None, 'weighted', 'normal', 'fast', 'lookup']
     MAX_DISTINCT_XY_VALUES_FOR_LOOKUP_ON_NONINTEGER_DATA = 20
 
+    Z = data['X'] * data['Y']
+
+    if 'sample_weights' in data:
+        sample_weights = _setup_training_weights(Y = data['Y'], sample_weights = data['sample_weights'], w_pos = w_pos)
+        use_weighted = not np.any(np.not_equal(sample_weights, 1.0))
+    else:
+        use_weighted = False
+
     integer_data_flag = np.all(Z == np.require(Z, dtype = np.int_))
     distinct_points_flag = np.unique(Z) <= MAX_DISTINCT_XY_VALUES_FOR_LOOKUP_ON_NONINTEGER_DATA
-    use_weighted = sample_weights is not None and not np.all(np.equal(sample_weights, np.ones_like(sample_weights)))
-    use_lookup_table = not use_weighted and isinstance(coef_set, CoefficientSet) and (integer_data_flag or distinct_points_flag)
+    use_lookup_table = isinstance(coef_set, CoefficientSet) and (integer_data_flag or distinct_points_flag)
 
     if use_weighted:
         final_loss_computation = 'weighted'
@@ -117,7 +125,8 @@ def setup_loss_functions(Z, coef_set, sample_weights, loss_computation = None, L
         compute_loss_cut_real = compute_loss_cut
         compute_loss_from_scores_real = compute_loss_from_scores
 
-    return (compute_loss,
+    return (Z,
+            compute_loss,
             compute_loss_cut,
             compute_loss_from_scores,
             compute_loss_real,
@@ -125,7 +134,7 @@ def setup_loss_functions(Z, coef_set, sample_weights, loss_computation = None, L
             compute_loss_from_scores_real)
 
 
-def setup_training_weights(Y, sample_weights = None, w_pos = 1.0, w_neg = 1.0, w_total_target = 2.0):
+def _setup_training_weights(Y, sample_weights = None, w_pos = 1.0, w_neg = 1.0, w_total_target = 2.0):
 
     """
     Parameters
@@ -212,9 +221,6 @@ def setup_objective_functions(compute_loss, L0_reg_ind, C_0_nnz):
     get_L0_penalty_from_alpha = lambda alpha: np.sum(C_0_nnz * alpha)
 
     return (get_objval, get_L0_norm, get_L0_penalty, get_alpha, get_L0_penalty_from_alpha)
-
-
-    # Data-Related Computation
 
 
 def get_conservative_offset(data, coef_set, max_L0_value = None):
