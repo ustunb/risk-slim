@@ -1,10 +1,12 @@
 #noinspection
 import numpy as np
-import riskslim.loss_functions.log_loss as normal
+
 import riskslim.loss_functions.fast_log_loss as fast
-import riskslim.loss_functions.lookup_log_loss as lookup
+import riskslim.loss_functions.log_loss as normal
 import riskslim.loss_functions.log_loss_weighted as weighted
+import riskslim.loss_functions.lookup_log_loss as lookup
 from riskslim.setup_functions import setup_training_weights
+
 np.random.seed(seed = 0)
 
 #initialize data matrix X and label vector Y

@@ -1,12 +1,13 @@
-import numpy as np
 import time
-from .mip import create_risk_slim, set_cplex_mip_parameters
-from .lattice_cpa import setup_penalty_parameters
-from .standard_cpa import run_standard_cpa
-from .heuristics import sequential_rounding, discrete_descent
+import numpy as np
 from .bound_tightening import chained_updates
-from .solution_classes import SolutionPool
 from .helper_functions import print_log
+from .heuristics import discrete_descent, sequential_rounding
+from .lattice_cpa import setup_penalty_parameters
+from .mip import create_risk_slim, set_cplex_mip_parameters
+from .solution_classes import SolutionPool
+from .standard_cpa import run_standard_cpa
+
 
 def initialize_lattice_cpa(Z,
                            c0_value,
@@ -45,7 +46,7 @@ def initialize_lattice_cpa(Z,
     print_log('-' * 60)
 
     # trade-off parameter
-    _, C_0, _, C_0_nnz = setup_penalty_parameters(c0_value = c0_value, coef_set = constraints['coef_set'])
+    _, C_0, L0_reg_ind, C_0_nnz = setup_penalty_parameters(c0_value = c0_value, coef_set = constraints['coef_set'])
 
 
     settings = dict(settings)
@@ -71,12 +72,11 @@ def initialize_lattice_cpa(Z,
     bounds = chained_updates(bounds, C_0_nnz, new_objval_at_relaxation = cpa_stats['lowerbound'])
 
     def rounded_model_size_is_ok(rho):
-        reg_idx = C_0 > 0.0
         zero_idx_rho_ceil = np.equal(np.ceil(rho), 0)
         zero_idx_rho_floor = np.equal(np.floor(rho), 0)
         cannot_round_to_zero = np.logical_not(np.logical_or(zero_idx_rho_ceil, zero_idx_rho_floor))
-        rounded_rho_L0_min = np.count_nonzero(cannot_round_to_zero[reg_idx])
-        rounded_rho_L0_max = np.count_nonzero(rho[reg_idx])
+        rounded_rho_L0_min = np.count_nonzero(cannot_round_to_zero[L0_reg_ind])
+        rounded_rho_L0_max = np.count_nonzero(rho[L0_reg_ind])
         return rounded_rho_L0_min >= constraints['L0_min'] and rounded_rho_L0_max <= constraints['L0_max']
 
     cpa_pool = cpa_pool.remove_infeasible(rounded_model_size_is_ok).distinct().sort()

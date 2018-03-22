@@ -1,10 +1,12 @@
-import numpy as np
 import time
+
+import numpy as np
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
-from .helper_functions import print_log, get_rho_string, get_or_set_default
+
 from .bound_tightening import chained_updates, chained_updates_for_lp
-from .solution_classes import SolutionPool
 from .default_settings import DEFAULT_CPA_SETTINGS
+from .helper_functions import get_or_set_default, get_rho_string, print_log
+from .solution_classes import SolutionPool
 
 
 def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings = DEFAULT_CPA_SETTINGS, print_flag = False):

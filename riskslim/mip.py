@@ -1,10 +1,13 @@
 # CPLEX
-import numpy as np
 from math import ceil, floor
+
+import numpy as np
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
 from cplex.exceptions import CplexError
-from .helper_functions import print_log, get_or_set_default
+
 from .coefficient_set import CoefficientSet
+from .helper_functions import get_or_set_default, print_log
+
 
 #todo: add loss cut
 #todo: add constraint function

@@ -10,6 +10,7 @@ http://stackoverflow.com/a/23388116/568249
 """
 
 import inspect
+
 from IPython.terminal.embed import InteractiveShellEmbed
 from traitlets.config import Config
 

@@ -1,11 +1,12 @@
 import os
-import numpy as np
 from pprint import pprint
-from riskslim.helper_functions import load_data_from_csv, print_model
-from riskslim.coefficient_set import CoefficientSet
-from riskslim.setup_functions import get_conservative_offset
-from riskslim.lattice_cpa import run_lattice_cpa
 
+import numpy as np
+
+from riskslim.coefficient_set import CoefficientSet
+from riskslim.helper_functions import load_data_from_csv
+from riskslim.lattice_cpa import run_lattice_cpa
+from riskslim.setup_functions import get_conservative_offset
 
 # Dataset Strategy
 #

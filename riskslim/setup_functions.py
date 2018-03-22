@@ -1,6 +1,7 @@
 import numpy as np
-from .helper_functions import print_log
+
 from .coefficient_set import CoefficientSet
+from .helper_functions import print_log
 
 
 def setup_loss_functions(data, coef_set, L0_max = None, loss_computation = None, w_pos = 1.0):
@@ -185,22 +186,18 @@ def _setup_training_weights(Y, sample_weights = None, w_pos = 1.0, w_neg = 1.0, 
 
 def setup_penalty_parameters(coef_set, c0_value = 1e-6):
     """
-    get training penalty parameters used internally by LCPA
 
     Parameters
     ----------
-
-    coef_set - coefficient set (non-empty)
-    c0_value - user-specified L0-penalty parameter (must be > 0.0)
+    coef_set
+    c0_value
 
     Returns
     -------
-
     c0_value
-    L0_reg_ind
     C_0
+    L0_reg_ind
     C_0_nnz
-
     """
     assert isinstance(coef_set, CoefficientSet)
     assert c0_value > 0.0, 'default L0_parameter should be positive'

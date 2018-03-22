@@ -1,17 +1,15 @@
 import time
 import numpy as np
+from cplex.callbacks import HeuristicCallback, LazyConstraintCallback
 from cplex.exceptions import CplexError
-from cplex.callbacks import LazyConstraintCallback, HeuristicCallback
-from .mip import create_risk_slim, set_cplex_mip_parameters, add_mip_starts, convert_to_risk_slim_cplex_solution
-from .helper_functions import print_log, is_integer, cast_to_integer
-from .setup_functions import get_loss_bounds, setup_loss_functions, setup_penalty_parameters, setup_objective_functions
-from .solution_classes import SolutionQueue, SolutionPool
 from .bound_tightening import chained_updates
+from .default_settings import DEFAULT_LCPA_SETTINGS
+from .helper_functions import cast_to_integer, is_integer, print_log
 from .heuristics import discrete_descent, sequential_rounding
 from .initialization import initialize_lattice_cpa
-from .default_settings import DEFAULT_LCPA_SETTINGS
-
-
+from .mip import add_mip_starts, convert_to_risk_slim_cplex_solution, create_risk_slim, set_cplex_mip_parameters
+from .setup_functions import get_loss_bounds, setup_loss_functions, setup_objective_functions, setup_penalty_parameters
+from .solution_classes import SolutionPool, SolutionQueue
 
 DEFAULT_BOUNDS = {
     'objval_min': 0.0,

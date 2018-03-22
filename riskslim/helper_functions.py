@@ -1,11 +1,12 @@
+import logging
+import os.path
 import sys
 import time
-import os.path
 import warnings
 import numpy as np
 import pandas as pd
 import prettytable as pt
-import logging
+
 
 # PRINTING AND LOGGING
 def setup_logging(logger, log_to_console = True, log_file = None):
