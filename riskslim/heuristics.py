@@ -145,7 +145,7 @@ def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_f
 
     coefficient_values = {k: np.arange(int(rho_lb[k]), int(rho_ub[k]) + 1) for k in descent_dimensions}
     search_dimensions = descent_dimensions
-    while n_iterations < MAX_ITERATIONS:
+    while n_iterations < MAX_ITERATIONS and len(search_dimensions) > 0:
 
         # compute the best objective value / step size in each dimension
         best_objval_by_dim = np.repeat(np.nan, P)
