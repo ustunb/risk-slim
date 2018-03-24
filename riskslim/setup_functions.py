@@ -27,7 +27,7 @@ def setup_loss_functions(data, coef_set, L0_max = None, loss_computation = None,
 
     if 'sample_weights' in data:
         sample_weights = _setup_training_weights(Y = data['Y'], sample_weights = data['sample_weights'], w_pos = w_pos)
-        use_weighted = not np.any(np.not_equal(sample_weights, 1.0))
+        use_weighted = not np.all(np.equal(sample_weights, 1.0))
     else:
         use_weighted = False
 
@@ -44,7 +44,6 @@ def setup_loss_functions(data, coef_set, L0_max = None, loss_computation = None,
 
     if final_loss_computation != loss_computation:
         print_log("switching loss computation from %s to %s" % (loss_computation, final_loss_computation))
-
 
     if final_loss_computation == 'weighted':
 
