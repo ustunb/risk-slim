@@ -1,11 +1,20 @@
-import cython
+mport cython
 import numpy as np
 cimport numpy as np
 cimport scipy.linalg.cython_blas as blas
 cimport libc.math as math
 
+cimport
+numpy as np
+cimport
+scipy.linalg.cython_blas as blas
+cimport
+libc.math as math
+import cython
+import numpy as np
+
 DTYPE = np.float64
-ctypedef np.float64_t DTYPE_T
+ctypedef np.float64_t DTYPE_t
 
 #create loss_value_table for logistic loss
 @cython.boundscheck(False)
@@ -16,7 +25,7 @@ def get_loss_value_table(int min_score, int max_score):
 
     cdef:
         int lookup_offset = -min_score
-        np.ndarray[DTYPE_T, ndim=1, mode = "fortran"] loss_value_table = np.empty(max_score - min_score + 1, dtype = DTYPE)
+        np.ndarray[DTYPE_t, ndim=1, mode = "fortran"] loss_value_table = np.empty(max_score - min_score + 1, dtype = DTYPE)
         Py_ssize_t i = 0
         int s = min_score
 
@@ -25,12 +34,12 @@ def get_loss_value_table(int min_score, int max_score):
         i += 1
         s += 1
 
-    if (s == 0):
+    if s == 0:
         loss_value_table[i] = math.M_LN2
         i += 1
         s += 1
 
-    while (s <= max_score):
+    while s <= max_score:
         loss_value_table[i] = math.log1p(math.exp(-s))
         i += 1
         s += 1
@@ -45,9 +54,9 @@ def get_prob_value_table(int min_score, int max_score):
 
     cdef:
         int lookup_offset = -min_score
-        np.ndarray[DTYPE_T, ndim=1, mode = "fortran"] prob_value_table = np.empty(max_score - min_score + 1, dtype = DTYPE)
+        np.ndarray[DTYPE_t, ndim=1, mode = "fortran"] prob_value_table = np.empty(max_score - min_score + 1, dtype = DTYPE)
         Py_ssize_t i = 0
-        DTYPE_T exp_value
+        DTYPE_t exp_value
         int s = min_score
 
     while (s < 0):
@@ -79,10 +88,10 @@ def get_loss_value_and_prob_tables(int min_score, int max_score):
     cdef:
         int lookup_offset = -min_score
         int table_size = max_score - min_score + 1
-        np.ndarray[DTYPE_T, ndim=1, mode = "fortran"] loss_value_table = np.empty(table_size, dtype = DTYPE)
-        np.ndarray[DTYPE_T, ndim=1, mode = "fortran"] prob_value_table = np.empty(table_size, dtype = DTYPE)
+        np.ndarray[DTYPE_t, ndim=1, mode = "fortran"] loss_value_table = np.empty(table_size, dtype = DTYPE)
+        np.ndarray[DTYPE_t, ndim=1, mode = "fortran"] prob_value_table = np.empty(table_size, dtype = DTYPE)
         Py_ssize_t i = 0
-        DTYPE_T exp_value
+        DTYPE_t exp_value
         int s = min_score
 
     while (s < 0):
@@ -114,9 +123,9 @@ def get_loss_value_and_prob_tables(int min_score, int max_score):
 @cython.wraparound(False)
 @cython.nonecheck(False)
 @cython.cdivision(False)
-def log_loss_value(np.ndarray[DTYPE_T, ndim=2, mode="fortran"] Z,
-np.ndarray[DTYPE_T, ndim=1, mode="fortran"] rho,
-np.ndarray[DTYPE_T, ndim=1, mode="fortran"] loss_value_table,
+def log_loss_value(np.ndarray[DTYPE_t, ndim=2, mode="fortran"] Z,
+np.ndarray[DTYPE_t, ndim=1, mode="fortran"] rho,
+np.ndarray[DTYPE_t, ndim=1, mode="fortran"] loss_value_table,
 int lookup_offset):
 
     cdef:
@@ -126,9 +135,9 @@ int lookup_offset):
         int incy = 1 #increments of y
         double alpha = 1.0
         double beta = 0.0
-        np.ndarray[DTYPE_T, ndim=1, mode = "fortran"] y = np.empty(N, dtype = DTYPE)
+        np.ndarray[DTYPE_t, ndim=1, mode = "fortran"] y = np.empty(N, dtype = DTYPE)
         Py_ssize_t i
-        DTYPE_T total_loss = 0.0
+        DTYPE_t total_loss = 0.0
 
     #get scores using dgemv, which computes: y <- alpha * trans(Z) + beta * y
     #see also: (http://www.nag.com/numeric/fl/nagdoc_fl22/xhtml/F06/f06paf.xml)
@@ -145,14 +154,14 @@ int lookup_offset):
 @cython.nonecheck(False)
 @cython.cdivision(False)
 def log_loss_value_from_scores(
-    np.ndarray[DTYPE_T, ndim=1, mode="fortran"] scores,
-    np.ndarray[DTYPE_T, ndim=1, mode="fortran"] loss_value_table,
+    np.ndarray[DTYPE_t, ndim=1, mode="fortran"] scores,
+    np.ndarray[DTYPE_t, ndim=1, mode="fortran"] loss_value_table,
     int lookup_offset):
 
     cdef:
         Py_ssize_t i
         Py_ssize_t N = scores.shape[0]
-        DTYPE_T total_loss = 0.0
+        DTYPE_t total_loss = 0.0
 
     #compute loss
     for i in range(N):
@@ -165,10 +174,10 @@ def log_loss_value_from_scores(
 @cython.nonecheck(False)
 @cython.cdivision(False)
 def log_loss_value_and_slope(
-            np.ndarray[DTYPE_T, ndim=2, mode="fortran"] Z,
-            np.ndarray[DTYPE_T, ndim=1, mode="fortran"] rho,
-            np.ndarray[DTYPE_T, ndim=1, mode="fortran"] loss_value_table,
-            np.ndarray[DTYPE_T, ndim=1, mode="fortran"] prob_value_table,
+            np.ndarray[DTYPE_t, ndim=2, mode="fortran"] Z,
+            np.ndarray[DTYPE_t, ndim=1, mode="fortran"] rho,
+            np.ndarray[DTYPE_t, ndim=1, mode="fortran"] loss_value_table,
+            np.ndarray[DTYPE_t, ndim=1, mode="fortran"] prob_value_table,
             int lookup_offset):
 
     cdef:
@@ -181,9 +190,9 @@ def log_loss_value_and_slope(
         double beta = 0.0
         Py_ssize_t i
         int lookup_index
-        DTYPE_T total_loss = 0.0
-        np.ndarray[DTYPE_T, ndim=1, mode = "fortran"] y = np.empty(N, dtype = DTYPE)
-        np.ndarray[DTYPE_T, ndim=1, mode = "fortran"] loss_slope = np.empty(D, dtype = DTYPE)
+        DTYPE_t total_loss = 0.0
+        np.ndarray[DTYPE_t, ndim=1, mode = "fortran"] y = np.empty(N, dtype = DTYPE)
+        np.ndarray[DTYPE_t, ndim=1, mode = "fortran"] loss_slope = np.empty(D, dtype = DTYPE)
 
     #get scores using dgemv, which computes: y <- alpha * trans(Z) + beta * y
     #see also: (http://www.nag.com/numeric/fl/nagdoc_fl22/xhtml/F06/f06paf.xml)

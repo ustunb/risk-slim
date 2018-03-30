@@ -1,11 +1,11 @@
 {
     "max_runtime": 300.0,
     "max_tolerance": 1e-06, 
-    "loss_computation": "normal", 
+    "loss_computation": "normal",
     "chained_updates_flag": true, 
     "round_flag": true, 
     "polish_flag": true, 
-    "initialization_flag": false, 
+    "initialization_flag": true,
     "add_cuts_at_heuristic_solutions": true, 
     "tight_formulation": true, 
     

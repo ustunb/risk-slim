@@ -20,11 +20,14 @@ ci_scripts/
 skltemplate/
 
 # riskslim specific
+riskslim_todo.ft
 batch/data/
 batch/results/
 batch/log/
 examples/data/*cvindices.csv
 examples/data/*weights.csv
+examples/ex_00_tests.py
+examples/data/recidivism_v01_*.csv
 !examples/data/breastcancer_cvindices.csv
 !examples/data/breastcancer_weights.csv
 riskslim/tests/test_common.py
@@ -36,6 +39,7 @@ scratch/
 # Distribution / packaging
 .Python
 env/
+venv/
 build/
 develop-eggs/
 dist/

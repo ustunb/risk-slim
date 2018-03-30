@@ -14,12 +14,12 @@ python build_cython_loss_functions.py build_ext --inplace
 
 """
 
-import sys
 from distutils.core import setup
 from distutils.extension import Extension
-from Cython.Distutils import build_ext
+
 import numpy
 import scipy
+from Cython.Distutils import build_ext
 
 #fast log loss
 ext_modules = [Extension(name = "fast_log_loss",

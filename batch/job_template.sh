@@ -10,6 +10,10 @@
 #
 # `python "batch/train_risk_slim.py --help`
 #
+#  or
+#
+# `python2 "batch/train_risk_slim.py --help`
+#
 # Recommended Directory Structure for Batch Computing:
 #
 #   risk-slim/
@@ -71,7 +75,7 @@ settings_file="${results_dir}/${run_name}_settings.json"
 cp "${batch_dir}/settings_template.json" "${settings_file}"
 
 #run command
-python "${batch_dir}/train_risk_slim.py"  \
+python2 "${batch_dir}/train_risk_slim.py"  \
     --data "${data_file}" \
     --results "${results_file}" \
     --cvindices "${cvindices_file}" \

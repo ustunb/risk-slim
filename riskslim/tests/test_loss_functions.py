@@ -1,11 +1,12 @@
 #noinspection
 import numpy as np
-import riskslim.loss_functions.log_loss as normal
-import riskslim.loss_functions.fast_log_loss as fast
-import riskslim.loss_functions.lookup_log_loss as lookup
-import riskslim.loss_functions.log_loss_weighted as weighted
 
-print "testing riskslim.loss_functions"
+import riskslim.loss_functions.fast_log_loss as fast
+import riskslim.loss_functions.log_loss as normal
+import riskslim.loss_functions.log_loss_weighted as weighted
+import riskslim.loss_functions.lookup_log_loss as lookup
+from riskslim.setup_functions import setup_training_weights
+
 np.random.seed(seed = 0)
 
 #initialize data matrix X and label vector Y
@@ -20,9 +21,7 @@ def generate_binary_data(n_rows = 1000000, n_cols = 20):
     Y = np.random.randint(low=0, high=2, size=(n_rows, 1))
     pos_ind = Y == 1
     Y[~pos_ind] = -1
-    Z = X * Y
-    Z = np.require(Z, requirements=['F'], dtype=np.float64)
-    return Z
+    return X, Y
 
 def generate_integer_model(n_cols = 20, rho_ub = 100, rho_lb = -100, sparse_pct = 0.5):
     rho = np.random.randint(low=rho_lb, high=rho_ub, size=n_cols)
@@ -71,24 +70,18 @@ def get_score_bounds_from_range(Z_min, Z_max, rho_lb, rho_ub, L0_max = None):
     return s_min, s_max
 
 
-#setup weights
-w_pos = 1.0
-w_neg = 1.0
-w_total = w_pos + w_neg
-w_pos = 2.0 * (w_pos / w_total)
-w_neg = 2.0 * (w_neg / w_total)
-weights = np.empty(n_rows)
-weights[pos_ind] = w_pos
-weights[~pos_ind] = w_neg
-weights = weights.flatten()
-
 #generate data
-Z = generate_binary_data(n_rows, n_cols)
+X, Y = generate_binary_data(n_rows, n_cols)
+Z = X * Y
+Z = np.require(Z, requirements=['F'], dtype=np.float64)
 rho = generate_integer_model(n_cols, rho_ub, rho_lb)
 L0_reg_ind = np.ones(n_cols, dtype='bool')
 L0_reg_ind[0] = False
 Z_min = np.min(Z, axis = 0)
 Z_max = np.max(Z, axis = 0)
+
+#setup weights
+weights = setup_training_weights(Y, w_pos = 1.0, w_neg = 1.0, w_total_target = 2.0)
 
 #create lookup table
 min_score, max_score = get_score_bounds_from_range(Z_min, Z_max, rho_lb, rho_ub, L0_max = n_cols)
@@ -106,7 +99,6 @@ for s in range(int(min_score), int(max_score)+1):
     assert(np.isclose(table_value, normal_value, rtol = 1e-06))
     assert(np.equal(table_value, lookup_value))
 
-print "all tests passed"
 
 #python implementations need to be 'C' aligned instead of D aligned
 Z_py = np.require(Z, requirements = ['C'])
@@ -146,21 +138,12 @@ def weighted_scores_test(weights): return weighted.log_loss_value_from_scores(we
 
 
 #w_pos = w_neg = 1.0
-w_pos = 1.0
-w_neg = 1.0
-w_total = w_pos + w_neg
-w_pos = 2.0 * (w_pos / w_total)
-w_neg = 2.0 * (w_neg / w_total)
-weights = np.empty(Y.shape[0])
-pos_ind = Y.flatten() == 1
-weights[pos_ind] = w_pos
-weights[~pos_ind] = w_neg
-
+weights = setup_training_weights(Y, w_pos = 1.0, w_neg = 1.0, w_total_target = 2.0)
 
 weights_match_unit_weights = all(weights == 1.0)
 
 if weights_match_unit_weights:
-    print "tests for match between normal and weighted loss function"
+    print("tests for match between normal and weighted loss function")
     #value
     assert(np.isclose(normal_value_test(), weighted_value_test(weights)))
     assert(np.isclose(normal_value_test(), weighted_scores_test(weights)))
@@ -171,33 +154,20 @@ if weights_match_unit_weights:
     assert(np.isclose(normal_cut[0], weighted_cut[0]))
     assert(all(np.isclose(normal_cut[1], weighted_cut[1])))
 
-print "passed all tests for weighted implementations when w_pos = w_neg = 1.0"
+print("passed all tests for weighted implementations when w_pos = w_neg = 1.0")
 
 
 #w_pos = w_neg = 1.0
 w_pos = 0.5 + np.random.rand()
-scale_factor = 1 + np.random.rand()
-w_neg = 2.0 - w_pos
-w_total = w_pos + w_neg
-w_pos = 2.0 * (w_pos / w_total)
-w_neg = 2.0 * (w_neg / w_total)
-pos_ind = Y.flatten() == 1
-weights = np.empty(Y.shape[0])
-weights[pos_ind] = w_pos
-weights[~pos_ind] = w_neg
-
+w_neg = 1.0
+weights = setup_training_weights(Y, w_pos = 0.5 + np.random.rand(), w_neg = 1.0, w_total_target = 2.0)
 weighted_value = weighted_value_test(weights)
 weighted_cut = weighted_cut_test(weights)
-weighted_cut_scaled = weighted_cut_test(scale_factor * weights)
 weighted_value_from_scores = weighted_scores_test(weights)
 
 assert(np.isclose(weighted_value, weighted_value_from_scores))
 assert(np.isclose(weighted_value, weighted_cut[0]))
-assert(np.isclose(weighted_value, weighted_cut_scaled[0]))
-assert(np.isclose(weighted_cut[0], weighted_cut_scaled[0]))
-assert(np.all(np.isclose(weighted_cut[1], weighted_cut_scaled[1])))
-
-print "passed all tests for weighted loss functions when w_pos = %1.2f and w_neg = %1.2f" % (w_pos, w_neg)
+print("passed all tests for weighted loss functions when w_pos = {1.2f} and w_neg = {1.2f}".format(w_pos, w_neg))
 
 
 # print 'timing for loss value computation \n'
@@ -209,5 +179,3 @@ print "passed all tests for weighted loss functions when w_pos = %1.2f and w_neg
 # %timeit -n 20 normal_cut = normal_cut_test()
 # %timeit -n 20 cython_cut = fast_cut_test()
 # %timeit -n 20 lookup_cut = lookup_cut_test()
-
-

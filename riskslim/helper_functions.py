@@ -1,13 +1,18 @@
+import logging
+import os.path
 import sys
 import time
-import os.path
 import warnings
 import numpy as np
 import pandas as pd
 import prettytable as pt
+<<<<<<< HEAD
 import logging
 #from .debugging import ipsh #only for debugging
 import time
+=======
+
+>>>>>>> 30b3240cef327c4a2c5cc35a983d941c34b75b86
 
 # PRINTING AND LOGGING
 def setup_logging(logger, log_to_console = True, log_file = None):
@@ -47,6 +52,7 @@ def setup_logging(logger, log_to_console = True, log_file = None):
 
     return logger
 
+
 def print_log(msg, print_flag = True):
     """
 
@@ -63,21 +69,25 @@ def print_log(msg, print_flag = True):
         print('{} | {}'.format(time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()), str(msg)))
         sys.stdout.flush()
 
-def get_rho_string(rho, vtypes='I'):
+
+def get_rho_string(rho, vtypes = 'I'):
+
     if len(vtypes) == 1:
         if vtypes == 'I':
             rho_string = ' '.join(map(lambda x: str(int(x)), rho))
         else:
             rho_string = ' '.join(map(lambda x: str(x), rho))
+
     else:
         rho_string = ''
-        for j in range(0, len(rho)):
+        for j in range(len(rho)):
             if vtypes[j] == 'I':
                 rho_string += ' ' + str(int(rho[j]))
             else:
                 rho_string += (' %1.6f' % rho[j])
 
     return rho_string
+
 
 def easy_type(data_value):
     type_name = type(data_value).__name__
@@ -105,6 +115,7 @@ def easy_type(data_value):
     else:
         return "unknown"
 
+
 def convert_str_to_bool(val):
     val = val.lower().strip()
     if val == 'true':
@@ -114,6 +125,7 @@ def convert_str_to_bool(val):
     else:
         return None
 
+<<<<<<< HEAD
 def get_or_set_default(settings, setting_name, default_value, type_check=False, print_flag=True):
     if setting_name in settings:
         if type_check:
@@ -130,9 +142,34 @@ def get_or_set_default(settings, setting_name, default_value, type_check=False, 
                 # else: do nothing
     else:
         print_log("setting {} to its default value: {}".format(setting_name, default_value), print_flag)
+=======
+
+def get_or_set_default(settings, setting_name, default_value, type_check = False, print_flag=True):
+
+    if setting_name not in settings:
+
+        print_log("setting %s to its default value: %r" %
+                  (setting_name, default_value), print_flag)
+
+>>>>>>> 30b3240cef327c4a2c5cc35a983d941c34b75b86
         settings[setting_name] = default_value
 
+    elif setting_name in settings and type_check:
+
+        default_type = type(default_value)
+        user_type = type(settings[setting_name])
+
+        if user_type is not default_type:
+            print_log("type mismatch on %s:\nuser provided %s\n expected %s" %
+                      (setting_name, user_type, default_type), print_flag)
+
+            print_log("setting %s to its default value: %r" %
+                      (setting_name, default_value), print_flag)
+
+            settings[setting_name] = default_value
+
     return settings
+
 
 # LOADING DATA FROM DISK
 def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_csv_file = None, fold_num = 0):
@@ -215,7 +252,7 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
         'variable_names': variable_names,
         'outcome_name': Y_name,
         'sample_weights': sample_weights,
-    }
+        }
 
     #load folds
     if fold_csv_file is not None:
@@ -240,6 +277,7 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
 
     assert check_data(data)
     return data
+
 
 # DATA CHECK
 def check_data(data):
@@ -296,7 +334,7 @@ def check_data(data):
 
     # offset in feature matrix
     if '(Intercept)' in variable_names:
-        assert all(X[:, variable_names.index('(Intercept)')] == 1.0), "'(Intercept)' column should only be composed of 1s"
+        assert all(X[:, variable_names.index('(Intercept)')] == 1.0), "(Intercept)' column should only be composed of 1s"
     else:
         warnings.warn("there is no column named '(Intercept)' in variable_names")
 
@@ -311,14 +349,14 @@ def check_data(data):
         sample_weights = data['sample_weights']
         type(sample_weights) is np.ndarray
         assert len(sample_weights) == N, 'sample_weights should contain N elements'
-        assert all(sample_weights > 0), 'sample_weights[i] > 0 for all i '
+        assert all(sample_weights > 0.0), 'sample_weights[i] > 0 for all i '
 
         # by default, we set sample_weights as an N x 1 array of ones. if not, then sample weights is non-trivial
-        if not all(sample_weights == 1):
-            if len(np.unique(sample_weights)) < 2:
-                warnings.warn('note: sample_weights only has <2 unique values')
+        if any(sample_weights != 1.0) and len(np.unique(sample_weights)) < 2:
+            warnings.warn('note: sample_weights only has <2 unique values')
 
     return True
+
 
 def print_model(rho, data,  show_omitted_variables = False):
 
@@ -331,14 +369,14 @@ def print_model(rho, data,  show_omitted_variables = False):
         intercept_ind = variable_names.index('(Intercept)')
         intercept_val = int(rho[intercept_ind])
         rho_values = np.delete(rho_values, intercept_ind)
-        rho_names.remove('(Intercept)' )
+        rho_names.remove('(Intercept)')
     else:
         intercept_val = 0
 
     if 'outcome_name' in data:
-        predict_string = "P(Y = +1) = 1/(1 + exp(%d - score))" % intercept_val
+        predict_string = "Pr(Y = +1) = 1/(1 + exp(%d - score))" % intercept_val
     else:
-        predict_string = "P(%s = +1) = 1/(1 + exp(%d - score)" % (data['outcome_name'].upper(), intercept_val)
+        predict_string = "Pr(%s = +1) = 1/(1 + exp(%d - score)" % (data['outcome_name'].upper(), intercept_val)
 
     if not show_omitted_variables:
         selected_ind = np.flatnonzero(rho_values)
@@ -366,8 +404,8 @@ def print_model(rho, data,  show_omitted_variables = False):
     m.add_row([predict_string, "", ""])
     m.add_row(['=' * max_name_col_length, "=" * max_value_col_length, "========="])
 
-    for v in range(0, n_variable_rows):
-        m.add_row([rho_names[v], rho_values_string[v], "+ ....."])
+    for name, value_string in zip(rho_names, rho_values_string):
+        m.add_row([name, value_string, "+ ....."])
 
     m.add_row(['=' * max_name_col_length, "=" * max_value_col_length, "========="])
     m.add_row([total_string, "SCORE", "= ....."])
@@ -377,7 +415,8 @@ def print_model(rho, data,  show_omitted_variables = False):
     m.align["Tally"] = "r"
 
     print(m)
-    return(m)
+    return m
+
 
 # DATA CONVERSION
 def is_integer(rho):
@@ -393,6 +432,7 @@ def is_integer(rho):
 
     """
     return np.array_equal(rho, np.require(rho, dtype=np.int_))
+
 
 def cast_to_integer(rho):
     """
