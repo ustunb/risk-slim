@@ -4,7 +4,6 @@ from .bound_tightening import chained_updates
 from .helper_functions import print_log
 from .heuristics import discrete_descent, sequential_rounding
 from .setup_functions import setup_penalty_parameters
-#from .lattice_cpa import setup_penalty_parameters - this doesnt work
 from .mip import create_risk_slim, set_cplex_mip_parameters
 from .solution_classes import SolutionPool
 from .standard_cpa import run_standard_cpa
