@@ -1,3 +1,4 @@
+cplex
 IPython
 traitlets
 numpy
