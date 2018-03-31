@@ -21,7 +21,6 @@ skltemplate/
 
 # riskslim specific
 riskslim_todo.ft
-cluster/
 scratch/
 batch/data/
 batch/results/
