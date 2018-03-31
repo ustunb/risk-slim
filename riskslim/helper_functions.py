@@ -60,10 +60,10 @@ def print_log(msg, print_flag = True):
 
     """
     if print_flag:
-        if type(msg) is str:
-            print ('%s | ' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()))) + msg
+        if isinstance(msg, str):
+            print('%s | %s' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()), msg))
         else:
-            print '%s | %r' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()), msg)
+            print('%s | %r' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()), msg))
         sys.stdout.flush()
 
 
