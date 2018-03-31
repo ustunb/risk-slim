@@ -34,6 +34,7 @@ riskslim/tests/test_common.py
 riskslim/tests/test_template.py
 riskslim/loss_functions/build/
 riskslim/loss_functions/*.so
+riskslim/loss_functions/*.c
 scratch/
 
 # Distribution / packaging
