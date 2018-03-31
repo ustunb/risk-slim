@@ -19,12 +19,15 @@ doc/
 ci_scripts/
 skltemplate/
 
-# riskslim specific
-riskslim_todo.ft
-scratch/
+# riskslim directories
 batch/data/
 batch/results/
 batch/log/
+scratch/
+cluster/
+
+# riskslim files
+riskslim_todo.ft
 examples/data/*cvindices.csv
 examples/data/*weights.csv
 examples/ex_00_tests.py
