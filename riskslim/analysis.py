@@ -1,5 +1,4 @@
 import warnings
-
 import numpy as np
 
 
@@ -114,7 +113,7 @@ def get_accuracy_stats(model, data, error_checking=True):
     return accuracy_stats
 
 
-#### TODO
+# TODO
 
 
 def get_calibration_metrics(model, data):

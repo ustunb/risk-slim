@@ -1,5 +1,4 @@
 import numpy as np
-
 from .coefficient_set import CoefficientSet
 from .helper_functions import print_log
 

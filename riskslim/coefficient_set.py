@@ -82,8 +82,8 @@ class CoefficientElement(object):
         if np.isnan(value):
             self._c0 = float('nan')
         else:
-            assert np.isfinite(value), 'L0 penalty for %s must either be NaN or a finite positive number' % (self._name)
-            assert value >= 0.0, 'L0 penalty for %s must either be NaN or a finite positive number' % (self._name)
+            assert np.isfinite(value), 'L0 penalty for %s must either be NaN or a finite positive number' % self._name
+            assert value >= 0.0, 'L0 penalty for %s must either be NaN or a finite positive number' % self._name
             self._c0 = float(value)
 
     @property
@@ -242,6 +242,7 @@ class CoefficientSet(object):
             return self._variable_names.index(name)
         else:
             raise ValueError('no variable named %s in coefficient set' % name)
+
 
     def penalized_indices(self):
         return np.array(map(lambda v: self._coef_elements[v].penalized, self._variable_names))

@@ -1,10 +1,7 @@
-# CPLEX
 from math import ceil, floor
-
 import numpy as np
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
 from cplex.exceptions import CplexError
-
 from .coefficient_set import CoefficientSet
 from .helper_functions import get_or_set_default, print_log
 

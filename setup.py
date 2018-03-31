@@ -24,19 +24,19 @@ VERSION = '0.0.0'
 try:
     import numpy
 except ImportError:
-    print('numpy is required during installation')
+    print('numpy is required for installation')
     sys.exit(1)
 
 try:
     import scipy
 except ImportError:
-    print('scipy is required during installation')
+    print('scipy is required for installation')
     sys.exit(1)
 
 try:
     from Cython.Build import cythonize
 except ImportError:
-    print('Cython is required during installation')
+    print('Cython is required for installation')
     sys.exit(1)
 
 #fast log loss

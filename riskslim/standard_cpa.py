@@ -1,8 +1,6 @@
 import time
-
 import numpy as np
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
-
 from .bound_tightening import chained_updates, chained_updates_for_lp
 from .default_settings import DEFAULT_CPA_SETTINGS
 from .helper_functions import get_or_set_default, get_rho_string, print_log
