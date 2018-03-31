@@ -2,16 +2,6 @@ import os
 import numpy as np
 from pprint import pprint
 from riskslim.helper_functions import load_data_from_csv, print_model
-<<<<<<< HEAD
-from riskslim.CoefficientSet import CoefficientSet
-from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa
-from riskslim.analysis import get_accuracy_stats
-import pickle
-
-# data
-data_name = "spambase"                                  # name of the data
-data_dir = os.getcwd() + '/data/'                       # directory where datasets are stored
-=======
 from riskslim.setup_functions import get_conservative_offset
 from riskslim.coefficient_set import CoefficientSet
 from riskslim.lattice_cpa import run_lattice_cpa
@@ -19,7 +9,6 @@ from riskslim.lattice_cpa import run_lattice_cpa
 # data
 data_name = "mushroom"                                  # name of the data
 data_dir = os.getcwd() + '/examples/data/'                  # directory where datasets are stored
->>>>>>> 30b3240cef327c4a2c5cc35a983d941c34b75b86
 data_csv_file = data_dir + data_name + '_data.csv'          # csv file for the dataset
 sample_weights_csv_file = None                              # csv file of sample weights for the dataset (optional)
 
@@ -54,7 +43,7 @@ settings = {
     'w_pos': w_pos,
     #
     # LCPA Settings
-    'max_runtime': 60.0,                               # max runtime for LCPA
+    'max_runtime': 30.0,                               # max runtime for LCPA
     'max_tolerance': np.finfo('float').eps,             # tolerance to stop LCPA (set to 0 to return provably optimal solution)
     'display_cplex_progress': True,                     # print CPLEX progress on screen
     'loss_computation': 'fast',                         # how to compute the loss function ('normal','fast','lookup')
@@ -88,17 +77,3 @@ mip_info['risk_slim_idx'] #indices of the relevant constraints
 
 # lcpa_output contains detailed information about LCPA
 pprint(lcpa_info)
-
-# stats
-stats = get_accuracy_stats(model_info['solution'], data)
-
-pickle.dump(data, open( "data.p", "wb" ) )
-
-print('error_rate: {:.2f}'.format(100*stats['train_error_rate']))
-print('TPR: {:.2f}'.format(100*stats['train_true_positive_rate']))
-print('FPR: {:.2f}'.format(100*stats['train_false_positive_rate']))
-
-print('true_positives: {:d}'.format(stats['train_true_positives']))
-print('false_positives: {:d}'.format(stats['train_false_positives']))
-print('true_negatives: {:d}'.format(stats['train_true_negatives']))
-print('false_negatives: {:d}'.format(stats['train_false_negatives']))

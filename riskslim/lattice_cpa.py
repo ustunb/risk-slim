@@ -41,8 +41,8 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
 
     Returns
     -------
-    mip_objects
-
+    mip_objects 
+    
     """
     settings = dict(settings)
     settings = {key: settings[key] if key in settings else DEFAULT_LCPA_SETTINGS[key] for key in DEFAULT_LCPA_SETTINGS}
@@ -166,9 +166,9 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     constraints, dict containing 'L0_min, L0_max, CoefficientSet'
     settings
     mip_objects output of setup_risk_slim
-
+    
     Returns
-    -------
+    ------- 
 
     """
     settings = dict(settings)
@@ -216,7 +216,8 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
      get_alpha,
      get_L0_penalty_from_alpha) = setup_objective_functions(compute_loss, L0_reg_ind, C_0_nnz)
 
-s    # constraints
+
+    # constraints
     rho_lb = np.array(constraints['coef_set'].lb)
     rho_ub = np.array(constraints['coef_set'].ub)
     L0_min = constraints['L0_min']

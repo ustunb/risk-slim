@@ -167,7 +167,7 @@ weighted_value_from_scores = weighted_scores_test(weights)
 
 assert(np.isclose(weighted_value, weighted_value_from_scores))
 assert(np.isclose(weighted_value, weighted_cut[0]))
-print("passed all tests for weighted loss functions when w_pos = {1.2f} and w_neg = {1.2f}".format(w_pos, w_neg))
+print("passed all tests for weighted loss functions when w_pos = %1.2f and w_neg = %1.2f" % (w_pos, w_neg))
 
 
 # print 'timing for loss value computation \n'
@@ -179,3 +179,5 @@ print("passed all tests for weighted loss functions when w_pos = {1.2f} and w_ne
 # %timeit -n 20 normal_cut = normal_cut_test()
 # %timeit -n 20 cython_cut = fast_cut_test()
 # %timeit -n 20 lookup_cut = lookup_cut_test()
+
+

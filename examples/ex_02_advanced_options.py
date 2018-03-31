@@ -6,13 +6,12 @@ from riskslim.setup_functions import get_conservative_offset
 from riskslim.coefficient_set import CoefficientSet
 from riskslim.lattice_cpa import run_lattice_cpa
 
-
 #double check BLAS configuration
 np.__config__.show()
 
 # data
 data_name = "breastcancer"                                  # name of the data
-data_dir = os.getcwd() + '/data/'                  # directory where datasets are stored
+data_dir = os.getcwd() + '/examples/data/'                  # directory where datasets are stored
 data_csv_file = data_dir + data_name + '_data.csv'          # csv file for the dataset
 sample_weights_csv_file = None                              # csv file of sample weights for the dataset (optional)
 
@@ -122,3 +121,8 @@ mip_info['risk_slim_idx'] #indices of the relevant constraints
 
 # lcpa_output contains detailed information about LCPA
 pprint(lcpa_info)
+
+
+
+
+

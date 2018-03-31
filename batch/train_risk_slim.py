@@ -26,10 +26,10 @@ import numpy as np
 
 # add the source directory to search path to avoid module import errors if riskslim has not been installed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from riskslim.helper_functions import load_data_from_csv, setup_logging, print_model
-from riskslim.CoefficientSet import CoefficientSet
-from riskslim.lattice_cpa import get_conservative_offset, run_lattice_cpa, DEFAULT_LCPA_SETTINGS
-from riskslim.analysis import get_accuracy_stats
+from riskslim.helper_functions import load_data_from_csv, setup_logging
+from riskslim.coefficient_set import CoefficientSet
+from riskslim.setup_functions import get_conservative_offset
+from riskslim.lattice_cpa import run_lattice_cpa, DEFAULT_LCPA_SETTINGS
 
 # uncomment for debugging
 #from riskslim.debug import ipsh
@@ -193,7 +193,6 @@ if __name__ == '__main__':
     settings['max_runtime'] = float('inf') if parsed.timelimit == -1 else parsed.timelimit
     settings['c0_value'] = parsed.c0_value
     settings['w_pos'] = parsed.w_pos
-    settings["cplex_randomseed"] = 5  # new
 
     # check if sample weights file was specified, if not set as None
     logger.info("loading data and sample weights")
@@ -236,24 +235,15 @@ if __name__ == '__main__':
     # fit RiskSLIM model using Lattice Cutting Plane Algorithm
     model_info, mip_info, lcpa_info = run_lattice_cpa(data, constraints, settings)
 
-    print_model(model_info['solution'], data)
-    stats = get_accuracy_stats(model_info['solution'], data)
-
     # save output to disk
     results = {
         "date": time.strftime("%d/%m/%y", time.localtime()),
         "data_file": parsed.data,
-        "variables": data['variable_names'],
         "fold_file": parsed.cvindices,
-        "fold_num": parsed.fold,
+        "fold_num": parsed.settings,
         "results_file": parsed.results,
-        "max_coef": max_coefficient,
-        "max_model_size": max_model_size,
-        "max_runtime": settings['max_runtime'],
-        "cplex_seed": settings["cplex_randomseed"]
     }
     results.update(model_info)
-    results.update(stats)
 
     logger.info("saving results...")
     with open(parsed.results, 'wb') as outfile:
@@ -269,23 +259,4 @@ if __name__ == '__main__':
                 )
     logger.info("finished training")
     logger.info("quitting\n\n")
-
-    print('train error_rate: {:.2f}'.format(100*stats['train_error_rate']))
-    print('train TPR: {:.2f}'.format(100*stats['train_true_positive_rate']))
-    print('train FPR: {:.2f}'.format(100*stats['train_false_positive_rate']))
-
-    print('train true_positives: {:d}'.format(stats['train_true_positives']))
-    print('train false_positives: {:d}'.format(stats['train_false_positives']))
-    print('train true_negatives: {:d}'.format(stats['train_true_negatives']))
-    print('train false_negatives: {:d}'.format(stats['train_false_negatives']))
-
-    print('test error_rate: {:.2f}'.format(100*stats['test_error_rate']))
-    print('test TPR: {:.2f}'.format(100*stats['test_true_positive_rate']))
-    print('test FPR: {:.2f}'.format(100*stats['test_false_positive_rate']))
-
-    print('test true_positives: {:d}'.format(stats['test_true_positives']))
-    print('test false_positives: {:d}'.format(stats['test_false_positives']))
-    print('test true_negatives: {:d}'.format(stats['test_true_negatives']))
-    print('test false_negatives: {:d}'.format(stats['test_false_negatives']))
-
     sys.exit(0)

@@ -22,15 +22,13 @@
 #           └──logs/           directory where log files are printed out (ignored in git)
 #           └──results/        directory where results files are stored (ignored in git)
 #       └──doc/
-#       └──examples/
+#       └──examples/           
 #       └──riskslim/           directory where code is stored (do not change this to be able to pull from GitHub)
 #       └──setup.py
 #
 # Advantaged settings are be configured through a JSON file. See: `batch/settings_template.json` for a template
 # The values can be changed directly using a text editor, or programmatically using a tool such as
 # `jq` https://stedolan.github.io/jq/
-
-#python train_risk_slim.py --data="/Volumes/healthcare/local_thesis_files/18_3_2_SLIMProcessedData.csv" --cvindices="/Volumes/healthcare/local_thesis_files/18_3_2_SLIMProcessedData_folds.csv" --results="/Volumes/healthcare/thesis/LinearProgramming/2018_03_03/alldata_fold1_results" --log="/Volumes/healthcare/thesis/LinearProgramming/2018_03_03/alldata_fold1_log" --w_pos=5 --timelimit=1800
 
 #directories
 repo_dir=$(pwd)
@@ -80,7 +78,7 @@ python2 "${batch_dir}/train_risk_slim.py"  \
     --results "${results_file}" \
     --cvindices "${cvindices_file}" \
     --fold "${fold}" \
-    --timelimit "${timelimit}" \  # in seconds
+    --timelimit "${timelimit}" \
     --settings "${settings_file}" \
     --w_pos "${w_pos}" \
     --c0_value "${c0_value}" \
@@ -90,3 +88,4 @@ python2 "${batch_dir}/train_risk_slim.py"  \
     --log "${log_file}"
 
 exit
+W
