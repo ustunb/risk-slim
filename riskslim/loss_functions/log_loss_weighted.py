@@ -61,7 +61,7 @@ def log_loss_value_and_slope(Z, weights, total_weights, rho):
 
     #compute loss slope
     log_probs = np.empty_like(scores)
-    log_probs[pos_idx]  = 1.0 / (1.0 + exp_scores_pos)
+    log_probs[pos_idx] = 1.0 / (1.0 + exp_scores_pos)
     log_probs[~pos_idx] = (exp_scores_neg / (1.0 + exp_scores_neg))
     log_probs -= 1.0
     log_probs *= weights

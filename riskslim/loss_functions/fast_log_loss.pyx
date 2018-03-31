@@ -4,12 +4,6 @@ cimport numpy as np
 cimport scipy.linalg.cython_blas as blas
 cimport libc.math as math
 
-cimport numpy as np
-cimport scipy.linalg.cython_blas as blas
-cimport libc.math as math
-import cython
-import numpy as np
-
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_T
 
@@ -106,9 +100,9 @@ def log_loss_value_from_scores(np.ndarray[DTYPE_T, ndim=1, mode="fortran"] score
     #compute loss
     for i in range(N):
         s = scores[i]
-        if (s < 0):
+        if s < 0:
             total_loss += math.log(1.0 + math.exp(s)) - s
-        elif (s > 0):
+        elif s > 0:
             total_loss += math.log1p(math.exp(-s))
         else:
             zero_score_cnt += 1

@@ -4,12 +4,6 @@ cimport numpy as np
 cimport scipy.linalg.cython_blas as blas
 cimport libc.math as math
 
-cimport numpy as np
-cimport scipy.linalg.cython_blas as blas
-cimport libc.math as math
-import cython
-import numpy as np
-
 DTYPE = np.float64
 ctypedef np.float64_t DTYPE_t
 

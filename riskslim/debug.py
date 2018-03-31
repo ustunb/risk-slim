@@ -5,8 +5,7 @@ To use
 1. import the function "from debug import ipsh"
 2. add isph() right before use
 
-Adapted from the following StackExchange post
-http://stackoverflow.com/a/23388116/568249
+Adapted from http://stackoverflow.com/a/23388116/568249
 """
 
 import inspect
@@ -25,7 +24,7 @@ prompt_config.out_template = 'N.Out<\\#>: '
 banner_msg = ["** ENTERING NESTED INTERPRETER **",
               "Hit Ctrl-D to exit interpreter and continue program.",
               "Note that if you use %kill_embedded, you can fully deactivate",
-              "This embedded instance so it will never turn on again." ]
+              "This embedded instance so it will never turn on again."]
 
 banner_msg = "\n".join(banner_msg)
 exit_msg = '** LEAVING NESTED INTERPRETER **'
