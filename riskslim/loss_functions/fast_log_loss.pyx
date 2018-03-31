@@ -1,15 +1,12 @@
-mport cython
+import cython
 import numpy as np
 cimport numpy as np
 cimport scipy.linalg.cython_blas as blas
 cimport libc.math as math
 
-cimport
-numpy as np
-cimport
-scipy.linalg.cython_blas as blas
-cimport
-libc.math as math
+cimport numpy as np
+cimport scipy.linalg.cython_blas as blas
+cimport libc.math as math
 import cython
 import numpy as np
 

@@ -3,7 +3,8 @@ import numpy as np
 from .bound_tightening import chained_updates
 from .helper_functions import print_log
 from .heuristics import discrete_descent, sequential_rounding
-from .lattice_cpa import setup_penalty_parameters
+from .setup_functions import setup_penalty_parameters
+#from .lattice_cpa import setup_penalty_parameters - this doesnt work
 from .mip import create_risk_slim, set_cplex_mip_parameters
 from .solution_classes import SolutionPool
 from .standard_cpa import run_standard_cpa
@@ -236,7 +237,7 @@ def sequential_round_solution_pool(pool,
     """
     runs sequential rounding for all solutions in a solution pool
     can be stopped early using max_runtime or max_solutions
-    
+
     Parameters
     ----------
     pool
@@ -359,5 +360,3 @@ def discrete_descent_solution_pool(pool,
 
     polished_pool = polished_pool.distinct().sort()
     return polished_pool, total_runtime, total_polished
-
-
