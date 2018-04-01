@@ -31,9 +31,8 @@ def setup_loss_functions(data, coef_set, L0_max = None, loss_computation = None,
         use_weighted = False
 
     integer_data_flag = np.all(Z == np.require(Z, dtype = np.int_))
-    distinct_points_flag = np.unique(Z) <= MAX_DISTINCT_XY_VALUES_FOR_LOOKUP_ON_NONINTEGER_DATA
+    distinct_points_flag = len(np.unique(Z, axis = 0)) <= MAX_DISTINCT_XY_VALUES_FOR_LOOKUP_ON_NONINTEGER_DATA
     use_lookup_table = isinstance(coef_set, CoefficientSet) and (integer_data_flag or distinct_points_flag)
-
     if use_weighted:
         final_loss_computation = 'weighted'
     elif use_lookup_table:
