@@ -224,7 +224,7 @@ if __name__ == '__main__':
 
     #print coefficient set
     if not parsed.silent:
-        coef_set.table()
+        coef_set.view()
 
     constraints = {
         'L0_min': 0,
