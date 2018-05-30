@@ -8,9 +8,10 @@ To run this script
 
 $REPO_DIR/riskslim/loss_functions
 
-2. Run the following command in Bash:
+2. Run the following commands in Bash:
 
-python build_cython_loss_functions.py build_ext --inplace
+python2 build_cython_loss_functions.py build_ext --inplace
+python3 build_cython_loss_functions.py build_ext --inplace
 
 """
 import numpy
