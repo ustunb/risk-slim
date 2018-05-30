@@ -7,7 +7,6 @@ from .setup_functions import setup_penalty_parameters
 from .mip import create_risk_slim, set_cplex_mip_parameters
 from .solution_classes import SolutionPool
 from .standard_cpa import run_standard_cpa
-from .debug import ipsh
 
 def initialize_lattice_cpa(Z,
                            c0_value,
