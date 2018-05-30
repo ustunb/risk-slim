@@ -104,9 +104,11 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
     trivial_solution = np.zeros(P)
     if is_feasible(trivial_solution):
         trivial_objval = compute_loss(trivial_solution)
-        bounds['objval_max'] = min(bounds['objval_max'], trivial_objval)
-        bounds['loss_max'] = min(bounds['loss_max'], trivial_objval)
-        bounds = chained_updates(bounds, C_0_nnz)
+        if lcpa_settings['initial_bound_updates']:
+            bounds['objval_max'] = min(bounds['objval_max'], trivial_objval)
+            bounds['loss_max'] = min(bounds['loss_max'], trivial_objval)
+            bounds = chained_updates(bounds, C_0_nnz)
+
         initial_pool = initial_pool.add(objvals = trivial_objval, solutions = trivial_solution)
 
     # setup risk_slim_lp and risk_slim_mip parameters
@@ -114,8 +116,9 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
         'C_0': c0_value,
         'coef_set': constraints['coef_set'],
         'tight_formulation': lcpa_settings['tight_formulation'],
-        'include_auxillary_variable_for_L0_norm': lcpa_settings['chained_updates_flag'],
-        'include_auxillary_variable_for_objval': lcpa_settings['chained_updates_flag'],
+        'drop_variables': lcpa_settings['drop_variables'],
+        'include_auxillary_variable_for_L0_norm': lcpa_settings['include_auxillary_variable_for_L0_norm'],
+        'include_auxillary_variable_for_objval': lcpa_settings['include_auxillary_variable_for_objval'],
         }
     risk_slim_settings.update(bounds)
 
@@ -136,12 +139,12 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
                                                                             get_L0_penalty = get_L0_penalty,
                                                                             is_feasible = is_feasible)
 
-        bounds.update(initial_bounds)
-        risk_slim_settings.update(initial_bounds)
+        if lcpa_settings['initial_bound_updates']:
+            bounds.update(initial_bounds)
+            risk_slim_settings.update(initial_bounds)
 
     # create risk_slim mip
-    risk_slim_mip, risk_slim_indices = create_risk_slim(coef_set = constraints['coef_set'],
-                                                        input = risk_slim_settings)
+    risk_slim_mip, risk_slim_indices = create_risk_slim(coef_set = constraints['coef_set'], input = risk_slim_settings)
     risk_slim_indices['C_0_nnz'] = C_0_nnz
     risk_slim_indices['L0_reg_ind'] = L0_reg_ind
 
@@ -315,7 +318,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     if len(initial_pool) > 0:
         if lcpa_settings['polish_flag']:
             lcpa_polish_queue.add(initial_pool.objvals[0], initial_pool.solutions[0])
-            # we initialize using the polish_queue when possible since the CPLEX MIPStart interface is tricky
+            #initialize using the polish_queue when possible since the CPLEX MIPStart interface is tricky
         else:
             risk_slim_mip = add_mip_starts(risk_slim_mip, indices, initial_pool, mip_start_effort_level=risk_slim_mip.MIP_starts.effort_level.repair)
 

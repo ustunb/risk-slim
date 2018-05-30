@@ -9,6 +9,8 @@ DEFAULT_LCPA_SETTINGS = {
     #  MIP Formulation
     'drop_variables': True,        #drop variables
     'tight_formulation': True,     #use a slightly tighter MIP formulation
+    'include_auxillary_variable_for_objval': True,
+    'include_auxillary_variable_for_L0_norm': True,
     #
     # LCPA Settings
     'max_runtime': 300.0,  # max runtime for LCPA
@@ -17,6 +19,7 @@ DEFAULT_LCPA_SETTINGS = {
     'loss_computation': 'normal',  # type of loss computation to use ('normal','fast','lookup')
     'chained_updates_flag': True,  # use chained updates
     'initialization_flag': False,  # use initialization procedure
+    'initial_bound_updates': True, # update bounds before solving
     'add_cuts_at_heuristic_solutions': True, #add cuts at integer feasible solutions found using polishing/rounding
     #
     #  LCPA Rounding Heuristic
