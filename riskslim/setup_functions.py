@@ -2,7 +2,6 @@ import numpy as np
 from .coefficient_set import CoefficientSet
 from .helper_functions import print_log
 
-
 def setup_loss_functions(data, coef_set, L0_max = None, loss_computation = None, w_pos = 1.0):
     """
 
@@ -242,8 +241,9 @@ def get_conservative_offset(data, coef_set, max_L0_value = None):
         raise ValueError("coef_set must contain a variable for the offset called '(Intercept)'")
 
     # get idx of intercept/variables
-    variable_idx = range(len(coef_set))
+    variable_idx = list(range(len(coef_set)))
     variable_idx.remove(coef_set.variable_names.index('(Intercept)'))
+    variable_idx = np.array(variable_idx)
 
     # get max # of non-zero coefficients given model size limit
     L0_reg_ind = np.isnan(coef_set.C_0j)[variable_idx]
