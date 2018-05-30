@@ -198,9 +198,10 @@ class SolutionPool(object):
     def remove_nonintegral(self):
         return self.filter(map(self.is_integral, self.solutions))
 
+
     def compute_objvals(self, get_objval):
         compute_idx = np.flatnonzero(np.isnan(self._objvals))
-        self._objvals[compute_idx] = np.array(map(get_objval, self._solutions[compute_idx, :]))
+        self._objvals[compute_idx] = np.array(list(map(get_objval, self._solutions[compute_idx, :])))
         return self
 
 
