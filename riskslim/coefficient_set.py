@@ -97,11 +97,8 @@ class CoefficientElement(object):
             return 1
         elif self._ub <= 0.0 and self._lb < 0.0:
             return -1
-        elif self._ub == 0.0 and self._lb == 0.0:
-            return 0
         else:
-            return float('nan')
-
+            return 0
 
     @sign.setter
     def sign(self, value):
@@ -282,7 +279,7 @@ class CoefficientSet(object):
         if name == 'C_0j':
             name = 'c0'
 
-        vals = map(lambda v: getattr(self._coef_elements[v], name), self._variable_names)
+        vals = list(map(lambda v: getattr(self._coef_elements[v], name), self._variable_names))
         if name in ['ub', 'lb', 'c0', 'sign', 'vtype']:
             return np.array(vals)
         else:
