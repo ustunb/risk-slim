@@ -43,7 +43,7 @@ def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings 
     else:
         get_alpha = lambda: np.array(cpx.solution.get_values(alpha_idx))
 
-    if type(loss_idx) is list and len(loss_idx) == 1:
+    if isinstance(loss_idx, list) and len(loss_idx) == 1:
         loss_idx = loss_idx[0]
 
     C_0_alpha = np.array(cpx_indices['C_0_alpha'])
@@ -151,7 +151,7 @@ def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings 
             progress_stats['simplex_iterations'].append(simplex_iteration)
 
         # check termination conditions
-        if len(solutions) >= 2:
+        if len(solutions) >= 100:
             prior_rho = solutions[-2]
             coefficient_gap = np.abs(np.max(rho - prior_rho))
             if np.all(np.round(rho) == np.round(prior_rho)) and coefficient_gap < settings['max_coefficient_gap']:
@@ -229,7 +229,7 @@ def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings 
         stats['solutions'] = solutions
 
     #collect cuts
-    idx = range(cpx_indices['n_constraints'], cpx.linear_constraints.get_num(), 1)
+    idx = list(range(cpx_indices['n_constraints'], cpx.linear_constraints.get_num(), 1))
     cuts = {
         'coefs': cpx.linear_constraints.get_rows(idx),
         'lhs': cpx.linear_constraints.get_rhs(idx)
@@ -247,6 +247,5 @@ def run_standard_cpa(cpx, cpx_indices, compute_loss, compute_loss_cut, settings 
     pool = SolutionPool(len(cpx_indices["rho"]))
     if len(objvals) > 0:
         pool.add(objvals, solutions)
-
 
     return stats, cuts, pool
