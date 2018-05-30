@@ -7,7 +7,7 @@ from .setup_functions import setup_penalty_parameters
 from .mip import create_risk_slim, set_cplex_mip_parameters
 from .solution_classes import SolutionPool
 from .standard_cpa import run_standard_cpa
-
+from .debug import ipsh
 
 def initialize_lattice_cpa(Z,
                            c0_value,
@@ -56,8 +56,9 @@ def initialize_lattice_cpa(Z,
     risk_slim_settings = dict(risk_slim_settings)
     risk_slim_settings.update(bounds)
     risk_slim_settings['relax_integer_variables'] = True
-    risk_slim_lp, risk_slim_lp_indices = create_risk_slim(coef_set = constraints['coef_set'],
-                                                          input = risk_slim_settings)
+    risk_slim_lp, risk_slim_lp_indices = create_risk_slim(coef_set = constraints['coef_set'], input = risk_slim_settings)
+
+
 
     risk_slim_lp = set_cplex_mip_parameters(risk_slim_lp, cplex_settings, display_cplex_progress = settings['display_cplex_progress'])
 
@@ -90,7 +91,7 @@ def initialize_lattice_cpa(Z,
     # apply rounding to CPA solutions
     if settings['use_rounding'] and len(cpa_pool) > 0:
         print_log('running normal rounding on %d solutions' % len(cpa_pool))
-        print_log('best objective value is %1.4f' %np.min(cpa_pool.objvals))
+        print_log('best objective value is %1.4f' % np.min(cpa_pool.objvals))
         rnd_pool, _, _ = round_solution_pool(cpa_pool,
                                              constraints,
                                              max_runtime = settings['rounding_max_runtime'],
