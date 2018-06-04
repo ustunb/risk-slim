@@ -1,17 +1,16 @@
 risk-slim
 ========
 
-``risk-slim`` is a new machine learning method to create *risk scores*. These are simple tools that let users make quick risk predictions by adding and subtracting a few small numbers. 
+risk-slim is a new machine learning method to create simple customizable *risk scores*. 
 
-## Example
 
-Here is a risk score for seizure prediction in the ICU, built using RiskSLIM (see our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf) for details):
+## Background
 
+Risk scores let users make quick risk predictions by adding and subtracting a few small numbers. Here is an example for seizure prediction in the ICU, built using RiskSLIM (see our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf) for details):
 <div>
 <p align="center"><img src="https://github.com/ustunb/risk-slim/blob/master/images/risk_score_seizure.png" width="480" height="360" border="0"/></p>
 </div>
 
-## Video
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw
 " target="_blank"><img src="http://img.youtube.com/vi/WQDVejk17Aw/0.jpg" 
@@ -53,8 +52,10 @@ bash batch/job_template.sh #batch run
 
 ### Requirements
 
-``risk-slim`` was developed using Python 2.7.11 and CPLEX 12.6. It may work with older versions of Python and CPLEX. However this has not been tested and will not be supported.
-
+- Python 3.5+ 
+- CPLEX 12.6+
+ 
+The code may still work with older versions of Python and CPLEX, but this will not be tested or supported. If you're hesitant about switching to Python 3, check out this [migration guide](https://github.com/arogozhnikov/python3_with_pleasure) 
 
 #### CPLEX 
 
