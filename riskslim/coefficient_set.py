@@ -242,7 +242,7 @@ class CoefficientSet(object):
 
 
     def penalized_indices(self):
-        return np.array(map(lambda v: self._coef_elements[v].penalized, self._variable_names))
+        return np.array(list(map(lambda v: self._coef_elements[v].penalized, self._variable_names)))
 
 
     def tabulate(self):
