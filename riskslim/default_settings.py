@@ -72,8 +72,8 @@ DEFAULT_CPA_SETTINGS = {
     'max_runtime': 300.0,  # max time to run CPA in initialization procedure
     'max_runtime_per_iteration': 15.0,  # max time per iteration of CPA
     #
-    'max_coefficient_gap': 0.5, # stopping tolerance for CPA (based on gap between consecutive solutions)
-    'min_iterations_before_coefficient_gap_check': 100,
+    'max_coefficient_gap': 0.49, # stopping tolerance for CPA (based on gap between consecutive solutions)
+    'min_iterations_before_coefficient_gap_check': 250,
     #
     'max_iterations': 10000,  # max # of cuts needed to stop CPA
     'max_tolerance': 0.0001,  # stopping tolerance for CPA (based on optimality gap)

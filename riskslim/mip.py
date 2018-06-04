@@ -350,7 +350,11 @@ def set_cpx_display_options(cpx, display_mip = True, display_parameters = False,
 
     cpx.parameters.mip.display.set(display_mip)
     cpx.parameters.simplex.display.set(display_lp)
-    cpx.parameters.paramdisplay.set(display_parameters)
+
+    try:
+        cpx.parameters.paramdisplay.set(display_parameters)
+    except AttributeError:
+        pass
 
     if not (display_mip or display_lp):
         cpx.set_results_stream(None)

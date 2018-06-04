@@ -279,7 +279,7 @@ class CoefficientSet(object):
         if name == 'C_0j':
             name = 'c0'
 
-        vals = list(map(lambda v: getattr(self._coef_elements[v], name), self._variable_names))
+        vals = [getattr(self._coef_elements[v], name) for v in self._variable_names]
         if name in ['ub', 'lb', 'c0', 'sign', 'vtype']:
             return np.array(vals)
         else:
