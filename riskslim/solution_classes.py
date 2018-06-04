@@ -182,11 +182,11 @@ class SolutionPool(object):
     def map(self, mapfun, target = 'all'):
         assert callable(mapfun), 'map function must be callable'
         if target is 'solutions':
-            return map(mapfun, self.solutions)
+            return list(map(mapfun, self.solutions))
         elif target is 'objvals':
-            return map(mapfun, self.objvals)
+            return list(map(mapfun, self.objvals))
         elif target is 'all':
-            return map(mapfun, self.objvals, self.solutions)
+            return list(map(mapfun, self.objvals, self.solutions))
         else:
             raise ValueError('target must be either solutions, objvals, or all')
 
@@ -195,8 +195,9 @@ class SolutionPool(object):
     def is_integral(solution):
         return np.all(solution == np.require(solution, dtype = 'int_'))
 
+
     def remove_nonintegral(self):
-        return self.filter(map(self.is_integral, self.solutions))
+        return self.filter(list(map(self.is_integral, self.solutions)))
 
 
     def compute_objvals(self, get_objval):
@@ -210,7 +211,7 @@ class SolutionPool(object):
 
 
     def remove_infeasible(self, is_feasible):
-        return self.filter(map(is_feasible, self.solutions))
+        return self.filter(list(map(is_feasible, self.solutions)))
 
 
 class SolutionQueue(object):
@@ -242,7 +243,7 @@ class SolutionQueue(object):
 
 
     def add(self, new_objvals, new_solutions):
-        if isinstance(new_objvals, np.ndarray) or isinstance(new_objvals, list):
+        if isinstance(new_objvals, (np.ndarray, list)):
             n = len(new_objvals)
             self._objvals = np.append(self._objvals, np.array(new_objvals).astype(dtype = np.float_).flatten())
         else:
@@ -259,6 +260,7 @@ class SolutionQueue(object):
             return float(self._objvals[idx]), np.copy(self._solutions[idx,])
         else:
             return np.empty(shape = 0), np.empty(shape = (0, P))
+
 
     def filter_sort_unique(self, max_objval = float('inf')):
         # filter
@@ -289,7 +291,7 @@ class SolutionQueue(object):
     def table(self):
         x = pt.PrettyTable(align = 'r', float_format = '1.4', hrules=pt.ALL)
         x.add_column("objval", self._objvals.tolist())
-        x.add_column("solution", map(self.solution_string, self._solutions))
+        x.add_column("solution", list(map(self.solution_string, self._solutions)))
         return str(x)
 
     @staticmethod
