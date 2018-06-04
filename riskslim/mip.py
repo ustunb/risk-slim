@@ -1,7 +1,6 @@
 from math import ceil, floor
 import numpy as np
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
-from cplex.exceptions import CplexError
 from .coefficient_set import CoefficientSet
 from .helper_functions import get_or_set_default, print_log
 
@@ -315,21 +314,17 @@ def set_cplex_mip_parameters(cpx, param, display_cplex_progress = False):
     MIP with parameters
 
     """
-    cpx.parameters.randomseed.set(param['randomseed'])
-    cpx.parameters.threads.set(param['n_cores'])
-    cpx.parameters.output.clonelog.set(0)
-    cpx.parameters.parallel.set(1)
+    p = cpx.parameters
+    p.randomseed.set(param['randomseed'])
+    p.threads.set(param['n_cores'])
+    p.output.clonelog.set(0)
+    p.parallel.set(1)
 
     if display_cplex_progress is (None or False):
-        cpx.set_results_stream(None)
-        cpx.set_log_stream(None)
+        cpx = set_cpx_display_options(cpx, display_mip = False, display_lp = False, display_parameters = False)
 
     problem_type = cpx.problem_type[cpx.get_problem_type()]
     if problem_type == 'MIP':
-
-        if display_cplex_progress is (None or False):
-            cpx.parameters.mip.display.set(0)
-
         # CPLEX Memory Parameters
         # MIP.Param.workdir.Cur  = exp_workdir;
         # MIP.Param.workmem.Cur                    = cplex_workingmem;
@@ -337,16 +332,31 @@ def set_cplex_mip_parameters(cpx, param, display_cplex_progress = False):
         # MIP.Param.mip.limits.treememory.Cur      = cplex_nodefilesize;
 
         # CPLEX MIP Parameters
-        cpx.parameters.emphasis.mip.set(param['mipemphasis'])
-        cpx.parameters.mip.tolerances.mipgap.set(param['mipgap'])
-        cpx.parameters.mip.tolerances.absmipgap.set(param['absmipgap'])
-        cpx.parameters.mip.tolerances.integrality.set(param['integrality_tolerance'])
+        p.emphasis.mip.set(param['mipemphasis'])
+        p.mip.tolerances.mipgap.set(param['mipgap'])
+        p.mip.tolerances.absmipgap.set(param['absmipgap'])
+        p.mip.tolerances.integrality.set(param['integrality_tolerance'])
 
         # CPLEX Solution Pool Parameters
-        cpx.parameters.mip.limits.repairtries.set(param['repairtries'])
-        cpx.parameters.mip.pool.capacity.set(param['poolsize'])
-        cpx.parameters.mip.pool.replace.set(param['poolreplace'])
+        p.mip.limits.repairtries.set(param['repairtries'])
+        p.mip.pool.capacity.set(param['poolsize'])
+        p.mip.pool.replace.set(param['poolreplace'])
         # 0 = replace oldest /1: replace worst objective / #2 = replace least diverse solutions
+
+    return cpx
+
+
+def set_cpx_display_options(cpx, display_mip = True, display_parameters = False, display_lp = False):
+
+    cpx.parameters.mip.display.set(display_mip)
+    cpx.parameters.simplex.display.set(display_lp)
+    cpx.parameters.paramdisplay.set(display_parameters)
+
+    if not (display_mip or display_lp):
+        cpx.set_results_stream(None)
+        cpx.set_log_stream(None)
+        cpx.set_error_stream(None)
+        cpx.set_warning_stream(None)
 
     return cpx
 

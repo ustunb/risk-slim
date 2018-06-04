@@ -4,7 +4,7 @@ from cplex.callbacks import HeuristicCallback, LazyConstraintCallback
 from cplex.exceptions import CplexError
 from .bound_tightening import chained_updates
 from .default_settings import DEFAULT_LCPA_SETTINGS
-from .helper_functions import cast_to_integer, is_integer, print_log
+from .helper_functions import cast_to_integer, is_integer, print_log, validate_settings
 from .heuristics import discrete_descent, sequential_rounding
 from .initialization import initialize_lattice_cpa
 from .mip import add_mip_starts, convert_to_risk_slim_cplex_solution, create_risk_slim, set_cplex_mip_parameters
@@ -22,6 +22,18 @@ DEFAULT_BOUNDS = {
 
 
 def run_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
+    """
+
+    Parameters
+    ----------
+    data
+    constraints
+    settings
+
+    Returns
+    -------
+
+    """
 
     mip_objects = setup_lattice_cpa(data, constraints, settings)
 
@@ -44,18 +56,14 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
     mip_objects 
     
     """
-    settings = dict(settings)
-    settings = {key: settings[key] if key in settings else DEFAULT_LCPA_SETTINGS[key] for key in DEFAULT_LCPA_SETTINGS}
+    # process settings then split into manageable parts
+    settings = validate_settings(settings, default_settings = DEFAULT_LCPA_SETTINGS)
 
-    # separate settings into more manageable objects
-    init_settings = {key.lstrip('init_'): settings[key] for key in settings if key.startswith('init_')}
-    cplex_settings = {key.lstrip('cplex_'): settings[key] for key in settings if key.startswith('cplex_')}
-    lcpa_settings = {key: settings[key] for key in settings if settings if
-                     not (key.startswith('init_') or key.startswith('cplex_'))}
-
+    init_settings = {k.lstrip('init_'): settings[k] for k in settings if k.startswith('init_')}
+    cplex_settings = {k.lstrip('cplex_'): settings[k] for k in settings if k.startswith('cplex_')}
+    lcpa_settings = {k: settings[k] for k in settings if settings if not k.startswith(('init_', 'cplex_'))}
 
     # get handles for loss functions
-    # loss functions
     (Z,
      compute_loss,
      compute_loss_cut,
@@ -151,7 +159,7 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
     # mip
     mip_objects = {
         'mip': risk_slim_mip,
-        'indices':risk_slim_indices,
+        'indices': risk_slim_indices,
         'bounds': bounds,
         'initial_pool': initial_pool,
         'initial_cuts': initial_cuts,
@@ -174,15 +182,14 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     ------- 
 
     """
-    settings = dict(settings)
-    settings = {key: settings[key] if key in settings else DEFAULT_LCPA_SETTINGS[key] for key in DEFAULT_LCPA_SETTINGS}
 
-    # separate settings into more manageable objects
-    cplex_settings = {key.lstrip('cplex_'): settings[key] for key in settings if key.startswith('cplex_')}
-    lcpa_settings = {key: settings[key] for key in settings if settings if not (key.startswith('init_') or key.startswith('cplex_'))}
+    # process settings then split into manageable parts
+    settings = validate_settings(settings, default_settings = DEFAULT_LCPA_SETTINGS)
 
+    cplex_settings = {k.lstrip('cplex_'): settings[k] for k in settings if k.startswith('cplex_')}
+    lcpa_settings = {k: settings[k] for k in settings if settings if not k.startswith(('init_', 'cplex_'))}
 
-    # unpack variables from setup_risk_slim
+    # unpack mip_objects from setup_risk_slim
     risk_slim_mip = mip_objects['mip']
     indices = mip_objects['indices']
     bounds = mip_objects['bounds']
@@ -218,7 +225,6 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
      get_L0_penalty,
      get_alpha,
      get_L0_penalty_from_alpha) = setup_objective_functions(compute_loss, L0_reg_ind, C_0_nnz)
-
 
     # constraints
     rho_lb = np.array(constraints['coef_set'].lb)
@@ -293,6 +299,9 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
                            polish_queue = lcpa_polish_queue)
 
         heuristic_cb = risk_slim_mip.register_callback(PolishAndRoundCallback)
+        active_set_flag = L0_max <= trivial_L0_max
+        polishing_handle = lambda rho: discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_from_scores, active_set_flag)
+        rounding_handle = lambda rho, cutoff: sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penalty, cutoff)
         heuristic_cb.initialize(indices = indices,
                                 control = control,
                                 settings = lcpa_settings,
@@ -301,8 +310,8 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
                                 get_objval = get_objval,
                                 get_L0_norm = get_L0_norm,
                                 is_feasible = is_feasible,
-                                polishing_handle = lambda rho: discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_from_scores, active_set_flag = L0_max <= trivial_L0_max),
-                                rounding_handle = lambda rho, cutoff: sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penalty, cutoff))
+                                polishing_handle = polishing_handle,
+                                rounding_handle = rounding_handle)
 
     else:
         loss_cb = risk_slim_mip.register_callback(LossCallback)
@@ -318,9 +327,9 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     if len(initial_pool) > 0:
         if lcpa_settings['polish_flag']:
             lcpa_polish_queue.add(initial_pool.objvals[0], initial_pool.solutions[0])
-            #initialize using the polish_queue when possible since the CPLEX MIPStart interface is tricky
+            # initialize using the polish_queue when possible since the CPLEX MIPStart interface is tricky
         else:
-            risk_slim_mip = add_mip_starts(risk_slim_mip, indices, initial_pool, mip_start_effort_level=risk_slim_mip.MIP_starts.effort_level.repair)
+            risk_slim_mip = add_mip_starts(risk_slim_mip, indices, initial_pool, mip_start_effort_level = risk_slim_mip.MIP_starts.effort_level.repair)
 
         if lcpa_settings['add_cuts_at_heuristic_solutions'] and len(initial_pool) > 1:
             lcpa_cut_queue.add(initial_pool.objvals[1:], initial_pool.solutions[1:])
@@ -372,17 +381,15 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
 
     # Output for LCPA
     lcpa_info = dict(control)
-    lcpa_info.update({
-        'bounds': dict(bounds),
-        'settings': dict(settings)
-        })
+    lcpa_info['bounds'] = dict(bounds)
+    lcpa_info['settings'] = dict(settings)
 
     return model_info, mip_info, lcpa_info
 
 
 class LossCallback(LazyConstraintCallback):
     """
-    Must be initialized after construction using the initialize() method.
+    This callback has to be initialized after construnction with initialize().
 
     LossCallback is called when CPLEX finds an integer feasible solution. By default, it will add a cut at this
     solution to improve the cutting-plane approximation of the loss function. The cut is added as a 'lazy' constraint
@@ -415,7 +422,6 @@ class LossCallback(LazyConstraintCallback):
 
         self.settings = settings  #store pointer to shared settings so that settings can be turned on/off during B&B
         self.control = control  # dict containing information for flow
-
 
         # todo (validate initial cutting planes)
         self.initial_cuts = initial_cuts
@@ -520,7 +526,7 @@ class LossCallback(LazyConstraintCallback):
 
         # add initial cuts first time the callback is used
         if self.initial_cuts is not None:
-            print_log('adding initial cuts')
+            print_log('adding %1.0f initial cuts' % len(self.initial_cuts['lhs']))
             for cut, lhs in zip(self.initial_cuts['coefs'], self.initial_cuts['lhs']):
                 self.add(constraint = cut, sense = "G", rhs = lhs, use = self.loss_cut_purge_flag)
             self.initial_cuts = None
@@ -581,7 +587,7 @@ class LossCallback(LazyConstraintCallback):
 
 class PolishAndRoundCallback(HeuristicCallback):
     """
-    This callback has to be initialized after construction using the initialize() method.
+    This callback has to be initialized after construnction with initialize().
 
     HeuristicCallback is called intermittently during B&B by CPLEX. It runs several heuristics in a fast way and contains
     several options to stop early. Note: It is important for the callback to run quickly since it is called fairly often.
@@ -626,7 +632,6 @@ class PolishAndRoundCallback(HeuristicCallback):
         self.control = control
         self.settings = settings
 
-
         self.round_flag = settings['round_flag']
         self.polish_rounded_solutions = settings['polish_rounded_solutions']
         self.polish_flag = settings['polish_flag']
@@ -647,7 +652,6 @@ class PolishAndRoundCallback(HeuristicCallback):
         self.polishing_start_gap = settings['polishing_start_gap']
         self.polishing_max_solutions = settings['polishing_max_solutions']
         self.polishing_max_runtime = settings['polishing_max_runtime']
-
 
         self.get_objval = get_objval
         self.get_L0_norm = get_L0_norm
@@ -758,7 +762,7 @@ class PolishAndRoundCallback(HeuristicCallback):
                             if self.settings['add_cuts_at_heuristic_solutions']:
                                 self.cut_queue.add(polished_objval, polished_solution)
 
-                            if self.is_feasible(polished_solution, L0_min=self.control['bounds']['L0_min'], L0_max=self.control['bounds']['L0_max']):
+                            if self.is_feasible(polished_solution, L0_min=self.control['bounds']['L0_min'], L0_max = self.control['bounds']['L0_max']):
                                 best_solution = polished_solution
                                 best_objval = polished_objval
 
@@ -771,7 +775,6 @@ class PolishAndRoundCallback(HeuristicCallback):
             self.polish_queue.filter_sort_unique(max_objval = polishing_cutoff)
 
             if len(self.polish_queue) > 0:
-
                 polished_queue = SolutionQueue(self.polish_queue.P)
                 polish_time = 0
                 n_polished = 0
