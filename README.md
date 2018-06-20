@@ -7,14 +7,18 @@ risk-slim is a new machine learning method to create simple customizable *risk s
 
 Risk scores let users make quick risk predictions by adding and subtracting a few small numbers. Here is an example for seizure prediction in the ICU, built using RiskSLIM (see our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf) for details):
 <div>
-<p align="center"><img src="https://github.com/ustunb/risk-slim/blob/master/images/risk_score_seizure.png" width="480" height="360" border="0"/></p>
+	<p align="center">
+	<img src="https://github.com/ustunb/risk-slim/blob/master/images/risk_score_seizure.png" width="480" height="360" border="0"/>
+	</p>
 </div>
 
 ### Video
 
+<p align="center">
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw
 " target="_blank"><img src="http://img.youtube.com/vi/WQDVejk17Aw/0.jpg" 
 alt="RiskSLIM KDD" width="480" height="360" border="10" /></a>
+</p>
 
 ### Examples
 
