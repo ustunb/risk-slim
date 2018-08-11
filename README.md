@@ -1,31 +1,32 @@
 risk-slim
 ========
 
-risk-slim is a new machine learning method to create simple customizable *risk scores*. 
+`risk-slim` is a machine learning method to create customized risk scores in python. 
 
-## Background
+### Background 
 
-Risk scores let users make quick risk predictions by adding and subtracting a few small numbers. Here is an example for seizure prediction in the ICU, built using RiskSLIM (see our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf) for details):
+Risk scores are simple risk assessment tools that let users make quick risk predictions by adding and subtracting a few small numbers (see e.g., medical risk scores at [www.mdcalc.com](https://www.mdcalc.com/) and the [MDCALC iOS app](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8).  
+
+#### Video
+<p align="center">
+	<a href="http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw" target="_blank">
+		<img src="http://img.youtube.com/vi/WQDVejk17Aw/0.jpg" alt="RiskSLIM KDD" width="480" height="360" border="10" />
+	</a>
+</p>
+
+
+#### Customized Risk Score for ICU seizure prediction 
+
 <div>
 	<p align="center">
 	<img src="https://github.com/ustunb/risk-slim/blob/master/images/risk_score_seizure.png" width="480" height="360" border="0"/>
 	</p>
 </div>
 
-### Video
+Details in our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf)
 
-<p align="center">
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw
-" target="_blank"><img src="http://img.youtube.com/vi/WQDVejk17Aw/0.jpg" 
-alt="RiskSLIM KDD" width="480" height="360" border="10" /></a>
-</p>
 
-### Examples
-
-- [MDCalc](https://www.mdcalc.com/): a large repository of medical scoring systems (also an [iOS app](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8))
-- Risk score developed by the Pennsylvania Sentencing Commission: [homepage](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/) | [report](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/phase-i-reports/interim-report-7-validation-of-risk-scale/view)
-
-### Reference
+#### Paper
 
 If you use ``risk-slim`` for in your research, please cite [our paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf):
      
