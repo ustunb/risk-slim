@@ -76,9 +76,9 @@ If you have problems installing CPLEX, check the [CPLEX user manual](http://www-
 
 - ~~simplify installation~~ 
 - ~~convenience functions for batch computing~~
-- refactoring package for future development (as of 3/18/2018)
-- [sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) compatability
+- ~~refactoring package for future development~~
+- [sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) API (as of 10/11/2018)
+- reporting tools (roc curves, calibration plots, model reports)
+- support for open source solver
 - documentation
-- analysis tools (roc curves, calibration plots, model reports)
- - docker file / EC2 instance 
 
