@@ -41,7 +41,7 @@ If you use ``risk-slim`` for in your research, please cite [our paper](http://ww
 
 ## Package Details
 
-**NOTE: THIS PACKAGE IS CURRENTLY UNDER ACTIVE DEVELOPMENT. THE CODE WILL CHANGE SUBSTANTIALLY WITH EACH COMMIT.** 
+**NOTE: THIS PACKAGE IS CURRENTLY UNDER DEVELOPMENT. THE CODE MAY CHANGE WITH EACH COMMIT.** 
 
 ### Installation
   
@@ -63,7 +63,7 @@ The code may still work with older versions of Python and CPLEX, but this will n
 
 #### CPLEX 
 
-CPLEX is cross-platform commercial optimization tool with a Python API. It is freely available to students and faculty members at accredited institutions. To get CPLEX:
+CPLEX is cross-platform commercial optimization tool with a Python API. It is free for students and faculty members at accredited institutions. To get CPLEX:
 
 1. Register for [IBM OnTheHub](https://ibm.onthehub.com/WebStore/Account/VerifyEmailDomain.aspx)
 2. Download the *IBM ILOG CPLEX Optimization Studio* from the [software catalog](https://ibm.onthehub.com/WebStore/ProductSearchOfferingList.aspx?srch=CPLEX)
@@ -72,7 +72,9 @@ CPLEX is cross-platform commercial optimization tool with a Python API. It is fr
 
 If you have problems installing CPLEX, check the [CPLEX user manual](http://www-01.ibm.com/support/knowledgecenter/SSSA5P/welcome) or the [CPLEX forums](https://www.ibm.com/developerworks/community/forums/html/forum?id=11111111-0000-0000-0000-000000002059). 
 
-## Development Timeline
+## Development Roadmap
+
+**If you are interested in contributing, please reach out!**
 
 - ~~simplify installation~~ 
 - ~~convenience functions for batch computing~~
