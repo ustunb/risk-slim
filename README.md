@@ -5,7 +5,7 @@ risk-slim
 
 ### Background 
 
-Risk scores are simple tools that let users make quick risk predictions by adding and subtracting a few small numbers (see e.g., medical risk scores at [www.mdcalc.com](https://www.mdcalc.com/) or the mdcalc [app for iOS](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8)).
+Risk scores are simple tools that let users make quick risk predictions by adding and subtracting a few small numbers (see e.g., medical risk scores at [www.mdcalc.com](https://www.mdcalc.com/) or the [mdcalc iOS app](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8)).
 
 #### Video
 
