@@ -6,7 +6,6 @@ from riskslim.helper_functions import load_data_from_csv, print_model
 from riskslim.setup_functions import get_conservative_offset
 from riskslim.coefficient_set import CoefficientSet
 from riskslim.lattice_cpa import run_lattice_cpa
-from riskslim.helper_functions import *
 
 # data
 data_name = "breastcancer"                                  # name of the data

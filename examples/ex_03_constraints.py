@@ -7,7 +7,6 @@ from riskslim.setup_functions import get_conservative_offset
 from riskslim.coefficient_set import CoefficientSet
 from riskslim.lattice_cpa import setup_lattice_cpa, finish_lattice_cpa
 
-
 # data
 data_name = "breastcancer"                                  # name of the data
 data_dir = os.getcwd() + '/examples/data/'                  # directory where datasets are stored

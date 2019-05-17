@@ -6,9 +6,6 @@ from riskslim.setup_functions import get_conservative_offset
 from riskslim.coefficient_set import CoefficientSet
 from riskslim.lattice_cpa import run_lattice_cpa
 
-#double check BLAS configuration
-np.__config__.show()
-
 # data
 data_name = "breastcancer"                                  # name of the data
 data_dir = os.getcwd() + '/examples/data/'                  # directory where datasets are stored
@@ -24,6 +21,7 @@ w_pos = 1.00                                                # relative weight on
 
 # load dataset
 data = load_data_from_csv(dataset_csv_file = data_csv_file, sample_weights_csv_file = sample_weights_csv_file)
+N, P = data['X'].shape
 
 # coefficient set
 coef_set = CoefficientSet(variable_names = data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
