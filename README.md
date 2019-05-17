@@ -1,27 +1,31 @@
 risk-slim
 ========
 
-risk-slim is a new machine learning method to create simple customizable *risk scores*. 
+`risk-slim` is a machine learning method to create customized risk scores in python. 
 
-## Background
+### Background 
 
-Risk scores let users make quick risk predictions by adding and subtracting a few small numbers. Here is an example for seizure prediction in the ICU, built using RiskSLIM (see our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf) for details):
+Risk scores are simple tools that let users make quick risk predictions by adding and subtracting a few small numbers (see e.g., medical risk scores at [www.mdcalc.com](https://www.mdcalc.com/) or the [mdcalc iOS app](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8)).
+
+#### Video
+
+<p align="center">
+	<a href="http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw" target="_blank">
+		<img src="http://img.youtube.com/vi/WQDVejk17Aw/0.jpg" alt="RiskSLIM KDD" width="480" height="360" border="10" />
+	</a>
+</p>
+
+#### Customized Risk Score for ICU seizure prediction 
+
+Here is a risk score for ICU risk prediction that is described in our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf). 
+
 <div>
-<p align="center"><img src="https://github.com/ustunb/risk-slim/blob/master/images/risk_score_seizure.png" width="480" height="360" border="0"/></p>
+<p align="center">
+<img src="https://github.com/ustunb/risk-slim/blob/master/images/risk_score_seizure.png" width="480" height="360" border="0"/>
+</p>
 </div>
 
-### Video
-
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=WQDVejk17Aw
-" target="_blank"><img src="http://img.youtube.com/vi/WQDVejk17Aw/0.jpg" 
-alt="RiskSLIM KDD" width="480" height="360" border="10" /></a>
-
-### Examples
-
-- [MDCalc](https://www.mdcalc.com/): a large repository of medical scoring systems (also an [iOS app](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8))
-- Risk score developed by the Pennsylvania Sentencing Commission: [homepage](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/) | [report](http://pcs.la.psu.edu/publications-and-research/research-and-evaluation-reports/risk-assessment/phase-i-reports/interim-report-7-validation-of-risk-scale/view)
-
-### Reference
+#### Paper
 
 If you use ``risk-slim`` for in your research, please cite [our paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf):
      
@@ -37,7 +41,7 @@ If you use ``risk-slim`` for in your research, please cite [our paper](http://ww
 
 ## Package Details
 
-**NOTE: THIS PACKAGE IS CURRENTLY UNDER ACTIVE DEVELOPMENT. THE CODE WILL CHANGE SUBSTANTIALLY WITH EACH COMMIT.** 
+**NOTE: THIS PACKAGE IS CURRENTLY UNDER DEVELOPMENT. THE CODE MAY CHANGE WITH EACH COMMIT.** 
 
 ### Installation
   
@@ -59,7 +63,7 @@ The code may still work with older versions of Python and CPLEX, but this will n
 
 #### CPLEX 
 
-CPLEX is cross-platform commercial optimization tool with a Python API. It is freely available to students and faculty members at accredited institutions. To get CPLEX:
+CPLEX is cross-platform commercial optimization tool with a Python API. It is free for students and faculty members at accredited institutions. To get CPLEX:
 
 1. Register for [IBM OnTheHub](https://ibm.onthehub.com/WebStore/Account/VerifyEmailDomain.aspx)
 2. Download the *IBM ILOG CPLEX Optimization Studio* from the [software catalog](https://ibm.onthehub.com/WebStore/ProductSearchOfferingList.aspx?srch=CPLEX)
@@ -68,13 +72,15 @@ CPLEX is cross-platform commercial optimization tool with a Python API. It is fr
 
 If you have problems installing CPLEX, check the [CPLEX user manual](http://www-01.ibm.com/support/knowledgecenter/SSSA5P/welcome) or the [CPLEX forums](https://www.ibm.com/developerworks/community/forums/html/forum?id=11111111-0000-0000-0000-000000002059). 
 
-## Development Timeline
+## Development Roadmap
+
+**If you are interested in contributing, please reach out!**
 
 - ~~simplify installation~~ 
 - ~~convenience functions for batch computing~~
-- refactoring package for future development (as of 3/18/2018)
-- [sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) compatability
+- ~~refactoring package for future development~~
+- [sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) API (as of 10/11/2018)
+- reporting tools (roc curves, calibration plots, model reports)
+- support for open source solver
 - documentation
-- analysis tools (roc curves, calibration plots, model reports)
- - docker file / EC2 instance 
 
