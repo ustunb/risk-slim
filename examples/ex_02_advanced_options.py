@@ -30,12 +30,12 @@ coef_set = CoefficientSet(variable_names = data['variable_names'], lb=-max_coeff
 
 # offset value
 conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
-conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
 max_offset = min(max_offset, conservative_offset)
 coef_set['(Intercept)'].ub = max_offset
 coef_set['(Intercept)'].lb = -max_offset
 
 # create constraint dictionary
+N, P = data['X'].shape
 trivial_L0_max = P - np.sum(coef_set.C_0j == 0)
 max_L0_value = min(max_L0_value, trivial_L0_max)
 
