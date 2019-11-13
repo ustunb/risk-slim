@@ -1,6 +1,7 @@
 import numpy as np
 from .coefficient_set import CoefficientSet
 from .helper_functions import print_log
+from .debug import ipsh
 
 def setup_loss_functions(data, coef_set, L0_max = None, loss_computation = None, w_pos = 1.0):
     """
@@ -19,7 +20,6 @@ def setup_loss_functions(data, coef_set, L0_max = None, loss_computation = None,
     """
     #todo check if fast/lookup loss is installed
     assert loss_computation in [None, 'weighted', 'normal', 'fast', 'lookup']
-    MAX_DISTINCT_XY_VALUES_FOR_LOOKUP_ON_NONINTEGER_DATA = 20
 
     Z = data['X'] * data['Y']
 
@@ -30,8 +30,7 @@ def setup_loss_functions(data, coef_set, L0_max = None, loss_computation = None,
         use_weighted = False
 
     integer_data_flag = np.all(Z == np.require(Z, dtype = np.int_))
-    distinct_points_flag = len(np.unique(Z, axis = 0)) <= MAX_DISTINCT_XY_VALUES_FOR_LOOKUP_ON_NONINTEGER_DATA
-    use_lookup_table = isinstance(coef_set, CoefficientSet) and (integer_data_flag or distinct_points_flag)
+    use_lookup_table = isinstance(coef_set, CoefficientSet) and integer_data_flag
     if use_weighted:
         final_loss_computation = 'weighted'
     elif use_lookup_table:

@@ -10,6 +10,7 @@ from .initialization import initialize_lattice_cpa
 from .mip import add_mip_starts, convert_to_risk_slim_cplex_solution, create_risk_slim, set_cplex_mip_parameters
 from .setup_functions import get_loss_bounds, setup_loss_functions, setup_objective_functions, setup_penalty_parameters
 from .solution_classes import SolutionPool, SolutionQueue
+from .debug import ipsh
 
 DEFAULT_BOUNDS = {
     'objval_min': 0.0,
@@ -150,6 +151,7 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
         if lcpa_settings['initial_bound_updates']:
             bounds.update(initial_bounds)
             risk_slim_settings.update(initial_bounds)
+
 
     # create risk_slim mip
     risk_slim_mip, risk_slim_indices = create_risk_slim(coef_set = constraints['coef_set'], input = risk_slim_settings)
