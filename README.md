@@ -1,11 +1,11 @@
 risk-slim
 ========
 
-`risk-slim` is a machine learning method to create customized risk scores in python. 
+`risk-slim` is a machine learning method to learn customized risk scores in python. 
 
 ### Background 
 
-Risk scores are simple tools that let users make quick risk predictions by adding and subtracting a few small numbers (see e.g., medical risk scores at [www.mdcalc.com](https://www.mdcalc.com/) or the [mdcalc iOS app](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8)).
+Risk scores are simple tools that let users make quick risk predictions by adding and subtracting a few small numbers (see e.g., 500 + medical risk scores at [mdcalc.com](https://www.mdcalc.com/) or the [mdcalc iOS app](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8)).
 
 #### Video
 
@@ -17,7 +17,7 @@ Risk scores are simple tools that let users make quick risk predictions by addin
 
 #### Customized Risk Score for ICU seizure prediction 
 
-Here is a risk score for ICU risk prediction that is described in our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf). 
+Here is a risk score for ICU risk prediction from our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf). 
 
 <div>
 <p align="center">
@@ -25,23 +25,45 @@ Here is a risk score for ICU risk prediction that is described in our [paper](ht
 </p>
 </div>
 
-#### Paper
+#### References 
 
-If you use ``risk-slim`` for in your research, please cite [our paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf):
+
+1. <a href="http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf" target="_blank">Optimized Risk Scores</a> <br>
+Berk Ustun and Cynthia Rudin<br>
+23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD), 2017.
+
+2. <a href="http://jmlr.org/papers/v20/18-615.html" target="_blank">Learning Optimized Risk Scores</a> <br>
+Berk Ustun and Cynthia Rudin<br>
+Journal of Machine Learning Research (JMLR), 2019.
+
+
+If you use ``risk-slim`` for in your research, please cite one of the following papers:
+
      
 ```
 @inproceedings{ustun2017kdd,
-	Author = {Ustun, Berk and Rudin, Cynthia},
-	Booktitle = {Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
-	Organization = {ACM},
-	Title = {{Optimized Risk Scores}},
-	Year = {2017}}
+  author  = {Ustun, Berk and Rudin, Cynthia},
+  booktitle = {Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+  organization = {ACM},
+  title = {{Optimized Risk Scores}},
+  year = {2017}}
+}
+
+@article{ustun2019jmlr,
+  author  = {Ustun, Berk and Rudin, Cynthia},
+  title   = {{Learning Optimized Risk Scores}},
+  journal = {{Journal of Machine Learning Research}},
+  year    = {2019},
+  volume  = {20},
+  number  = {150},
+  pages   = {1-75},
+  url     = {http://jmlr.org/papers/v20/18-615.html}
 }
 ```
 
 ## Package Details
 
-**NOTE: THIS PACKAGE IS CURRENTLY UNDER DEVELOPMENT. THE CODE MAY CHANGE WITH EACH COMMIT.** 
+**NOTE: THIS PACKAGE IS CURRENTLY UNDER DEVELOPMENT. THE API MAY CHANGE WITH EACH COMMIT.** 
 
 ### Installation
   
