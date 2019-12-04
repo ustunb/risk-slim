@@ -33,6 +33,10 @@ If you use risk-slim in your research, please cite one of the following papers:
 Berk Ustun and Cynthia Rudin<br>
 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD), 2017.
 
+2. <a href="http://jmlr.org/papers/v20/18-615.html" target="_blank">Learning Optimized Risk Scores</a> <br>
+Berk Ustun and Cynthia Rudin<br>
+Journal of Machine Learning Research (JMLR), 2019.
+
 ```
 @inproceedings{ustun2017kdd,
   author  = {Ustun, Berk and Rudin, Cynthia},
@@ -41,13 +45,7 @@ Berk Ustun and Cynthia Rudin<br>
   title = {{Optimized Risk Scores}},
   year = {2017}
 }
-```
 
-2. <a href="http://jmlr.org/papers/v20/18-615.html" target="_blank">Learning Optimized Risk Scores</a> <br>
-Berk Ustun and Cynthia Rudin<br>
-Journal of Machine Learning Research (JMLR), 2019.
-
-```
 @article{ustun2019jmlr,
   author  = {Ustun, Berk and Rudin, Cynthia},
   title   = {{Learning Optimized Risk Scores}},
@@ -64,13 +62,13 @@ Journal of Machine Learning Research (JMLR), 2019.
 
 ### Installation
   
-Run the following snippet to install ``risk-slim`` in a Mac/Unix environment and complete a test run.  
+Run the following snippet in a Unix terminal to install risk-slim and complete a test run.  
 
 ```
 git clone https://github.com/ustunb/risk-slim
 cd risk-slim
-pip install -e . #install in editable mode  
-bash batch/job_template.sh #batch run
+pip install -e . 		# install in editable mode  
+bash batch/job_template.sh 	# batch run
 ```
 
 ### Requirements
@@ -100,6 +98,8 @@ If you have problems installing CPLEX, check the [CPLEX user manual](http://www-
 - ~~refactoring package for future development~~
 - [sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) API
 - reporting tools (roc curves, calibration plots, model reports)
-- support for open source solver
+- support for open-source solver
 - documentation
+
+
 
