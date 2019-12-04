@@ -46,7 +46,7 @@ If you use ``risk-slim`` for in your research, please cite one of the following 
   booktitle = {Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
   organization = {ACM},
   title = {{Optimized Risk Scores}},
-  year = {2017}}
+  year = {2017}
 }
 
 @article{ustun2019jmlr,
@@ -63,11 +63,9 @@ If you use ``risk-slim`` for in your research, please cite one of the following 
 
 ## Package Details
 
-**NOTE: THIS PACKAGE IS CURRENTLY UNDER DEVELOPMENT. THE API MAY CHANGE WITH EACH COMMIT.** 
-
 ### Installation
   
-Run the following snippet to install ``risk-slim`` in a Mac/Unix environment, and complete a test run.  
+Run the following snippet to install ``risk-slim`` in a Mac/Unix environment and complete a test run.  
 
 ```
 git clone https://github.com/ustunb/risk-slim
@@ -81,7 +79,7 @@ bash batch/job_template.sh #batch run
 - Python 3.5+ 
 - CPLEX 12.6+
  
-The code may still work with older versions of Python and CPLEX, but this will not be tested or supported. If you're hesitant about switching to Python 3, check out this [migration guide](https://github.com/arogozhnikov/python3_with_pleasure) 
+The code may work with older versions of Python and CPLEX, but this will not be supported. 
 
 #### CPLEX 
 
@@ -89,19 +87,19 @@ CPLEX is cross-platform commercial optimization tool with a Python API. It is fr
 
 1. Register for [IBM OnTheHub](https://ibm.onthehub.com/WebStore/Account/VerifyEmailDomain.aspx)
 2. Download the *IBM ILOG CPLEX Optimization Studio* from the [software catalog](https://ibm.onthehub.com/WebStore/ProductSearchOfferingList.aspx?srch=CPLEX)
-3. Install the CPLEX Optimization Studio.
+3. Install CPLEX Optimization Studio.
 4. Setup the CPLEX Python API [as described here](https://www.ibm.com/support/knowledgecenter/SSSA5P_12.8.0/ilog.odms.cplex.help/CPLEX/GettingStarted/topics/set_up/Python_setup.html).
 
 If you have problems installing CPLEX, check the [CPLEX user manual](http://www-01.ibm.com/support/knowledgecenter/SSSA5P/welcome) or the [CPLEX forums](https://www.ibm.com/developerworks/community/forums/html/forum?id=11111111-0000-0000-0000-000000002059). 
 
 ## Development Roadmap
 
-**If you are interested in contributing, please reach out!**
+**If you are interested in contributing, please reach out to [berk@seas.harvard.edu](mailto:berk@seas.harvard.edu)!**
 
 - ~~simplify installation~~ 
 - ~~convenience functions for batch computing~~
 - ~~refactoring package for future development~~
-- [sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) API (as of 10/11/2018)
+- [sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) API
 - reporting tools (roc curves, calibration plots, model reports)
 - support for open source solver
 - documentation
