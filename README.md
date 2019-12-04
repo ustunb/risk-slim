@@ -1,7 +1,7 @@
 risk-slim
 ========
 
-`risk-slim` is a machine learning method to learn customized risk scores in python. 
+risk-slim is a machine learning method to learn customized risk scores in python. 
 
 ### Background 
 
@@ -27,19 +27,12 @@ Here is a risk score for ICU risk prediction from our [paper](http://www.berkust
 
 #### References 
 
+If you use risk-slim in your research, please cite one of the following papers:
 
 1. <a href="http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf" target="_blank">Optimized Risk Scores</a> <br>
 Berk Ustun and Cynthia Rudin<br>
 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD), 2017.
 
-2. <a href="http://jmlr.org/papers/v20/18-615.html" target="_blank">Learning Optimized Risk Scores</a> <br>
-Berk Ustun and Cynthia Rudin<br>
-Journal of Machine Learning Research (JMLR), 2019.
-
-
-If you use ``risk-slim`` for in your research, please cite one of the following papers:
-
-     
 ```
 @inproceedings{ustun2017kdd,
   author  = {Ustun, Berk and Rudin, Cynthia},
@@ -48,7 +41,13 @@ If you use ``risk-slim`` for in your research, please cite one of the following 
   title = {{Optimized Risk Scores}},
   year = {2017}
 }
+```
 
+2. <a href="http://jmlr.org/papers/v20/18-615.html" target="_blank">Learning Optimized Risk Scores</a> <br>
+Berk Ustun and Cynthia Rudin<br>
+Journal of Machine Learning Research (JMLR), 2019.
+
+```
 @article{ustun2019jmlr,
   author  = {Ustun, Berk and Rudin, Cynthia},
   title   = {{Learning Optimized Risk Scores}},
