@@ -1,7 +1,7 @@
 risk-slim
 ========
 
-risk-slim is a machine learning method to learn customized risk scores in python. 
+risk-slim is a machine learning method to fit customized risk scores in python. 
 
 ### Background 
 
