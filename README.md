@@ -1,11 +1,11 @@
 risk-slim
 ========
 
-`risk-slim` is a machine learning method to learn customized risk scores in python. 
+`risk-slim` is a machine learning method to fit simple customized risk scores in python. 
 
 ### Background 
 
-Risk scores are simple tools that let users make quick risk predictions by adding and subtracting a few small numbers (see e.g., 500 + medical risk scores at [mdcalc.com](https://www.mdcalc.com/) or the [mdcalc iOS app](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8)).
+Risk scores are simple tools that let users make quick risk predictions by adding and subtracting a few small numbers (see e.g., 500 + medical risk scores at [mdcalc.com](https://www.mdcalc.com/) and the [mdcalc iOS app](https://itunes.apple.com/us/app/mdcalc-medical-calculators-clinical-scores/id1001640662?ls=1&mt=8)).
 
 #### Video
 
@@ -15,7 +15,7 @@ Risk scores are simple tools that let users make quick risk predictions by addin
 	</a>
 </p>
 
-#### Customized Risk Score for ICU seizure prediction 
+#### Customized Risk Score for ICU Seizure Prediction 
 
 Here is a risk score for ICU risk prediction from our [paper](http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf). 
 
@@ -27,28 +27,14 @@ Here is a risk score for ICU risk prediction from our [paper](http://www.berkust
 
 #### References 
 
+If you use ``risk-slim`` for in your research, please cite our paper!
 
-1. <a href="http://www.berkustun.com/docs/ustun_2017_optimized_risk_scores.pdf" target="_blank">Optimized Risk Scores</a> <br>
-Berk Ustun and Cynthia Rudin<br>
-23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD), 2017.
-
-2. <a href="http://jmlr.org/papers/v20/18-615.html" target="_blank">Learning Optimized Risk Scores</a> <br>
+<a href="http://jmlr.org/papers/v20/18-615.html" target="_blank">Learning Optimized Risk Scores</a> <br>
 Berk Ustun and Cynthia Rudin<br>
 Journal of Machine Learning Research (JMLR), 2019.
 
-
-If you use ``risk-slim`` for in your research, please cite one of the following papers:
-
      
 ```
-@inproceedings{ustun2017kdd,
-  author  = {Ustun, Berk and Rudin, Cynthia},
-  booktitle = {Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
-  organization = {ACM},
-  title = {{Optimized Risk Scores}},
-  year = {2017}}
-}
-
 @article{ustun2019jmlr,
   author  = {Ustun, Berk and Rudin, Cynthia},
   title   = {{Learning Optimized Risk Scores}},
@@ -85,7 +71,7 @@ The code may still work with older versions of Python and CPLEX, but this will n
 
 #### CPLEX 
 
-CPLEX is cross-platform commercial optimization tool with a Python API. It is free for students and faculty members at accredited institutions. To get CPLEX:
+CPLEX is cross-platform optimization tool solver a Python API. It is free for students and faculty members at accredited institutions. To get CPLEX:
 
 1. Register for [IBM OnTheHub](https://ibm.onthehub.com/WebStore/Account/VerifyEmailDomain.aspx)
 2. Download the *IBM ILOG CPLEX Optimization Studio* from the [software catalog](https://ibm.onthehub.com/WebStore/ProductSearchOfferingList.aspx?srch=CPLEX)
@@ -98,11 +84,7 @@ If you have problems installing CPLEX, check the [CPLEX user manual](http://www-
 
 **If you are interested in contributing, please reach out!**
 
-- ~~simplify installation~~ 
-- ~~convenience functions for batch computing~~
-- ~~refactoring package for future development~~
-- [sci-kit learn](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) API (as of 10/11/2018)
-- reporting tools (roc curves, calibration plots, model reports)
+- [sci-kit learn interface](http://scikit-learn.org/stable/developers/contributing.html#rolling-your-own-estimator) API
 - support for open source solver
+- reporting tools (roc curves, calibration plots, model reports)
 - documentation
-
