@@ -6,6 +6,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import prettytable as pt
+from .defaults import INTERCEPT_NAME
 
 # DATA
 def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_csv_file = None, fold_num = 0):
@@ -41,7 +42,7 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
     -------
     dictionary containing training data for a binary classification problem with the fields:
 
-     - 'X' N x P matrix of features (numpy.ndarray) with a column of 1s for the '(Intercept)'
+     - 'X' N x P matrix of features (numpy.ndarray) with a column of 1s for the INTERCEPT_NAME
      - 'Y' N x 1 vector of labels (+1/-1) (numpy.ndarray)
      - 'variable_names' list of strings containing the names of each feature (list)
      - 'Y_name' string containing the name of the output (optional)
@@ -71,7 +72,7 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
 
     # insert a column of ones to X for the intercept
     X = np.insert(arr=X, obj=0, values=np.ones(N), axis=1)
-    variable_names.insert(0, '(Intercept)')
+    variable_names.insert(0, INTERCEPT_NAME)
 
 
     if sample_weights_csv_file is None:
@@ -122,7 +123,7 @@ def check_data(data):
 
     'data' is a dictionary that must contain:
 
-     - 'X' N x P matrix of features (numpy.ndarray) with a column of 1s for the '(Intercept)'
+     - 'X' N x P matrix of features (numpy.ndarray) with a column of 1s for the INTERCEPT_NAME
      - 'Y' N x 1 vector of labels (+1/-1) (numpy.ndarray)
      - 'variable_names' list of strings containing the names of each feature (list)
 
@@ -168,10 +169,10 @@ def check_data(data):
     assert np.all(~np.isinf(X)), 'X has inf entries'
 
     # offset in feature matrix
-    if '(Intercept)' in variable_names:
-        assert all(X[:, variable_names.index('(Intercept)')] == 1.0), "(Intercept)' column should only be composed of 1s"
+    if INTERCEPT_NAME in variable_names:
+        assert all(X[:, variable_names.index(INTERCEPT_NAME)] == 1.0), "(Intercept)' column should only be composed of 1s"
     else:
-        warnings.warn("there is no column named '(Intercept)' in variable_names")
+        warnings.warn("there is no column named INTERCEPT_NAME in variable_names")
 
     # labels values
     assert all((Y == 1) | (Y == -1)), 'Need Y[i] = [-1,1] for all i.'
@@ -201,11 +202,11 @@ def print_model(rho, data,  show_omitted_variables = False):
     rho_values = np.copy(rho)
     rho_names = list(variable_names)
 
-    if '(Intercept)' in rho_names:
-        intercept_ind = variable_names.index('(Intercept)')
+    if INTERCEPT_NAME in rho_names:
+        intercept_ind = variable_names.index(INTERCEPT_NAME)
         intercept_val = int(rho[intercept_ind])
         rho_values = np.delete(rho_values, intercept_ind)
-        rho_names.remove('(Intercept)')
+        rho_names.remove(INTERCEPT_NAME)
     else:
         intercept_val = 0
 
