@@ -1,9 +1,6 @@
 import numpy as np
 from prettytable import PrettyTable
 
-# TODO
-# Unit Tests for Coefficient Element
-# Unit Tests for Coefficient Set
 
 class CoefficientElement(object):
 
@@ -29,12 +26,12 @@ class CoefficientElement(object):
 
     @property
     def name(self):
-        return str(self._name)
+        return self._name
 
 
     @property
     def vtype(self):
-        return str(self._vtype)
+        return self._vtype
 
 
     @vtype.setter
@@ -46,7 +43,7 @@ class CoefficientElement(object):
 
     @property
     def ub(self):
-        return float(self._ub)
+        return self._ub
 
 
     @ub.setter
@@ -60,7 +57,7 @@ class CoefficientElement(object):
 
     @property
     def lb(self):
-        return float(self._lb)
+        return self._lb
 
 
     @lb.setter
@@ -74,7 +71,7 @@ class CoefficientElement(object):
 
     @property
     def c0(self):
-        return float(self._c0)
+        return self._c0
 
 
     @c0.setter
@@ -85,6 +82,7 @@ class CoefficientElement(object):
             assert np.isfinite(value), 'L0 penalty for %s must either be NaN or a finite positive number' % self._name
             assert value >= 0.0, 'L0 penalty for %s must either be NaN or a finite positive number' % self._name
             self._c0 = float(value)
+
 
     @property
     def penalized(self):
@@ -209,7 +207,7 @@ class CoefficientSet(object):
 
     @property
     def check_flag(self):
-        return bool(self._check_flag)
+        return self._check_flag
 
 
     @check_flag.setter
@@ -219,7 +217,7 @@ class CoefficientSet(object):
 
     @property
     def variable_names(self):
-        return list(self._variable_names)
+        return self._variable_names
 
 
     @variable_names.setter
@@ -255,10 +253,6 @@ class CoefficientSet(object):
         t.add_column("ub", self.ub)
         t.add_column("c0", self.c0)
         return str(t)
-
-
-    def view(self):
-        print(self.tabulate())
 
 
     def __len__(self):
@@ -342,7 +336,7 @@ class CoefficientSet(object):
                 if name in {'Intercept', '(Intercept)', 'intercept', '(intercept)'}:
                     if e.c0 > 0 or np.isnan(e.c0):
                         if self._print_flag:
-                            print("setting c0 = 0.0 to ensure that intercept is not penalized")
+                            print("setting c0_value = 0.0 for %s to ensure that intercept is not penalized" % name)
                         e._c0 = 0.0
 
         return True
