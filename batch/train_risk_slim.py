@@ -215,7 +215,7 @@ if __name__ == '__main__':
 
     #print coefficient set
     if not parsed.silent:
-        coef_set.view()
+        print(coef_set)
 
     constraints = {
         'L0_min': 0,
