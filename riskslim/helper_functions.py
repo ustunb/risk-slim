@@ -67,62 +67,6 @@ def print_log(msg, print_flag = True):
         sys.stdout.flush()
 
 
-def get_rho_string(rho, vtypes = 'I'):
-
-    if len(vtypes) == 1:
-        if vtypes == 'I':
-            rho_string = ' '.join(map(lambda x: str(int(x)), rho))
-        else:
-            rho_string = ' '.join(map(lambda x: str(x), rho))
-
-    else:
-        rho_string = ''
-        for j in range(len(rho)):
-            if vtypes[j] == 'I':
-                rho_string += ' ' + str(int(rho[j]))
-            else:
-                rho_string += (' %1.6f' % rho[j])
-
-    return rho_string
-
-
-def easy_type(data_value):
-    type_name = type(data_value).__name__
-    if type_name in {"list", "set"}:
-        types = {easy_type(item) for item in data_value}
-        if len(types) == 1:
-            return next(iter(types))
-        elif types.issubset({"int", "float"}):
-            return "float"
-        else:
-            return "multiple"
-    elif type_name == "str":
-        if data_value in {'True', 'TRUE'}:
-            return "bool"
-        elif data_value in {'False', 'FALSE'}:
-            return "bool"
-        else:
-            return "str"
-    elif type_name == "int":
-        return "int"
-    elif type_name == "float":
-        return "float"
-    elif type_name == "bool":
-        return "bool"
-    else:
-        return "unknown"
-
-
-def convert_str_to_bool(val):
-    val = val.lower().strip()
-    if val == 'true':
-        return True
-    elif val == 'false':
-        return False
-    else:
-        return None
-
-
 # Settings
 def get_or_set_default(settings, setting_name, default_value, type_check = False, print_flag=True):
 
