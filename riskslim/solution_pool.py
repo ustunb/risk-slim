@@ -235,15 +235,15 @@ class FastSolutionPool(object):
 
     @property
     def P(self):
-        return int(self._P)
+        return self._P
 
     @property
     def objvals(self):
-        return np.copy(self._objvals)
+        return self._objvals
 
     @property
     def solutions(self):
-        return np.copy(self._solutions)
+        return self._solutions
 
 
     def add(self, new_objvals, new_solutions):
@@ -267,6 +267,7 @@ class FastSolutionPool(object):
 
 
     def filter_sort_unique(self, max_objval = float('inf')):
+
         # filter
         if max_objval < float('inf'):
             good_idx = np.less_equal(self._objvals, max_objval)

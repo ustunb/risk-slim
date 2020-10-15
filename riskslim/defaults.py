@@ -1,6 +1,5 @@
 import numpy as np
 
-# Lattice CPA
 DEFAULT_LCPA_SETTINGS = {
     #
     'c0_value': 1e-6,
@@ -45,7 +44,6 @@ DEFAULT_LCPA_SETTINGS = {
     'purge_loss_cuts': False,
     'purge_bound_cuts': False,
     }
-
 
 DEFAULT_CPLEX_SETTINGS = {
     'randomseed': 0,  # random seed
@@ -94,11 +92,9 @@ DEFAULT_INITIALIZATION_SETTINGS = {
     'polishing_max_solutions': 5  # max solutions to polish
     }
 
-#Add CPA settings to Initialization Settings
+# Initialization Settings includes CPA Settings
 DEFAULT_INITIALIZATION_SETTINGS.update(DEFAULT_CPA_SETTINGS)
 
-#Add Initialization Settings to LCPA Settings
+# LCPA Settings includes Initialization and CPLEX settings
 DEFAULT_LCPA_SETTINGS.update({'init_%s' % k: v for k,v in DEFAULT_INITIALIZATION_SETTINGS.items()})
-
-#Add CPLEX Settings to LCPA Settings
 DEFAULT_LCPA_SETTINGS.update({'cplex_%s' % k: v for k,v in DEFAULT_CPLEX_SETTINGS.items()})

@@ -7,7 +7,7 @@ from .solution_pool import SolutionPool
 from .bound_tightening import chained_updates, chained_updates_for_lp
 from .heuristics import discrete_descent, sequential_rounding
 from .defaults import DEFAULT_CPA_SETTINGS, DEFAULT_INITIALIZATION_SETTINGS
-from .helper_functions import get_rho_string, print_log, validate_settings
+from .helper_functions import print_log, validate_settings
 
 
 def initialize_lattice_cpa(Z,
@@ -183,11 +183,6 @@ def run_standard_cpa(cpx,
     if isinstance(loss_idx, list) and len(loss_idx) == 1:
         loss_idx = loss_idx[0]
 
-    if settings['type'] == 'cvx':
-        vtypes = 'C'
-    else:
-        vtypes = cpx.variables.get_types(rho_idx)
-
     if len(alpha_idx) > 0:
         get_alpha = lambda: np.array(cpx.solution.get_values(alpha_idx))
     else:
@@ -275,7 +270,7 @@ def run_standard_cpa(cpx,
 
         # print progress
         if print_flag and settings['display_progress']:
-            print_log("cuts = %d \t UB = %.4f \t LB = %.4f \t GAP = %.4f%%\nrho:%s\n" % (n_iterations, upperbound, lowerbound, 100.0 * relative_gap, get_rho_string(rho, vtypes)))
+            print_log("cuts = %d \t UB = %.4f \t LB = %.4f \t GAP = %.4f%%\n" % (n_iterations, upperbound, lowerbound, 100.0 * relative_gap))
 
         # save progress
         if settings['save_progress']:

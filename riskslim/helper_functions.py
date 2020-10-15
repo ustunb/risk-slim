@@ -7,108 +7,6 @@ import numpy as np
 import pandas as pd
 import prettytable as pt
 
-
-# LOGGING
-def setup_logging(logger, log_to_console = True, log_file = None):
-    """
-    Sets up logging to console and file on disk
-    See https://docs.python.org/2/howto/logging-cookbook.html for details on how to customize
-
-    Parameters
-    ----------
-    log_to_console  set to True to disable logging in console
-    log_file        path to file for loggin
-
-    Returns
-    -------
-    Logger object that prints formatted messages to log_file and console
-    """
-
-    # quick return if no logging to console or file
-    if log_to_console is False and log_file is None:
-        logger.disabled = True
-        return logger
-
-    log_format = logging.Formatter(fmt='%(asctime)s | %(levelname)-8s | %(message)s', datefmt='%m-%d-%Y %I:%M:%S %p')
-
-    # log to file
-    if log_file is not None:
-        fh = logging.FileHandler(filename=log_file)
-        #fh.setLevel(logging.DEBUG)
-        fh.setFormatter(log_format)
-        logger.addHandler(fh)
-
-    if log_to_console:
-        ch = logging.StreamHandler()
-        #ch.setLevel(logging.DEBUG)
-        ch.setFormatter(log_format)
-        logger.addHandler(ch)
-
-    return logger
-
-
-def print_log(msg, print_flag = True):
-    """
-
-    Parameters
-    ----------
-    msg
-    print_flag
-
-    Returns
-    -------
-
-    """
-    if print_flag:
-        if isinstance(msg, str):
-            print('%s | %s' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()), msg))
-        else:
-            print('%s | %r' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()), msg))
-        sys.stdout.flush()
-
-
-# Settings
-def get_or_set_default(settings, setting_name, default_value, type_check = False, print_flag=True):
-
-    if setting_name not in settings:
-
-        print_log("setting %s to its default value: %r" %
-                  (setting_name, default_value), print_flag)
-
-        settings[setting_name] = default_value
-
-    elif setting_name in settings and type_check:
-
-        default_type = type(default_value)
-        user_type = type(settings[setting_name])
-
-        if user_type is not default_type:
-            print_log("type mismatch on %s:\nuser provided %s\n expected %s" %
-                      (setting_name, user_type, default_type), print_flag)
-
-            print_log("setting %s to its default value: %r" %
-                      (setting_name, default_value), print_flag)
-
-            settings[setting_name] = default_value
-
-    return settings
-
-
-def validate_settings(settings = None, default_settings = None):
-
-    if settings is not None:
-        assert isinstance(settings, dict)
-        settings = dict(settings)
-    else:
-        settings = {}
-
-    if default_settings is not None:
-        assert isinstance(default_settings, dict)
-        settings = {k: settings[k] if k in settings else default_settings[k] for k in default_settings}
-
-    return settings
-
-
 # DATA
 def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_csv_file = None, fold_num = 0):
     """
@@ -354,3 +252,104 @@ def print_model(rho, data,  show_omitted_variables = False):
 
     print(m)
     return m
+
+
+# LOGGING
+def setup_logging(logger, log_to_console = True, log_file = None):
+    """
+    Sets up logging to console and file on disk
+    See https://docs.python.org/2/howto/logging-cookbook.html for details on how to customize
+
+    Parameters
+    ----------
+    log_to_console  set to True to disable logging in console
+    log_file        path to file for loggin
+
+    Returns
+    -------
+    Logger object that prints formatted messages to log_file and console
+    """
+
+    # quick return if no logging to console or file
+    if log_to_console is False and log_file is None:
+        logger.disabled = True
+        return logger
+
+    log_format = logging.Formatter(fmt='%(asctime)s | %(levelname)-8s | %(message)s', datefmt='%m-%d-%Y %I:%M:%S %p')
+
+    # log to file
+    if log_file is not None:
+        fh = logging.FileHandler(filename=log_file)
+        #fh.setLevel(logging.DEBUG)
+        fh.setFormatter(log_format)
+        logger.addHandler(fh)
+
+    if log_to_console:
+        ch = logging.StreamHandler()
+        #ch.setLevel(logging.DEBUG)
+        ch.setFormatter(log_format)
+        logger.addHandler(ch)
+
+    return logger
+
+
+def print_log(msg, print_flag = True):
+    """
+
+    Parameters
+    ----------
+    msg
+    print_flag
+
+    Returns
+    -------
+
+    """
+    if print_flag:
+        if isinstance(msg, str):
+            print('%s | %s' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()), msg))
+        else:
+            print('%s | %r' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()), msg))
+        sys.stdout.flush()
+
+
+# Settings
+def get_or_set_default(settings, setting_name, default_value, type_check = False, print_flag=True):
+
+    if setting_name not in settings:
+
+        print_log("setting %s to its default value: %r" %
+                  (setting_name, default_value), print_flag)
+
+        settings[setting_name] = default_value
+
+    elif setting_name in settings and type_check:
+
+        default_type = type(default_value)
+        user_type = type(settings[setting_name])
+
+        if user_type is not default_type:
+            print_log("type mismatch on %s:\nuser provided %s\n expected %s" %
+                      (setting_name, user_type, default_type), print_flag)
+
+            print_log("setting %s to its default value: %r" %
+                      (setting_name, default_value), print_flag)
+
+            settings[setting_name] = default_value
+
+    return settings
+
+
+def validate_settings(settings = None, default_settings = None):
+
+    if settings is not None:
+        assert isinstance(settings, dict)
+        settings = dict(settings)
+    else:
+        settings = {}
+
+    if default_settings is not None:
+        assert isinstance(default_settings, dict)
+        settings = {k: settings[k] if k in settings else default_settings[k] for k in default_settings}
+
+    return settings

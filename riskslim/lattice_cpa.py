@@ -21,40 +21,7 @@ DEFAULT_BOUNDS = {
     }
 
 
-# DATA CONVERSION
-def is_integer(rho):
-    """
-    checks if numpy array is an integer vector
-
-    Parameters
-    ----------
-    rho
-
-    Returns
-    -------
-
-    """
-    return np.array_equal(rho, np.require(rho, dtype=np.int_))
-
-
-def cast_to_integer(rho):
-    """
-    casts numpy array to integer vector
-    Parameters
-    ----------
-    rho
-
-    Returns
-    -------
-
-    """
-    original_type = rho.dtype
-    return np.require(np.require(rho, dtype=np.int_), dtype=original_type)
-
-
 # LATTICE CPA FUNCTIONS
-
-
 def run_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
     """
 
@@ -422,6 +389,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     return model_info, mip_info, lcpa_info
 
 
+# CALLBACK FUNCTIONS
 class LossCallback(LazyConstraintCallback):
     """
     This callback has to be initialized after construnction with initialize().
@@ -513,7 +481,6 @@ class LossCallback(LazyConstraintCallback):
 
     def update_bounds(self):
 
-        #print_log('in update bounds')
         bounds = chained_updates(bounds = self.control['bounds'],
                                  C_0_nnz = self.C_0_nnz,
                                  new_objval_at_relaxation = self.control['lowerbound'],
@@ -857,3 +824,36 @@ class PolishAndRoundCallback(HeuristicCallback):
         self.control['total_heuristic_callback_time'] += time.time() - callback_start_time
         #print_log('left heuristic callback')
         return
+
+
+# DATA CONVERSION
+def is_integer(x):
+    """
+    checks if numpy array is an integer vector
+
+    Parameters
+    ----------
+    x
+
+    Returns
+    -------
+
+    """
+    return np.array_equal(x, np.require(x, dtype=np.int_))
+
+
+def cast_to_integer(x):
+    """
+    casts numpy array to integer vector
+
+    Parameters
+    ----------
+    x
+
+    Returns
+    -------
+
+    """
+    original_type = x.dtype
+    return np.require(np.require(x, dtype=np.int_), dtype=original_type)
+
