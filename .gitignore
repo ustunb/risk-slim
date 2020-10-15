@@ -93,3 +93,11 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# emacs
+*~
+*.org
+\#*#
+
+# Jupyter NB Checkpoints
+.ipynb_checkpoints/

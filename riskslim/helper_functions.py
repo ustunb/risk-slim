@@ -212,7 +212,7 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
     else:
         raise IOError('could not find dataset_csv_file: %s' % dataset_csv_file)
 
-    raw_data = df.as_matrix()
+    raw_data = df.to_numpy()
     data_headers = list(df.columns.values)
     N = raw_data.shape[0]
 
@@ -236,7 +236,7 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
     else:
         if os.path.isfile(sample_weights_csv_file):
             sample_weights = pd.read_csv(sample_weights_csv_file, sep=',', header=None)
-            sample_weights = sample_weights.as_matrix()
+            sample_weights = sample_weights.to_numpy()
         else:
             raise IOError('could not find sample_weights_csv_file: %s' % sample_weights_csv_file)
 
