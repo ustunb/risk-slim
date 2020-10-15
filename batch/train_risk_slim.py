@@ -28,11 +28,9 @@ import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from riskslim.helper_functions import load_data_from_csv, setup_logging
 from riskslim.coefficient_set import CoefficientSet
-from riskslim.setup_functions import get_conservative_offset
 from riskslim.lattice_cpa import run_lattice_cpa, DEFAULT_LCPA_SETTINGS
 
 # uncomment for debugging
-from riskslim.debug import ipsh
 
 # TODO: run the following when building
 # with open(settings_json, 'w') as outfile:
@@ -213,14 +211,7 @@ if __name__ == '__main__':
                               lb = -max_coefficient,
                               ub = max_coefficient,
                               sign = 0)
-
-    trivial_model_size = P - np.sum(coef_set.C_0j == 0)
-    max_model_size = min(max_model_size, trivial_model_size)
-
-    conservative_offset = get_conservative_offset(data, coef_set, max_model_size)
-    max_offset = min(max_offset, conservative_offset)
-    coef_set['(Intercept)'].ub = max_offset
-    coef_set['(Intercept)'].lb = -max_offset
+    coef_set.update_intercept_bounds(X = data['X'], y = data['y'], max_offset = max_offset, max_L0_value = max_model_size)
 
     #print coefficient set
     if not parsed.silent:
