@@ -2,6 +2,9 @@ import numpy as np
 import prettytable as pt
 
 class SolutionPool(object):
+    """
+    Helper class used to store solutions to the risk slim optimization problem
+    """
 
     def __init__(self,  obj):
 
@@ -83,12 +86,12 @@ class SolutionPool(object):
 
     @property
     def objvals(self):
-        return np.copy(self._objvals)
+        return self._objvals
 
 
     @property
     def solutions(self):
-        return np.copy(self._solutions)
+        return self._solutions
 
 
     @objvals.setter
@@ -216,8 +219,9 @@ class SolutionPool(object):
 
 class SolutionQueue(object):
     """
-    SolutionQueue is written to work faster than SolutionPool and is only used by the callback functions in risk_slim
-    helper class used to create/manipulate a queue of solutions and objective values
+    Helper class used to store solutions to the risk slim optimization problem
+    SolutionQueue designed to work faster than SolutionPool.
+    It is primarily used by the callback functions in risk_slim
     """
 
     def __init__(self, P):
@@ -259,7 +263,7 @@ class SolutionQueue(object):
             idx = np.argmin(self._objvals)
             return float(self._objvals[idx]), np.copy(self._solutions[idx,])
         else:
-            return np.empty(shape = 0), np.empty(shape = (0, P))
+            return np.empty(shape = 0), np.empty(shape = (0, self.P))
 
 
     def filter_sort_unique(self, max_objval = float('inf')):
