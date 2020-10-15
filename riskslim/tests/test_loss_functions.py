@@ -5,7 +5,7 @@ import riskslim.loss_functions.fast_log_loss as fast
 import riskslim.loss_functions.log_loss as normal
 import riskslim.loss_functions.log_loss_weighted as weighted
 import riskslim.loss_functions.lookup_log_loss as lookup
-from riskslim.setup_functions import setup_training_weights
+from riskslim.setup_functions import _setup_training_weights
 
 np.random.seed(seed = 0)
 
@@ -81,7 +81,7 @@ Z_min = np.min(Z, axis = 0)
 Z_max = np.max(Z, axis = 0)
 
 #setup weights
-weights = setup_training_weights(Y, w_pos = 1.0, w_neg = 1.0, w_total_target = 2.0)
+weights = _setup_training_weights(Y, w_pos = 1.0, w_neg = 1.0, w_total_target = 2.0)
 
 #create lookup table
 min_score, max_score = get_score_bounds_from_range(Z_min, Z_max, rho_lb, rho_ub, L0_max = n_cols)
@@ -128,7 +128,7 @@ assert(np.isclose(normal_cut[0], cython_cut[0]))
 assert(np.isclose(lookup_cut[0], cython_cut[0]))
 assert(all(np.isclose(normal_cut[1], cython_cut[1])))
 assert(all(np.isclose(lookup_cut[1], cython_cut[1])))
-print "passed cut tests"
+print("passed cut tests")
 
 
 #weighted tests
@@ -138,7 +138,7 @@ def weighted_scores_test(weights): return weighted.log_loss_value_from_scores(we
 
 
 #w_pos = w_neg = 1.0
-weights = setup_training_weights(Y, w_pos = 1.0, w_neg = 1.0, w_total_target = 2.0)
+weights = _setup_training_weights(Y, w_pos = 1.0, w_neg = 1.0, w_total_target = 2.0)
 
 weights_match_unit_weights = all(weights == 1.0)
 
@@ -160,7 +160,7 @@ print("passed all tests for weighted implementations when w_pos = w_neg = 1.0")
 #w_pos = w_neg = 1.0
 w_pos = 0.5 + np.random.rand()
 w_neg = 1.0
-weights = setup_training_weights(Y, w_pos = 0.5 + np.random.rand(), w_neg = 1.0, w_total_target = 2.0)
+weights = _setup_training_weights(Y, w_pos = 0.5 + np.random.rand(), w_neg = 1.0, w_total_target = 2.0)
 weighted_value = weighted_value_test(weights)
 weighted_cut = weighted_cut_test(weights)
 weighted_value_from_scores = weighted_scores_test(weights)

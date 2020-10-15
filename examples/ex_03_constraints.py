@@ -5,6 +5,8 @@ import pprint
 import riskslim
 
 # data
+import riskslim.coefficient_set
+
 data_name = "breastcancer"                                  # name of the data
 data_dir = os.getcwd() + '/examples/data/'                  # directory where datasets are stored
 data_csv_file = data_dir + data_name + '_data.csv'          # csv file for the dataset
@@ -23,10 +25,7 @@ N, P = data['X'].shape
 
 # create coefficient set and set the value of the offset parameter
 coef_set = riskslim.CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
-conservative_offset = riskslim.get_conservative_offset(data, coef_set, max_L0_value)
-max_offset = min(max_offset, conservative_offset)
-coef_set['(Intercept)'].ub = max_offset
-coef_set['(Intercept)'].lb = -max_offset
+coef_set.update_intercept_bounds(X = data['X'], y = data['Y'], max_offset = max_offset)
 
 # create constraint
 trivial_L0_max = P - np.sum(coef_set.C_0j == 0)

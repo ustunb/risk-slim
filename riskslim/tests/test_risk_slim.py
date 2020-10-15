@@ -1,12 +1,8 @@
 import os
-from pprint import pprint
+import pprint
 
 import numpy as np
-
-from riskslim.coefficient_set import CoefficientSet
-from riskslim.helper_functions import load_data_from_csv
-from riskslim.lattice_cpa import run_lattice_cpa
-from riskslim.setup_functions import get_conservative_offset
+import riskslim
 
 # Dataset Strategy
 #
@@ -97,15 +93,12 @@ default_settings = {
 def test_risk_slim(data_csv_file, sample_weights_csv_file = None, max_coefficient = 5, max_L0_value = 5, max_offset = 50, c0_value = 1e-6, w_pos = 1.00, settings = None):
 
     # load dataset
-    data = load_data_from_csv(dataset_csv_file = data_csv_file, sample_weights_csv_file = sample_weights_csv_file)
+    data = riskslim.load_data_from_csv(dataset_csv_file = data_csv_file, sample_weights_csv_file = sample_weights_csv_file)
     N, P = data['X'].shape
 
     # offset value
-    coef_set = CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
-    conservative_offset = get_conservative_offset(data, coef_set, max_L0_value)
-    max_offset = min(max_offset, conservative_offset)
-    coef_set['(Intercept)'].ub = max_offset
-    coef_set['(Intercept)'].lb = -max_offset
+    coef_set = riskslim.CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
+    coef_set.update_intercept_bounds(X = data['X'], y = data['Y'], max_offset = max_offset, max_L0_value = max_L0_value)
 
     # create constraint dictionary
     trivial_L0_max = P - np.sum(coef_set.C_0j == 0)
@@ -118,20 +111,13 @@ def test_risk_slim(data_csv_file, sample_weights_csv_file = None, max_coefficien
     }
 
     # Train model using lattice_cpa
-    model_info, mip_info, lcpa_info = run_lattice_cpa(data, constraints, settings)
+    model_info, mip_info, lcpa_info = riskslim.run_lattice_cpa(data, constraints, settings)
 
     #model info contains key results
-    pprint(model_info)
+    pprint.pprint(model_info)
 
     # lcpa_output contains detailed information about LCPA
-    pprint(lcpa_info)
-
-    # todo check solution
-
-    # mip_output contains information to access the MIP
-    mip_info['risk_slim_mip'] #CPLEX mip
-    mip_info['risk_slim_idx'] #indices of the relevant constraints
-
+    pprint.pprint(lcpa_info)
 
     return True
 

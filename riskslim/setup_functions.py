@@ -1,5 +1,5 @@
 import numpy as np
-from .coefficient_set import CoefficientSet
+from .coefficient_set import CoefficientSet, get_score_bounds
 from .helper_functions import print_log
 
 
@@ -213,81 +213,6 @@ def setup_objective_functions(compute_loss, L0_reg_ind, C_0_nnz):
     get_L0_penalty_from_alpha = lambda alpha: np.sum(C_0_nnz * alpha)
 
     return (get_objval, get_L0_norm, get_L0_penalty, get_alpha, get_L0_penalty_from_alpha)
-
-
-def get_conservative_offset(data, coef_set, max_L0_value = None):
-    """
-    returns a value of the offset that is guaranteed to avoid a loss in performance due to small values. this value is
-    overly conservative.
-
-    Parameters
-    ----------
-    data
-    coef_set
-    max_L0_value
-
-    Returns
-    -------
-    optimal_offset = max_abs_score + 1
-    where max_abs_score is the largest absolute score that can be achieved using the coefficients in coef_set
-    with the training data. note:
-    when offset >= optimal_offset, then we predict y = +1 for every example
-    when offset <= optimal_offset, then we predict y = -1 for every example
-    thus, any feasible model should do better.
-
-    """
-    if '(Intercept)' not in coef_set.variable_names:
-        raise ValueError("coef_set must contain a variable for the offset called '(Intercept)'")
-
-    # get idx of intercept/variables
-    variable_idx = list(range(len(coef_set)))
-    variable_idx.remove(coef_set.variable_names.index('(Intercept)'))
-    variable_idx = np.array(variable_idx)
-
-    # get max # of non-zero coefficients given model size limit
-    L0_reg_ind = np.isnan(coef_set.C_0j)[variable_idx]
-    trivial_L0_max = np.sum(L0_reg_ind)
-    if max_L0_value is not None and max_L0_value > 0:
-        max_L0_value = min(trivial_L0_max, max_L0_value)
-    else:
-        max_L0_value = trivial_L0_max
-
-    Z = data['X'] * data['Y']
-    Z_min = np.min(Z, axis = 0)
-    Z_max = np.max(Z, axis = 0)
-
-    # get smallest / largest score
-    s_min, s_max = get_score_bounds(Z_min = Z_min[variable_idx],
-                                    Z_max = Z_max[variable_idx],
-                                    rho_lb = coef_set.lb[variable_idx],
-                                    rho_ub = coef_set.ub[variable_idx],
-                                    L0_reg_ind = L0_reg_ind,
-                                    L0_max = max_L0_value)
-
-    # get max # of non-zero coefficients given model size limit
-    conservative_offset = max(abs(s_min), abs(s_max)) + 1
-    return conservative_offset
-
-
-def get_score_bounds(Z_min, Z_max, rho_lb, rho_ub, L0_reg_ind = None, L0_max = None):
-
-    edge_values = np.vstack([Z_min * rho_lb, Z_max * rho_lb, Z_min * rho_ub, Z_max * rho_ub])
-
-    if (L0_max is None) or (L0_reg_ind is None) or (L0_max == Z_min.shape[0]):
-        s_min = np.sum(np.min(edge_values, axis=0))
-        s_max = np.sum(np.max(edge_values, axis=0))
-    else:
-        min_values = np.min(edge_values, axis=0)
-        s_min_reg = np.sum(np.sort(min_values[L0_reg_ind])[0:L0_max])
-        s_min_no_reg = np.sum(min_values[~L0_reg_ind])
-        s_min = s_min_reg + s_min_no_reg
-
-        max_values = np.max(edge_values, axis=0)
-        s_max_reg = np.sum(-np.sort(-max_values[L0_reg_ind])[0:L0_max])
-        s_max_no_reg = np.sum(max_values[~L0_reg_ind])
-        s_max = s_max_reg + s_max_no_reg
-
-    return s_min, s_max
 
 
 def get_loss_bounds(Z, rho_ub, rho_lb, L0_reg_ind, L0_max = float('nan')):

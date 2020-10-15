@@ -1,5 +1,6 @@
 import numpy as np
 from prettytable import PrettyTable
+from .defaults import INTERCEPT_NAME
 
 
 class CoefficientSet(object):
@@ -103,6 +104,75 @@ class CoefficientSet(object):
 
     def penalized_indices(self):
         return np.array(list(map(lambda v: self._coef_elements[v].penalized, self._variable_names)))
+
+
+    def update_intercept_bounds(self, X, y, max_offset, max_L0_value = None):
+        """
+        uses data to set the lower and upper bound on the offset to a conservative value
+        the value is guaranteed to avoid a loss in performance
+
+        optimal_offset = max_abs_score + 1
+        where max_abs_score is the largest absolute score that can be achieved using the coefficients in coef_set
+        with the training data. note:
+        when offset >= optimal_offset, then we predict y = +1 for every example
+        when offset <= optimal_offset, then we predict y = -1 for every example
+        thus, any feasible model should do better.
+
+
+        Parameters
+        ----------
+        X
+        y
+        max_offset
+        max_L0_value
+
+        Returns
+        -------
+        None
+
+        """
+        if INTERCEPT_NAME not in self._coef_elements:
+            raise ValueError("coef_set must contain a variable for the offset called %s" % INTERCEPT_NAME)
+
+        e = self._coef_elements[INTERCEPT_NAME]
+
+        # get idx of intercept/variables
+        names = self.variable_names
+        variable_names = list(names)
+        variable_names.remove(INTERCEPT_NAME)
+        variable_idx = np.array([names.index(n) for n in variable_names])
+
+        # get max # of non-zero coefficients given model size limit
+        penalized_idx = [self._coef_elements[n].penalized for n in variable_names]
+        trivial_L0_max = len(penalized_idx)
+
+        if max_L0_value is None:
+            max_L0_value = trivial_L0_max
+
+        if max_L0_value > 0:
+            max_L0_value = min(trivial_L0_max, max_L0_value)
+
+        # update intercept bounds
+        Z = X * y
+        Z_min = np.min(Z, axis = 0)
+        Z_max = np.max(Z, axis = 0)
+
+        # get regularized indices
+        L0_reg_ind = np.isnan(self.C_0j)[variable_idx]
+
+        # get smallest / largest score
+        s_min, s_max = get_score_bounds(Z_min = Z_min[variable_idx],
+                                        Z_max = Z_max[variable_idx],
+                                        rho_lb = self.lb[variable_idx],
+                                        rho_ub = self.ub[variable_idx],
+                                        L0_reg_ind = L0_reg_ind,
+                                        L0_max = max_L0_value)
+
+        # get max # of non-zero coefficients given model size limit
+        conservative_offset = max(abs(s_min), abs(s_max)) + 1
+        max_offset = min(max_offset, conservative_offset)
+        e.ub = max_offset
+        e.lb = -max_offset
 
 
     def tabulate(self):
@@ -378,3 +448,24 @@ class _CoefficientElement(object):
              '%s: %s' % ('vtype', self._vtype)]
         t = '\n' + '\n'.join(s) + '\n'
         return t
+
+
+def get_score_bounds(Z_min, Z_max, rho_lb, rho_ub, L0_reg_ind = None, L0_max = None):
+
+    edge_values = np.vstack([Z_min * rho_lb, Z_max * rho_lb, Z_min * rho_ub, Z_max * rho_ub])
+
+    if (L0_max is None) or (L0_reg_ind is None) or (L0_max == Z_min.shape[0]):
+        s_min = np.sum(np.min(edge_values, axis=0))
+        s_max = np.sum(np.max(edge_values, axis=0))
+    else:
+        min_values = np.min(edge_values, axis=0)
+        s_min_reg = np.sum(np.sort(min_values[L0_reg_ind])[0:L0_max])
+        s_min_no_reg = np.sum(min_values[~L0_reg_ind])
+        s_min = s_min_reg + s_min_no_reg
+
+        max_values = np.max(edge_values, axis=0)
+        s_max_reg = np.sum(-np.sort(-max_values[L0_reg_ind])[0:L0_max])
+        s_max_no_reg = np.sum(max_values[~L0_reg_ind])
+        s_max = s_max_reg + s_max_no_reg
+
+    return s_min, s_max

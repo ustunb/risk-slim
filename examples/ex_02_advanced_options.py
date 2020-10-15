@@ -22,12 +22,7 @@ N, P = data['X'].shape
 
 # coefficient set
 coef_set = riskslim.CoefficientSet(variable_names = data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
-
-# offset value
-conservative_offset = riskslim.get_conservative_offset(data, coef_set, max_L0_value)
-max_offset = min(max_offset, conservative_offset)
-coef_set['(Intercept)'].ub = max_offset
-coef_set['(Intercept)'].lb = -max_offset
+coef_set.update_intercept_bounds(X = data['X'], y = data['Y'], max_offset = max_offset)
 
 # create constraint dictionary
 N, P = data['X'].shape
