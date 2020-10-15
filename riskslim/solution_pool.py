@@ -217,7 +217,7 @@ class SolutionPool(object):
         return self.filter(list(map(is_feasible, self.solutions)))
 
 
-class SolutionQueue(object):
+class FastSolutionPool(object):
     """
     Helper class used to store solutions to the risk slim optimization problem
     SolutionQueue designed to work faster than SolutionPool.

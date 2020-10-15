@@ -3,7 +3,7 @@ import numpy as np
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
 from .setup_functions import setup_penalty_parameters
 from .mip import create_risk_slim, set_cplex_mip_parameters
-from .solution_classes import SolutionPool
+from .solution_pool import SolutionPool
 from .bound_tightening import chained_updates, chained_updates_for_lp
 from .heuristics import discrete_descent, sequential_rounding
 from .defaults import DEFAULT_CPA_SETTINGS, DEFAULT_INITIALIZATION_SETTINGS
