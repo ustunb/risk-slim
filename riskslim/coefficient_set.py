@@ -118,7 +118,7 @@ class CoefficientSet(object):
 
 
     def __len__(self):
-        return self.P
+        return len(self._variable_names)
 
 
     def __str__(self):
@@ -378,5 +378,3 @@ class _CoefficientElement(object):
              '%s: %s' % ('vtype', self._vtype)]
         t = '\n' + '\n'.join(s) + '\n'
         return t
-
-
