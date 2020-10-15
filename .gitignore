@@ -23,7 +23,7 @@ skltemplate/
 batch/data/
 batch/results/
 batch/log/
-scratch/
+dev/
 cluster/
 
 # riskslim files
