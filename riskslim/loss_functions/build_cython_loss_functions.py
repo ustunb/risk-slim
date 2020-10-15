@@ -27,6 +27,7 @@ ext_modules = [Extension(name = "fast_log_loss",
                          include_dirs=[numpy.get_include(), scipy.get_include()],
                          libraries=["m"],
                          extra_compile_args = ["-ffast-math"])]
+
 setup(
     cmdclass = {'build_ext': build_ext},
     include_dirs = [numpy.get_include(), scipy.get_include()],

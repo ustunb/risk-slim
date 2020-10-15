@@ -1,7 +1,7 @@
 import numpy as np
 from .coefficient_set import CoefficientSet
 from .helper_functions import print_log
-from .debug import ipsh
+
 
 def setup_loss_functions(data, coef_set, L0_max = None, loss_computation = None, w_pos = 1.0):
     """

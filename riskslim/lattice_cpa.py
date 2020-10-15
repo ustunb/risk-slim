@@ -10,7 +10,6 @@ from .initialization import initialize_lattice_cpa
 from .mip import add_mip_starts, convert_to_risk_slim_cplex_solution, create_risk_slim, set_cplex_mip_parameters
 from .setup_functions import get_loss_bounds, setup_loss_functions, setup_objective_functions, setup_penalty_parameters
 from .solution_classes import SolutionPool, SolutionQueue
-from .debug import ipsh
 
 DEFAULT_BOUNDS = {
     'objval_min': 0.0,
