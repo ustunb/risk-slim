@@ -6,7 +6,7 @@ from .mip import create_risk_slim, set_cplex_mip_parameters
 from .solution_classes import SolutionPool
 from .bound_tightening import chained_updates, chained_updates_for_lp
 from .heuristics import discrete_descent, sequential_rounding
-from .default_settings import DEFAULT_CPA_SETTINGS, DEFAULT_INITIALIZATION_SETTINGS
+from .defaults import DEFAULT_CPA_SETTINGS, DEFAULT_INITIALIZATION_SETTINGS
 from .helper_functions import get_rho_string, print_log, validate_settings
 
 
