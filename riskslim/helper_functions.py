@@ -1,6 +1,6 @@
 import logging
-import os.path
 import sys
+from pathlib import Path
 import time
 import warnings
 import numpy as np
@@ -8,7 +8,7 @@ import pandas as pd
 import prettytable as pt
 
 
-# PRINTING AND LOGGING
+# LOGGING
 def setup_logging(logger, log_to_console = True, log_file = None):
     """
     Sets up logging to console and file on disk
@@ -165,7 +165,7 @@ def validate_settings(settings = None, default_settings = None):
     return settings
 
 
-# LOADING DATA FROM DISK
+# DATA
 def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_csv_file = None, fold_num = 0):
     """
 
@@ -206,11 +206,11 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
      - 'sample_weights' N x 1 vector of sample weights, must all be positive
 
     """
-
-    if os.path.isfile(dataset_csv_file):
-        df = pd.read_csv(dataset_csv_file, sep=',')
-    else:
+    dataset_csv_file = Path(dataset_csv_file)
+    if not dataset_csv_file.exists():
         raise IOError('could not find dataset_csv_file: %s' % dataset_csv_file)
+
+    df = pd.read_csv(dataset_csv_file, sep = ',')
 
     raw_data = df.values
     data_headers = list(df.columns.values)
@@ -231,14 +231,15 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
     X = np.insert(arr=X, obj=0, values=np.ones(N), axis=1)
     variable_names.insert(0, '(Intercept)')
 
+
     if sample_weights_csv_file is None:
         sample_weights = np.ones(N)
     else:
-        if os.path.isfile(sample_weights_csv_file):
-            sample_weights = pd.read_csv(sample_weights_csv_file, sep=',', header=None)
-            sample_weights = sample_weights.as_matrix()
-        else:
+        sample_weights_csv_file = Path(sample_weights_csv_file)
+        if not sample_weights_csv_file.exists():
             raise IOError('could not find sample_weights_csv_file: %s' % sample_weights_csv_file)
+        sample_weights = pd.read_csv(sample_weights_csv_file, sep=',', header=None)
+        sample_weights = sample_weights.as_matrix()
 
     data = {
         'X': X,
@@ -250,28 +251,28 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
 
     #load folds
     if fold_csv_file is not None:
-        if not os.path.isfile(fold_csv_file):
+        fold_csv_file = Path(fold_csv_file)
+        if not fold_csv_file.exists():
             raise IOError('could not find fold_csv_file: %s' % fold_csv_file)
-        else:
-            fold_idx = pd.read_csv(fold_csv_file, sep=',', header=None)
-            fold_idx = fold_idx.values.flatten()
-            K = max(fold_idx)
-            all_fold_nums = np.sort(np.unique(fold_idx))
-            assert len(fold_idx) == N, "dimension mismatch: read %r fold indices (expected N = %r)" % (len(fold_idx), N)
-            assert np.all(all_fold_nums == np.arange(1, K+1)), "folds should contain indices between 1 to %r" % K
-            assert fold_num in np.arange(0, K+1), "fold_num should either be 0 or an integer between 1 to %r" % K
-            if fold_num >= 1:
-                test_idx = fold_num == fold_idx
-                train_idx = fold_num != fold_idx
-                data['X'] = data['X'][train_idx,]
-                data['Y'] = data['Y'][train_idx]
-                data['sample_weights'] = data['sample_weights'][train_idx]
+
+        fold_idx = pd.read_csv(fold_csv_file, sep=',', header=None)
+        fold_idx = fold_idx.values.flatten()
+        K = max(fold_idx)
+        all_fold_nums = np.sort(np.unique(fold_idx))
+        assert len(fold_idx) == N, "dimension mismatch: read %r fold indices (expected N = %r)" % (len(fold_idx), N)
+        assert np.all(all_fold_nums == np.arange(1, K+1)), "folds should contain indices between 1 to %r" % K
+        assert fold_num in np.arange(0, K+1), "fold_num should either be 0 or an integer between 1 to %r" % K
+        if fold_num >= 1:
+            #test_idx = fold_num == fold_idx
+            train_idx = fold_num != fold_idx
+            data['X'] = data['X'][train_idx,]
+            data['Y'] = data['Y'][train_idx]
+            data['sample_weights'] = data['sample_weights'][train_idx]
 
     assert check_data(data)
     return data
 
 
-# DATA CHECK
 def check_data(data):
     """
     makes sure that 'data' contains training data that is suitable for binary classification problems
@@ -350,6 +351,7 @@ def check_data(data):
     return True
 
 
+# MODEL PRINTING
 def print_model(rho, data,  show_omitted_variables = False):
 
     variable_names = data['variable_names']
@@ -408,37 +410,3 @@ def print_model(rho, data,  show_omitted_variables = False):
 
     print(m)
     return m
-
-
-# DATA CONVERSION
-def is_integer(rho):
-    """
-    checks if numpy array is an integer vector
-
-    Parameters
-    ----------
-    rho
-
-    Returns
-    -------
-
-    """
-    return np.array_equal(rho, np.require(rho, dtype=np.int_))
-
-
-def cast_to_integer(rho):
-    """
-    casts numpy array to integer vector
-    Parameters
-    ----------
-    rho
-
-    Returns
-    -------
-
-    """
-    original_type = rho.dtype
-    return np.require(np.require(rho, dtype=np.int_), dtype=original_type)
-
-
-

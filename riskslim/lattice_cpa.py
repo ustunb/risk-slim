@@ -4,7 +4,7 @@ from cplex.callbacks import HeuristicCallback, LazyConstraintCallback
 from cplex.exceptions import CplexError
 from .bound_tightening import chained_updates
 from .defaults import DEFAULT_LCPA_SETTINGS
-from .helper_functions import cast_to_integer, is_integer, print_log, validate_settings
+from .helper_functions import print_log, validate_settings
 from .heuristics import discrete_descent, sequential_rounding
 from .initialization import initialize_lattice_cpa
 from .mip import add_mip_starts, convert_to_risk_slim_cplex_solution, create_risk_slim, set_cplex_mip_parameters
@@ -19,6 +19,40 @@ DEFAULT_BOUNDS = {
     'L0_min': 0,
     'L0_max': float('inf'),
     }
+
+
+# DATA CONVERSION
+def is_integer(rho):
+    """
+    checks if numpy array is an integer vector
+
+    Parameters
+    ----------
+    rho
+
+    Returns
+    -------
+
+    """
+    return np.array_equal(rho, np.require(rho, dtype=np.int_))
+
+
+def cast_to_integer(rho):
+    """
+    casts numpy array to integer vector
+    Parameters
+    ----------
+    rho
+
+    Returns
+    -------
+
+    """
+    original_type = rho.dtype
+    return np.require(np.require(rho, dtype=np.int_), dtype=original_type)
+
+
+# LATTICE CPA FUNCTIONS
 
 
 def run_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
