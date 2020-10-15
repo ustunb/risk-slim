@@ -52,9 +52,13 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
     if not dataset_csv_file.exists():
         raise IOError('could not find dataset_csv_file: %s' % dataset_csv_file)
 
+<<<<<<< HEAD
     df = pd.read_csv(dataset_csv_file, sep = ',')
 
     raw_data = df.values
+=======
+    raw_data = df.to_numpy()
+>>>>>>> 9307f22dac572197f6dc458cc4ef254f16d44d45
     data_headers = list(df.columns.values)
     N = raw_data.shape[0]
 
@@ -77,8 +81,15 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
     if sample_weights_csv_file is None:
         sample_weights = np.ones(N)
     else:
+<<<<<<< HEAD
         sample_weights_csv_file = Path(sample_weights_csv_file)
         if not sample_weights_csv_file.exists():
+=======
+        if os.path.isfile(sample_weights_csv_file):
+            sample_weights = pd.read_csv(sample_weights_csv_file, sep=',', header=None)
+            sample_weights = sample_weights.to_numpy()
+        else:
+>>>>>>> 9307f22dac572197f6dc458cc4ef254f16d44d45
             raise IOError('could not find sample_weights_csv_file: %s' % sample_weights_csv_file)
         sample_weights = pd.read_csv(sample_weights_csv_file, sep=',', header=None)
         sample_weights = sample_weights.as_matrix()
