@@ -15,7 +15,6 @@ class CoefficientSet(object):
     _check_flag = True
     _correct_flag = True
     _variable_names = None
-    _coef_elements = dict()
 
     def __init__(self, variable_names, **kwargs):
 
@@ -35,6 +34,7 @@ class CoefficientSet(object):
         c0 = self._expand_values(value = c0)
         vtype = self._expand_values(value = vtype)
 
+        self._coef_elements = dict()
         for name in variable_names:
             idx = variable_names.index(name)
             self._coef_elements[name] = _CoefficientElement(name = name, ub = ub[idx], lb = lb[idx], c0 = c0[idx], vtype = vtype[idx])
