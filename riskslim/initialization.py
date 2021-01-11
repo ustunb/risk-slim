@@ -7,7 +7,7 @@ from .solution_pool import SolutionPool
 from .bound_tightening import chained_updates, chained_updates_for_lp
 from .heuristics import discrete_descent, sequential_rounding
 from .defaults import DEFAULT_CPA_SETTINGS, DEFAULT_INITIALIZATION_SETTINGS
-from .helper_functions import print_log, validate_settings
+from .utils import print_log, validate_settings
 
 
 def initialize_lattice_cpa(Z,

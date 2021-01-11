@@ -4,7 +4,7 @@ from cplex.callbacks import HeuristicCallback, LazyConstraintCallback
 from cplex.exceptions import CplexError
 from .bound_tightening import chained_updates
 from .defaults import DEFAULT_LCPA_SETTINGS
-from .helper_functions import print_log, validate_settings
+from .utils import print_log, validate_settings
 from .heuristics import discrete_descent, sequential_rounding
 from .initialization import initialize_lattice_cpa
 from .mip import add_mip_starts, convert_to_risk_slim_cplex_solution, create_risk_slim, set_cplex_mip_parameters

@@ -343,11 +343,11 @@ def get_or_set_default(settings, setting_name, default_value, type_check = False
 
 def validate_settings(settings = None, default_settings = None):
 
-    if settings is not None:
+    if settings is None:
+        settings = dict()
+    else:
         assert isinstance(settings, dict)
         settings = dict(settings)
-    else:
-        settings = {}
 
     if default_settings is not None:
         assert isinstance(default_settings, dict)
