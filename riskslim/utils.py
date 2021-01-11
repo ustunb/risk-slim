@@ -314,33 +314,6 @@ def print_log(msg, print_flag = True):
         sys.stdout.flush()
 
 
-# Settings
-def get_or_set_default(settings, setting_name, default_value, type_check = False, print_flag=True):
-
-    if setting_name not in settings:
-
-        print_log("setting %s to its default value: %r" %
-                  (setting_name, default_value), print_flag)
-
-        settings[setting_name] = default_value
-
-    elif setting_name in settings and type_check:
-
-        default_type = type(default_value)
-        user_type = type(settings[setting_name])
-
-        if user_type is not default_type:
-            print_log("type mismatch on %s:\nuser provided %s\n expected %s" %
-                      (setting_name, user_type, default_type), print_flag)
-
-            print_log("setting %s to its default value: %r" %
-                      (setting_name, default_value), print_flag)
-
-            settings[setting_name] = default_value
-
-    return settings
-
-
 def validate_settings(settings = None, default_settings = None):
 
     if settings is None:

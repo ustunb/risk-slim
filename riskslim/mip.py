@@ -2,7 +2,7 @@ from math import ceil, floor
 import numpy as np
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
 from .coefficient_set import CoefficientSet
-from .utils import get_or_set_default, print_log
+from .utils import print_log
 
 #todo: add loss cut
 #todo: add constraint function
@@ -26,6 +26,7 @@ def create_risk_slim(coef_set, input):
     ----
     no support for non-integer Lset "values"
     only drops intercept index for variable_names that match '(Intercept)'
+
     """
     assert isinstance(coef_set, CoefficientSet)
     assert isinstance(input, dict)
@@ -33,24 +34,23 @@ def create_risk_slim(coef_set, input):
     # setup printing and loading
     function_print_flag = input.get('print_flag', False)
     print_from_function = lambda msg: print_log(msg) if function_print_flag else lambda msg: None
-    update_parameter = lambda pname, pvalue: get_or_set_default(input, pname, pvalue, print_flag = function_print_flag)
 
     # set default parameters
-    input = update_parameter('w_pos', 1.0)
-    input = update_parameter('w_neg', 2.0 - input['w_pos'])
-    input = update_parameter('C_0', 0.01)
-    input = update_parameter('include_auxillary_variable_for_objval', True)
-    input = update_parameter('include_auxillary_variable_for_L0_norm', True)
-    input = update_parameter('loss_min', 0.00)
-    input = update_parameter('loss_max', float(CPX_INFINITY))
-    input = update_parameter('L0_min', 0)
-    input = update_parameter('L0_max', len(coef_set))
-    input = update_parameter('objval_min', 0.00)
-    input = update_parameter('objval_max', float(CPX_INFINITY))
-    input = update_parameter('relax_integer_variables', False)
-    input = update_parameter('drop_variables', True)
-    input = update_parameter('tight_formulation', False)
-    input = update_parameter('set_cplex_cutoffs', True)
+    input.setdefault('w_pos', 1.0)
+    input.setdefault('w_neg', 2.0 - input['w_pos'])
+    input.setdefault('C_0', 0.01)
+    input.setdefault('include_auxillary_variable_for_objval', True)
+    input.setdefault('include_auxillary_variable_for_L0_norm', True)
+    input.setdefault('loss_min', 0.00)
+    input.setdefault('loss_max', float(CPX_INFINITY))
+    input.setdefault('L0_min', 0)
+    input.setdefault('L0_max', len(coef_set))
+    input.setdefault('objval_min', 0.00)
+    input.setdefault('objval_max', float(CPX_INFINITY))
+    input.setdefault('relax_integer_variables', False)
+    input.setdefault('drop_variables', True)
+    input.setdefault('tight_formulation', False)
+    input.setdefault('set_cplex_cutoffs', True)
 
     # variables
     P = len(coef_set)
@@ -105,7 +105,7 @@ def create_risk_slim(coef_set, input):
     
     such that 
     
-    L0_min <= L0 <= L0_max
+    L0_min ≤ L0 ≤ L0_max
     -rho_min * alpha_j < lambda_j < rho_max * alpha_j
 
     L_0 in 0 to P
@@ -122,10 +122,10 @@ def create_risk_slim(coef_set, input):
     Changes for Tight Formulation (included when input['tight_formulation'] = True):
 
     sigma_j in {0,1} for j s.t. lambda_j has free sign and alpha_j exists
-    lambda_j >= delta_pos_j if alpha_j = 1 and sigma_j = 1
-    lambda_j <= -delta_neg_j if alpha_j = 1 and sigma_j = 0
-    lambda_j >= alpha_j for j such that lambda_j >= 0
-    lambda_j <= -alpha_j for j such that lambda_j <= 0
+    lambda_j ≥ delta_pos_j if alpha_j = 1 and sigma_j = 1
+    lambda_j ≥ -delta_neg_j if alpha_j = 1 and sigma_j = 0
+    lambda_j ≥ alpha_j for j such that lambda_j >= 0
+    lambda_j ≤ -alpha_j for j such that lambda_j <= 0
     
     """
 
@@ -187,8 +187,8 @@ def create_risk_slim(coef_set, input):
     vars.add(obj = obj, lb = lb, ub = ub, types = ctype, names = varnames)
 
     # 0-Norm LB Constraints:
-    # lambda_j,lb * alpha_j <= lambda_j <= Inf
-    # 0 <= lambda_j - lambda_j,lb * alpha_j < Inf
+    # lambda_j,lb * alpha_j ≤ lambda_j <= Inf
+    # 0 ≤ lambda_j - lambda_j,lb * alpha_j < Inf
     for j in range(P):
         cons.add(names = ["L0_norm_lb_" + str(j)],
                  lin_expr = [SparsePair(ind=[rho_names[j], alpha_names[j]], val=[1.0, -rho_lb[j]])],
@@ -196,7 +196,7 @@ def create_risk_slim(coef_set, input):
                  rhs = [0.0])
 
     # 0-Norm UB Constraints:
-    # lambda_j <= lambda_j,ub * alpha_j
+    # lambda_j ≤ lambda_j,ub * alpha_j
     # 0 <= -lambda_j + lambda_j,ub * alpha_j
     for j in range(P):
         cons.add(names = ["L0_norm_ub_" + str(j)],
