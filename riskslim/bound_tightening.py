@@ -1,7 +1,7 @@
 import numpy as np
+MAX_CHAIN_COUNT = 20
 
-
-def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, MAX_CHAIN_COUNT = 20):
+def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count = MAX_CHAIN_COUNT):
 
     new_bounds = dict(bounds)
 
@@ -26,7 +26,7 @@ def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_a
     chain_count = 0
     improved_bounds = True
 
-    while improved_bounds and chain_count < MAX_CHAIN_COUNT:
+    while improved_bounds and chain_count < max_chain_count:
 
         improved_bounds = False
         L0_penalty_min = np.sum(np.sort(C_0_nnz)[np.arange(int(new_bounds['L0_min']))])
@@ -77,7 +77,7 @@ def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_a
     return new_bounds
 
 
-def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, MAX_CHAIN_COUNT = 20):
+def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count =  MAX_CHAIN_COUNT):
 
     new_bounds = dict(bounds)
 
@@ -105,7 +105,7 @@ def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_o
     L0_penalty_min = C_0_min * new_bounds['L0_min']
     L0_penalty_max = min(C_0_max * new_bounds['L0_max'], new_bounds['objval_max'])
 
-    while improved_bounds and chain_count < MAX_CHAIN_COUNT:
+    while improved_bounds and chain_count < max_chain_count:
 
         improved_bounds = False
         # loss_min
