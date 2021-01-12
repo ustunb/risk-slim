@@ -1,7 +1,6 @@
 import numpy as np
-MAX_CHAIN_COUNT = 20
 
-def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count = MAX_CHAIN_COUNT):
+def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count = 20):
 
     new_bounds = dict(bounds)
 
@@ -77,7 +76,7 @@ def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_a
     return new_bounds
 
 
-def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count =  MAX_CHAIN_COUNT):
+def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count = 20):
 
     new_bounds = dict(bounds)
 
