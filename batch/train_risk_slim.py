@@ -211,7 +211,7 @@ if __name__ == '__main__':
                               lb = -max_coefficient,
                               ub = max_coefficient,
                               sign = 0)
-    coef_set.update_intercept_bounds(X = data['X'], y = data['y'], max_offset = max_offset, max_L0_value = max_model_size)
+    coef_set.update_intercept_bounds(X = data['X'], y = data['Y'], max_offset = max_offset, max_L0_value = max_model_size)
 
     #print coefficient set
     if not parsed.silent:
