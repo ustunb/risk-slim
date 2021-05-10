@@ -26,7 +26,7 @@ import numpy as np
 
 # add the source directory to search path to avoid module import errors if riskslim has not been installed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from riskslim.helper_functions import load_data_from_csv, setup_logging
+from riskslim.utils import load_data_from_csv, setup_logging
 from riskslim.coefficient_set import CoefficientSet
 from riskslim.lattice_cpa import run_lattice_cpa, DEFAULT_LCPA_SETTINGS
 
