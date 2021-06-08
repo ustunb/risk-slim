@@ -1,8 +1,5 @@
 import numpy as np
 
-#todo: finish specifications
-#todo: add input checking (with ability to turn off)
-#todo: Cython implementation
 
 def sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penalty, objval_cutoff = float('Inf')):
     """

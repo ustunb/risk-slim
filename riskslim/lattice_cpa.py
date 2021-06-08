@@ -5,7 +5,7 @@ from cplex.exceptions import CplexError
 from .bound_tightening import chained_updates
 from .defaults import DEFAULT_LCPA_SETTINGS
 from .utils import print_log, validate_settings
-from .heuristics import discrete_descent, sequential_rounding
+from riskslim.experimental.speedups.heuristics import discrete_descent, sequential_rounding
 from .initialization import initialize_lattice_cpa
 from .mip import add_mip_starts, convert_to_risk_slim_cplex_solution, create_risk_slim, set_cplex_mip_parameters
 from .setup_functions import get_loss_bounds, setup_loss_functions, setup_objective_functions, setup_penalty_parameters
@@ -58,7 +58,7 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
     
     """
     # process settings then split into manageable parts
-    settings = validate_settings(settings, default_settings = DEFAULT_LCPA_SETTINGS)
+    settings = validate_settings(settings, defaults = DEFAULT_LCPA_SETTINGS)
 
     init_settings = {k.lstrip('init_'): settings[k] for k in settings if k.startswith('init_')}
     cplex_settings = {k.lstrip('cplex_'): settings[k] for k in settings if k.startswith('cplex_')}
@@ -186,7 +186,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     """
 
     # process settings then split into manageable parts
-    settings = validate_settings(settings, default_settings = DEFAULT_LCPA_SETTINGS)
+    settings = validate_settings(settings, defaults = DEFAULT_LCPA_SETTINGS)
 
     cplex_settings = {k.lstrip('cplex_'): settings[k] for k in settings if k.startswith('cplex_')}
     lcpa_settings = {k: settings[k] for k in settings if settings if not k.startswith(('init_', 'cplex_'))}
@@ -233,7 +233,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     rho_ub = np.array(constraints['coef_set'].ub)
     L0_min = constraints['L0_min']
     L0_max = constraints['L0_max']
-    trivial_L0_max = np.sum(constraints['coef_set'].penalized_indices())
+    trivial_L0_max = np.sum(constraints['coef_set'].penalized_indices)
 
     def is_feasible(rho, L0_min = L0_min, L0_max = L0_max, rho_lb = rho_lb, rho_ub = rho_ub):
         return np.all(rho_ub >= rho) and np.all(rho_lb <= rho) and (L0_min <= np.count_nonzero(rho[L0_reg_ind]) <= L0_max)
@@ -392,7 +392,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
 # CALLBACK FUNCTIONS
 class LossCallback(LazyConstraintCallback):
     """
-    This callback has to be initialized after construnction with initialize().
+    This callback has to be has_warmstart after construnction with initialize().
 
     LossCallback is called when CPLEX finds an integer feasible solution. By default, it will add a cut at this
     solution to improve the cutting-plane approximation of the loss function. The cut is added as a 'lazy' constraint
@@ -589,7 +589,7 @@ class LossCallback(LazyConstraintCallback):
 
 class PolishAndRoundCallback(HeuristicCallback):
     """
-    This callback has to be initialized after construnction with initialize().
+    This callback has to be has_warmstart after construnction with initialize().
 
     HeuristicCallback is called intermittently during B&B by CPLEX. It runs several heuristics in a fast way and contains
     several options to stop early. Note: It is important for the callback to run quickly since it is called fairly often.

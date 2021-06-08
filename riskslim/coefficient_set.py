@@ -1,33 +1,28 @@
 import numpy as np
+import warnings
 from prettytable import PrettyTable
 from .defaults import INTERCEPT_NAME
 
 
 class CoefficientSet(object):
     """
-    Class used to represent and manipulate constraints on individual coefficients
-    including upper bound, lower bound, variable type, and regularization.
-    Coefficient Set is composed of Coefficient Elements
+    Class to represent and specify constraints on coefficients of input variables
+    Constraints include upper and lower bounds, variable type, and regularization.
+    CoefficientSet is a set of CoefficientElement
     """
-
+    _default_print_flag = True
     _initialized = False
-    _print_flag = True
-    _check_flag = True
-    _correct_flag = True
     _variable_names = None
 
     def __init__(self, variable_names, **kwargs):
 
         # set variables using setter methods
         self.variable_names = list(variable_names)
-        self.print_flag = kwargs.get('print_flag', self._print_flag)
-        self.check_flag = kwargs.get('check_flag', self._check_flag)
-        self.correct_flag = kwargs.get('correct_flag', self._correct_flag)
-
-        ub = kwargs.get('ub', _CoefficientElement._DEFAULT_UB)
-        lb = kwargs.get('lb', _CoefficientElement._DEFAULT_LB)
-        c0 = kwargs.get('c0', _CoefficientElement._DEFAULT_c0)
-        vtype = kwargs.get('type', _CoefficientElement._DEFAULT_TYPE)
+        self.print_flag = kwargs.get('print_flag', CoefficientSet._default_print_flag)
+        ub = kwargs.get('ub', _CoefficientElement._default_ub)
+        lb = kwargs.get('lb', _CoefficientElement._default_lb)
+        c0 = kwargs.get('c0', _CoefficientElement._default_c0)
+        vtype = kwargs.get('type', _CoefficientElement._default_vtype)
 
         ub = self._expand_values(value = ub)
         lb = self._expand_values(value = lb)
@@ -42,70 +37,7 @@ class CoefficientSet(object):
         self._check_rep()
         self._initialized = True
 
-
-    @property
-    def P(self):
-        return len(self._variable_names)
-
-
-    @property
-    def print_flag(self):
-        return bool(self._print_flag)
-
-
-    @print_flag.setter
-    def print_flag(self, flag):
-        self._print_flag = bool(flag)
-
-
-    @property
-    def correct_flag(self):
-        return bool(self._correct_flag)
-
-
-    @correct_flag.setter
-    def correct_flag(self, flag):
-        self._correct_flag = bool(flag)
-
-
-    @property
-    def check_flag(self):
-        return self._check_flag
-
-
-    @check_flag.setter
-    def check_flag(self, flag):
-        self._check_flag = bool(flag)
-
-
-    @property
-    def variable_names(self):
-        return self._variable_names
-
-
-    @variable_names.setter
-    def variable_names(self, names):
-        assert isinstance(names, list), 'variable_names must be a list'
-        for name in names:
-            assert isinstance(name, str), 'variable_names must be a list of strings'
-        assert len(names) == len(set(names)), 'variable_names contain elements with unique names'
-        if self._variable_names is not None:
-            assert len(names) == len(self), 'variable_names must contain at least %d elements' % len(self)
-        self._variable_names = list(names)
-
-
-    def index(self, name):
-        assert isinstance(name, str)
-        if name in self._variable_names:
-            return self._variable_names.index(name)
-        else:
-            raise ValueError('no variable named %s in coefficient set' % name)
-
-
-    def penalized_indices(self):
-        return np.array(list(map(lambda v: self._coef_elements[v].penalized, self._variable_names)))
-
-
+    ### methods ###
     def update_intercept_bounds(self, X, y, max_offset, max_L0_value = None):
         """
         uses data to set the lower and upper bound on the offset to a conservative value
@@ -174,7 +106,6 @@ class CoefficientSet(object):
         e.ub = max_offset
         e.lb = -max_offset
 
-
     def tabulate(self):
         t = PrettyTable()
         t.align = "r"
@@ -186,22 +117,44 @@ class CoefficientSet(object):
         t.add_column("c0", self.c0)
         return str(t)
 
+    ### properties ####
+    @property
+    def variable_names(self):
+        return self._variable_names
 
-    def __len__(self):
-        return len(self._variable_names)
+    @variable_names.setter
+    def variable_names(self, names):
+        assert isinstance(names, list), 'variable_names must be a list'
+        for name in names:
+            assert isinstance(name, str), 'variable_names must be a list of strings'
+        assert len(names) == len(set(names)), 'variable_names contain elements with unique names'
+        if self._variable_names is not None:
+            assert len(names) == len(self), 'variable_names must contain at least %d elements' % len(self)
+        self._variable_names = list(names)
+
+    def index(self, name):
+        assert isinstance(name, str)
+        if name in self._variable_names:
+            return self._variable_names.index(name)
+        else:
+            raise ValueError('no variable named %s in coefficient set' % name)
+
+    def penalized_indices(self):
+        return np.array(list(map(lambda v: self._coef_elements[v].penalized, self._variable_names)))
+
+    #### flags ####
+    @property
+    def print_flag(self):
+        return self._default_print_flag
+
+    @print_flag.setter
+    def print_flag(self, flag):
+        self._default_print_flag = bool(flag)
 
 
-    def __str__(self):
-        return self.tabulate()
-
-
-    def __repr__(self):
-        if self.print_flag:
-            return self.tabulate()
-
-
+    #### coefficient element access ####
     def __getattr__(self, name):
-
+        # todo: remove
         if name == 'C_0j':
             name = 'c0'
 
@@ -210,7 +163,6 @@ class CoefficientSet(object):
             return np.array(vals)
         else:
             return list(vals)
-
 
     def __setattr__(self, name, value):
         if self._initialized:
@@ -222,22 +174,20 @@ class CoefficientSet(object):
         else:
             object.__setattr__(self, name, value)
 
-
     def __getitem__(self, key):
 
         if isinstance(key, int):
-            assert 0 <= int(key) <= self.P
+            assert 0 <= int(key) <= len(self._variable_names)
             return self._coef_elements[self._variable_names[key]]
         elif isinstance(key, str):
             return self._coef_elements[key]
         else:
             raise KeyError('invalid key')
 
-
     def __setitem__(self, key, value):
 
         if isinstance(key, int):
-            assert 0 <= int(key) <= self.P
+            assert 0 <= int(key) <= len(self._variable_names)
             key = self._variable_names[key]
         elif isinstance(key, str):
             assert isinstance(key, str)
@@ -249,57 +199,66 @@ class CoefficientSet(object):
         assert isinstance(value, _CoefficientElement)
         self._coef_elements[key] = value
 
+    #### built-ins ####
+    def __len__(self):
+        return len(self._variable_names)
+
+    def __str__(self):
+        return self.tabulate()
+
+    def __repr__(self):
+        if self.print_flag:
+            return self.tabulate()
 
     def _check_rep(self):
 
-        if self._check_flag:
+        #if self._check_flag:
 
-            assert len(self._variable_names) == len(set(self._variable_names))
+        assert len(self._variable_names) == len(set(self._variable_names))
 
-            for name in self._variable_names:
-                assert isinstance(name, str)
-                assert len(name) >= 1
-                assert self._coef_elements[name]._check_rep()
+        for name in self._variable_names:
+            assert isinstance(name, str)
+            assert len(name) >= 1
+            assert self._coef_elements[name]._check_rep()
 
-        if self._correct_flag:
+        #if self._correct_flag:
 
-            for name in self._variable_names:
-                e = self._coef_elements[name]
-                if name in {'Intercept', '(Intercept)', 'intercept', '(intercept)'}:
-                    if e.c0 > 0 or np.isnan(e.c0):
-                        if self._print_flag:
-                            print("setting c0_value = 0.0 for %s to ensure that intercept is not penalized" % name)
-                        e._c0 = 0.0
+        for name in self._variable_names:
+            e = self._coef_elements[name]
+            if name in {'Intercept', '(Intercept)', 'intercept', '(intercept)'}:
+                if e.c0 > 0 or np.isnan(e.c0):
+                    if self._default_print_flag:
+                        warnings.warn("setting c0_value = 0.0 for %s to ensure that intercept is not penalized" % name)
+                    e._c0 = 0.0
 
         return True
-
 
     def _expand_values(self, value):
 
         if isinstance(value, np.ndarray):
-            if value.size == self.P:
+            if value.size == len(self._variable_names):
                 value_array = value
             elif value.size == 1:
-                value_array = np.repeat(value, self.P)
+                value_array = np.repeat(value, len(self._variable_names))
             else:
-                raise ValueError("length mismatch; need either 1 or %d values" % self.P)
+                raise ValueError("length mismatch; need either 1 or %d values" % len(self._variable_names))
 
         elif isinstance(value, list):
-            if len(value) == self.P:
+            if len(value) == len(self._variable_names):
                 value_array = value
             elif len(value) == 1:
-                value_array = [value] * self.P
+                value_array = [value] * len(self._variable_names)
             else:
-                raise ValueError("length mismatch; need either 1 or %d values" % self.P)
+                raise ValueError("length mismatch; need either 1 or %d values" % len(self._variable_names))
 
         elif isinstance(value, str):
-            value_array = [str(value)] * self.P
+            value_array = [str(value)] * len(self._variable_names)
 
         elif isinstance(value, int):
-            value_array = [int(value)] * self.P
+            value_array = [int(value)] * len(self._variable_names)
 
         elif isinstance(value, float):
-            value_array = [float(value)] * self.P
+            value_array = [float(value)] * len(self._variable_names)
 
         else:
             raise ValueError("unknown variable type %s")
@@ -308,24 +267,26 @@ class CoefficientSet(object):
 
 
 class _CoefficientElement(object):
+    """
+    Class to represent and specify constraints on a single input variable
+    Constraints include upper and lower bounds, variable type, and regularization.
+    """
 
-    _DEFAULT_UB = 5
-    _DEFAULT_LB = -5
-    _DEFAULT_c0 = float('nan')
-    _DEFAULT_TYPE = 'I'
-    _VALID_TYPES = ['I', 'C']
+    _default_ub = 5
+    _default_lb = -5
+    _default_c0 = float('nan')
+    _default_vtype = 'I'
+    _valid_vtypes = ['I', 'C']
 
     def _is_integer(self, x):
         return np.array_equal(x, np.require(x, dtype = np.int_))
 
-
-    def __init__(self, name, ub = _DEFAULT_UB, lb = _DEFAULT_LB, c0 = _DEFAULT_c0, vtype = _DEFAULT_TYPE):
-
+    def __init__(self, name, **kwargs):
         self._name = str(name)
-        self._ub = float(ub)
-        self._lb = float(lb)
-        self._c0 = float(c0)
-        self._vtype = vtype
+        self._ub = kwargs.get('ub', _CoefficientElement._default_ub)
+        self._lb = kwargs.get('lb', _CoefficientElement._default_lb)
+        self._c0 = kwargs.get('c0', _CoefficientElement._default_c0)
+        self._vtype = kwargs.get('vtype', _CoefficientElement._default_vtype)
         assert self._check_rep()
 
 
@@ -333,23 +294,19 @@ class _CoefficientElement(object):
     def name(self):
         return self._name
 
-
     @property
     def vtype(self):
         return self._vtype
 
-
     @vtype.setter
     def vtype(self, value):
         assert isinstance(value, str)
-        assert value in self._VALID_TYPES
+        assert value in self._valid_vtypes
         self._vtype = str(value)
-
 
     @property
     def ub(self):
-        return self._ub
-
+        return self._default_ub
 
     @ub.setter
     def ub(self, value):
@@ -357,7 +314,7 @@ class _CoefficientElement(object):
             assert len(value) == 1
             value = value[0]
         assert value >= self._lb
-        self._ub = float(value)
+        self._default_ub = float(value)
 
 
     @property
@@ -370,14 +327,13 @@ class _CoefficientElement(object):
         if hasattr(value, '__len__'):
             assert len(value) == 1
             value = value[0]
-        assert value <= self._ub
+        assert value <= self._default_ub
         self._lb = float(value)
 
 
     @property
     def c0(self):
         return self._c0
-
 
     @c0.setter
     def c0(self, value):
@@ -391,25 +347,23 @@ class _CoefficientElement(object):
 
     @property
     def penalized(self):
-        return np.isnan(self._c0) or (self._c0 > 0.0)
-
+        return np.isnan(self._c0) or np.greater(self._c0, 0.0)
 
     @property
     def sign(self):
-        if self._ub > 0.0 and self._lb >= 0.0:
+        if np.greater(self._default_ub, 0.0) and np.greater_equal(self._lb, 0.0):
             return 1
-        elif self._ub <= 0.0 and self._lb < 0.0:
+        elif np.less_equal(self._default_ub, 0.0) and np.less(self._lb, 0.0):
             return -1
         else:
             return 0
 
     @sign.setter
     def sign(self, value):
-        if value > 0:
+        if np.greater(value, 0.0):
             self._lb = 0.0
-        elif value < 0:
-            self._ub = 0.0
-
+        elif np.less(value, 0.0):
+            self._default_ub = 0.0
 
     def _check_rep(self):
 
@@ -423,25 +377,22 @@ class _CoefficientElement(object):
         assert self.ub >= self.lb
 
         # value
-        assert self._vtype in self._VALID_TYPES
-        assert np.isnan(self.c0) or (self.c0 >= 0.0 and np.isfinite(self.c0))
+        assert self._vtype in self._valid_vtypes
+        assert np.isnan(self.c0) or (np.isfinite(self.c0) and np.greater_equal(self.c0, 0.0))
 
         return True
-
 
     def __repr__(self):
         return self.tabulate()
 
-
     def __str__(self):
         return self.tabulate()
-
 
     def tabulate(self):
         s = ['-' * 60,
              'variable: %s' % self._name,
              '-' * 60,
-             '%s: %1.1f' % ('ub', self._ub),
+             '%s: %1.1f' % ('ub', self._default_ub),
              '%s: %1.1f' % ('lb', self._lb),
              '%s: %1.2g' % ('c0', self._c0),
              '%s: %1.0f' % ('sign', self.sign),

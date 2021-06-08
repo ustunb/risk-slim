@@ -1,158 +1,11 @@
 import time
 import numpy as np
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
-from .setup_functions import setup_penalty_parameters
-from .mip import create_risk_slim, set_cplex_mip_parameters
-from .solution_pool import SolutionPool
-from .bound_tightening import chained_updates, chained_updates_for_lp
+from riskslim.solution_pool import SolutionPool
+from riskslim.bound_tightening import chained_updates, chained_updates_for_lp
 from riskslim.experimental.speedups.heuristics import discrete_descent, sequential_rounding
-from .defaults import DEFAULT_CPA_SETTINGS, DEFAULT_INITIALIZATION_SETTINGS
-from .utils import print_log, validate_settings
-
-
-def initialize_lattice_cpa(Z,
-                           c0_value,
-                           constraints,
-                           bounds,
-                           settings,
-                           risk_slim_settings,
-                           cplex_settings,
-                           compute_loss_real,
-                           compute_loss_cut_real,
-                           compute_loss_from_scores_real,
-                           compute_loss_from_scores,
-                           get_objval,
-                           get_L0_penalty,
-                           is_feasible):
-    """
-
-    Returns
-    -------
-    cuts
-    solution pool
-    bounds
-
-    """
-    #todo: recompute function handles here if required
-    assert callable(compute_loss_real)
-    assert callable(compute_loss_cut_real)
-    assert callable(compute_loss_from_scores_real)
-    assert callable(compute_loss_from_scores)
-    assert callable(get_objval)
-    assert callable(get_L0_penalty)
-    assert callable(is_feasible)
-
-    print_log('-' * 60)
-    print_log('runnning initialization procedure')
-    print_log('-' * 60)
-
-    # trade-off parameter
-    _, C_0, L0_reg_ind, C_0_nnz = setup_penalty_parameters(c0_value = c0_value, coef_set = constraints['coef_set'])
-
-    settings = validate_settings(settings,
-                                 defaults = DEFAULT_INITIALIZATION_SETTINGS)
-    settings['type'] = 'cvx'
-
-    # create RiskSLIMFitter LP
-    risk_slim_settings = dict(risk_slim_settings)
-    risk_slim_settings.update(bounds)
-    risk_slim_settings['relax_integer_variables'] = True
-    risk_slim_lp, risk_slim_lp_indices = create_risk_slim(coef_set = constraints['coef_set'], input = risk_slim_settings)
-    risk_slim_lp = set_cplex_mip_parameters(risk_slim_lp, cplex_settings, display_cplex_progress = settings['display_cplex_progress'])
-
-    # solve risk_slim_lp LP using standard CPA
-    cpa_stats, cuts, cpa_pool = run_standard_cpa(cpx = risk_slim_lp,
-                                                 cpx_indices = risk_slim_lp_indices,
-                                                 compute_loss = compute_loss_real,
-                                                 compute_loss_cut = compute_loss_cut_real,
-                                                 settings = settings)
-
-    # update bounds
-    bounds = chained_updates(bounds, C_0_nnz, new_objval_at_relaxation = cpa_stats['lowerbound'])
-    print_log('CPA produced %d cuts' % len(cuts))
-
-    def rounded_model_size_is_ok(rho):
-        zero_idx_rho_ceil = np.equal(np.ceil(rho), 0)
-        zero_idx_rho_floor = np.equal(np.floor(rho), 0)
-        cannot_round_to_zero = np.logical_not(np.logical_or(zero_idx_rho_ceil, zero_idx_rho_floor))
-        rounded_rho_L0_min = np.count_nonzero(cannot_round_to_zero[L0_reg_ind])
-        rounded_rho_L0_max = np.count_nonzero(rho[L0_reg_ind])
-        return rounded_rho_L0_min >= constraints['L0_min'] and rounded_rho_L0_max <= constraints['L0_max']
-
-    cpa_pool = cpa_pool.remove_infeasible(rounded_model_size_is_ok).distinct().sort()
-
-    if len(cpa_pool) == 0:
-        print_log('all CPA solutions are infeasible')
-
-    pool = SolutionPool(cpa_pool.P)
-
-    # round CPA solutions
-    if settings['use_rounding'] and len(cpa_pool) > 0:
-        print_log('running naive rounding on %d solutions' % len(cpa_pool))
-        print_log('best objective value: %1.4f' % np.min(cpa_pool.objvals))
-        rnd_pool, _, _ = round_solution_pool(cpa_pool,
-                                             constraints,
-                                             max_runtime = settings['rounding_max_runtime'],
-                                             max_solutions = settings['rounding_max_solutions'])
-
-        rnd_pool = rnd_pool.compute_objvals(get_objval).remove_infeasible(is_feasible)
-        print_log('rounding produced %d integer solutions' % len(rnd_pool))
-        if len(rnd_pool) > 0:
-            pool.append(rnd_pool)
-            print_log('best objective value is %1.4f' % np.min(rnd_pool.objvals))
-
-    # sequentially round CPA solutions
-    if settings['use_sequential_rounding'] and len(cpa_pool) > 0:
-        print_log('running sequential rounding on %d solutions' % len(cpa_pool))
-        print_log('best objective value: %1.4f' % np.min(cpa_pool.objvals))
-        sqrnd_pool, _, _ = sequential_round_solution_pool(pool = cpa_pool,
-                                                          Z = Z,
-                                                          C_0 = C_0,
-                                                          compute_loss_from_scores_real = compute_loss_from_scores_real,
-                                                          get_L0_penalty = get_L0_penalty,
-                                                          max_runtime = settings['sequential_rounding_max_runtime'],
-                                                          max_solutions = settings['sequential_rounding_max_solutions'],
-                                                          objval_cutoff = bounds['objval_max'])
-
-        sqrnd_pool = sqrnd_pool.remove_infeasible(is_feasible)
-        print_log('sequential rounding produced %d integer solutions' % len(sqrnd_pool))
-        if len(sqrnd_pool) > 0:
-            pool = pool.append(sqrnd_pool)
-            print_log('best objective value: %1.4f' % np.min(pool.objvals))
-
-    # polish rounded solutions
-    if settings['polishing_after'] and len(pool) > 0:
-        print_log('polishing %d solutions' % len(pool))
-        print_log('best objective value: %1.4f' % np.min(pool.objvals))
-        dcd_pool, _, _ = discrete_descent_solution_pool(pool = pool,
-                                                        Z = Z,
-                                                        C_0 = C_0,
-                                                        constraints = constraints,
-                                                        compute_loss_from_scores = compute_loss_from_scores,
-                                                        get_L0_penalty = get_L0_penalty,
-                                                        max_runtime = settings['polishing_max_runtime'],
-                                                        max_solutions = settings['polishing_max_solutions'])
-
-        dcd_pool = dcd_pool.remove_infeasible(is_feasible)
-        if len(dcd_pool) > 0:
-            print_log('polishing produced %d integer solutions' % len(dcd_pool))
-            pool.append(dcd_pool)
-
-    # remove solutions that are not feasible, not integer
-    if len(pool) > 0:
-        pool = pool.remove_nonintegral().distinct().sort()
-
-    # update upper and lower bounds
-    print_log('initialization produced %1.0f feasible solutions' % len(pool))
-    if len(pool) > 0:
-        bounds = chained_updates(bounds, C_0_nnz, new_objval_at_feasible = np.min(pool.objvals))
-        print_log('best objective value: %1.4f' % np.min(pool.objvals))
-
-    print_log('-' * 60)
-    print_log('completed initialization procedure')
-    print_log('-' * 60)
-    return pool, cuts, bounds
-
+from riskslim.defaults import DEFAULT_CPA_SETTINGS
+from riskslim.utils import print_log, validate_settings
 
 
 def run_standard_cpa(cpx,
@@ -160,7 +13,7 @@ def run_standard_cpa(cpx,
                      compute_loss,
                      compute_loss_cut,
                      settings = DEFAULT_CPA_SETTINGS,
-                     print_flag = False):
+                     print_flag = True):
 
     assert isinstance(cpx, Cplex)
     assert isinstance(cpx_indices, dict)

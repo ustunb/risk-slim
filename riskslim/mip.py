@@ -1,4 +1,3 @@
-from math import ceil, floor
 import numpy as np
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
 from .coefficient_set import CoefficientSet
@@ -12,15 +11,15 @@ from .utils import print_log
 
 def create_risk_slim(coef_set, input):
     """
-    create RiskSLIM MIP object
+    create RiskSLIMFitter MIP object
 
     Parameters
     ----------
-    input - dictionary of RiskSLIM parameters and formulation
+    input - dictionary of RiskSLIMFitter parameters and formulation
 
     Returns
     -------
-    mip - RiskSLIM surrogate MIP without 0 cuts
+    mip - RiskSLIMFitter surrogate MIP without 0 cuts
 
     Issues
     ----
@@ -36,9 +35,9 @@ def create_risk_slim(coef_set, input):
     print_from_function = lambda msg: print_log(msg) if function_print_flag else lambda msg: None
 
     # set default parameters
+    input.setdefault('C_0', 0.01)
     input.setdefault('w_pos', 1.0)
     input.setdefault('w_neg', 2.0 - input['w_pos'])
-    input.setdefault('C_0', 0.01)
     input.setdefault('include_auxillary_variable_for_objval', True)
     input.setdefault('include_auxillary_variable_for_L0_norm', True)
     input.setdefault('loss_min', 0.00)
@@ -72,10 +71,10 @@ def create_risk_slim(coef_set, input):
     loss_max = min(CPX_INFINITY, float(input['loss_max']))
 
     # calculate min/max values for model size
-    L0_min = max(input['L0_min'], 0.0)
-    L0_max = min(input['L0_max'], trivial_L0_max)
-    L0_min = ceil(L0_min)
-    L0_max = floor(L0_max)
+    L0_min = np.maximum(input['L0_min'], 0.0)
+    L0_max = np.minimum(input['L0_max'], trivial_L0_max)
+    L0_min = np.ceil(L0_min)
+    L0_max = np.floor(L0_max)
     assert L0_min <= L0_max
 
     # calculate min/max values for objval
@@ -99,7 +98,7 @@ def create_risk_slim(coef_set, input):
 
     has_intercept = '(Intercept)' in coef_set.variable_names
     """
-    RiskSLIM MIP Formulation
+    RiskSLIMFitter MIP Formulation
     
     minimize w_pos*loss_pos + w_neg *loss_minus + 0*rho_j + C_0j*alpha_j
     
@@ -165,7 +164,6 @@ def create_risk_slim(coef_set, input):
         lb += objval_auxillary_lb
         varnames += objval_auxillary_name
         ctype += objval_type
-
 
     if include_auxillary_variable_for_L0_norm:
         L0_norm_auxillary_name = ['L0_norm']
@@ -370,8 +368,8 @@ def add_mip_starts(mip, indices, pool, max_mip_starts = float('inf'), mip_start_
 
     Parameters
     ----------
-    mip - RiskSLIM surrogate MIP
-    indices - indices of RiskSLIM surrogate MIP
+    mip - RiskSLIMFitter surrogate MIP
+    indices - indices of RiskSLIMFitter surrogate MIP
     pool - solution pool
     max_mip_starts - max number of mip starts to add (optional; default is add all)
     mip_start_effort_level - effort that CPLEX will spend trying to fix (optional; default is 4)
@@ -436,7 +434,7 @@ def cast_mip_start(mip_start, cpx):
 
 def convert_to_risk_slim_cplex_solution(rho, indices, loss = None, objval = None):
     """
-    Convert coefficient vector 'rho' into a solution for RiskSLIM CPLEX MIP
+    Convert coefficient vector 'rho' into a solution for RiskSLIMFitter CPLEX MIP
 
     Parameters
     ----------

@@ -313,8 +313,8 @@ def print_log(msg, print_flag = True):
             print('%s | %r' % (time.strftime("%m/%d/%y @ %I:%M %p", time.localtime()), msg))
         sys.stdout.flush()
 
-
-def validate_settings(settings = None, default_settings = None):
+# Settings
+def validate_settings(settings = None, defaults = None):
 
     if settings is None:
         settings = dict()
@@ -322,8 +322,39 @@ def validate_settings(settings = None, default_settings = None):
         assert isinstance(settings, dict)
         settings = dict(settings)
 
-    if default_settings is not None:
-        assert isinstance(default_settings, dict)
-        settings = {k: settings[k] if k in settings else default_settings[k] for k in default_settings}
+    if defaults is not None:
+        assert isinstance(defaults, dict)
+        settings = {k: settings[k] if k in settings else defaults[k] for k in defaults}
 
     return settings
+
+# Data Types
+def is_integer(x):
+    """
+    checks if numpy array is an integer vector
+
+    Parameters
+    ----------
+    x
+
+    Returns
+    -------
+
+    """
+    return np.array_equal(x, np.require(x, dtype=np.int_))
+
+
+def cast_to_integer(x):
+    """
+    casts numpy array to integer vector
+
+    Parameters
+    ----------
+    x
+
+    Returns
+    -------
+
+    """
+    original_type = x.dtype
+    return np.require(np.require(x, dtype=np.int_), dtype=original_type)

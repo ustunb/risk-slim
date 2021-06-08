@@ -2,7 +2,6 @@ import numpy as np
 
 INTERCEPT_NAME = '(Intercept)'
 
-# Settings
 DEFAULT_LCPA_SETTINGS = {
     #
     'c0_value': 1e-6,
