@@ -7,14 +7,14 @@ from cplex.exceptions import CplexError
 from cplex.callbacks import HeuristicCallback, LazyConstraintCallback
 
 from riskslim.utils import cast_to_integer, check_data, is_integer, validate_settings, print_log
-from riskslim.defaults import DEFAULT_LCPA_SETTINGS, DEFAULT_INITIALIZATION_SETTINGS
+from riskslim.defaults import DEFAULT_LCPA_SETTINGS
 from riskslim.coefficient_set import CoefficientSet, get_score_bounds
 from riskslim.mip import add_mip_starts, convert_to_risk_slim_cplex_solution, create_risk_slim, set_cplex_mip_parameters
 from riskslim.solution_pool import SolutionPool, FastSolutionPool
 from riskslim.experimental.speedups.heuristics import discrete_descent, sequential_rounding
 from riskslim.experimental.speedups.bound_tightening import Bounds, chained_updates
 from riskslim.experimental.speedups.warmstart import run_standard_cpa, round_solution_pool,sequential_round_solution_pool, discrete_descent_solution_pool
-from dev.debug import ipsh
+
 class RiskSLIMFitter(object):
 
     _default_print_flag = False
@@ -22,9 +22,9 @@ class RiskSLIMFitter(object):
     def __init__(self, data, constraints, **kwargs):
 
         # empty fields
-        self._has_warmstart = False
         self._fitted = False
-        self._callbacks = {}
+        self._has_warmstart = False
+        self.initial_cuts = None
 
         # settings
         self.settings, self.cplex_settings, self.warmstart_settings = self._parse_settings(kwargs, defaults = DEFAULT_LCPA_SETTINGS)
@@ -55,10 +55,8 @@ class RiskSLIMFitter(object):
         self.L0_max = np.minimum(constraints['L0_max'], np.sum(self.L0_reg_ind))
         self.L0_min = np.maximum(constraints['L0_min'], 0)
 
-        # loss function
-        self._init_loss_computation(data = data, loss_computation = self.settings['loss_computation'])
-
         # function handles
+        self._init_loss_computation(data = data, loss_computation = self.settings['loss_computation'])
         self.get_L0_norm = lambda rho: np.count_nonzero(rho[self.L0_reg_ind])
         self.get_L0_penalty = lambda rho: np.sum(self.C_0_nnz * (rho[self.L0_reg_ind] != 0.0))
         self.get_alpha = lambda rho: np.array(abs(rho[self.L0_reg_ind]) > 0.0, dtype = np.float_)
@@ -71,7 +69,6 @@ class RiskSLIMFitter(object):
 
         # initialize
         self.pool = SolutionPool(self.n_variables)
-        self.initial_cuts = None
 
         # check if trivial solution is feasible, if so add it to the pool and update bounds
         trivial_solution = np.zeros(self.n_variables)
@@ -339,10 +336,6 @@ class RiskSLIMFitter(object):
         return self._mip
 
     @property
-    def callbacks(self):
-        return self._callbacks
-
-    @property
     def mip_indices(self):
         return self._mip_indices
 
@@ -418,11 +411,9 @@ class RiskSLIMFitter(object):
         assert self.fitted
         return np.sign(X.dot(self.coefficients))
 
-
     def predict_proba(self, X):
         assert self.fitted
         return expit(X.dot(self.coefficients))
-
 
     def predict_log_proba(self, X):
         """
@@ -625,7 +616,7 @@ class RiskSLIMFitter(object):
                            cut_queue = self.cut_queue,
                            polish_queue = self.polish_queue)
 
-        self._callbacks.update({'loss': loss_cb})
+        self.loss_callback = loss_cb
 
         # add heuristic callback if rounding or polishing
         if self.settings['round_flag'] or self.settings['polish_flag']:
@@ -659,7 +650,7 @@ class RiskSLIMFitter(object):
                                     polishing_handle = polisher,
                                     rounding_handle = rounder)
 
-            self._callbacks.update({'heuristic': heuristic_cb})
+            self.heuristic_callback = heuristic_cb
 
     def _init_loss_bounds(self):
         # min value of loss = log(1+exp(-score)) occurs at max score for each point
@@ -767,7 +758,7 @@ class LossCallback(LazyConstraintCallback):
         self.get_alpha = get_alpha
         self.get_L0_penalty_from_alpha = get_L0_penalty_from_alpha
 
-        # cplex has the ability to drop cutting planes that are not used. by default, we force CPLEX to use all cutting planes.
+        # cplex can drop cutting planes that are not used. by default, we force CPLEX to use all cutting planes.
         self.loss_cut_purge_flag = self.use_constraint.purge if self.settings['purge_loss_cuts'] else self.use_constraint.force
 
         # setup pointer to cut_queue to receive cuts from PolishAndRoundCallback
@@ -786,7 +777,7 @@ class LossCallback(LazyConstraintCallback):
                 assert isinstance(polish_queue, FastSolutionPool)
                 self.polish_queue = polish_queue
 
-        # setup indices for update bounds
+        # setup indices for chained_updates
         if self.settings['chained_updates_flag']:
             self.loss_cut_constraint = [indices['loss'], [1.0]]
             self.L0_cut_constraint = [[indices['L0_norm']], [1.0]]
@@ -915,6 +906,7 @@ class LossCallback(LazyConstraintCallback):
         self.stats['n_cuts'] += cuts_added
         self.stats['total_cut_time'] += cut_time
         self.stats['total_cut_callback_time'] += time.time() - callback_start_time
+
         #print_log('left cut callback')
         return
 
