@@ -26,7 +26,7 @@ import numpy as np
 
 # add the source directory to search path to avoid module import errors if riskslim has not been installed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from riskslim.helper_functions import load_data_from_csv, setup_logging
+from riskslim.utils import load_data_from_csv, setup_logging
 from riskslim.coefficient_set import CoefficientSet
 from riskslim.lattice_cpa import run_lattice_cpa, DEFAULT_LCPA_SETTINGS
 
@@ -211,7 +211,7 @@ if __name__ == '__main__':
                               lb = -max_coefficient,
                               ub = max_coefficient,
                               sign = 0)
-    coef_set.update_intercept_bounds(X = data['X'], y = data['y'], max_offset = max_offset, max_L0_value = max_model_size)
+    coef_set.update_intercept_bounds(X = data['X'], y = data['Y'], max_offset = max_offset, max_L0_value = max_model_size)
 
     #print coefficient set
     if not parsed.silent:
