@@ -4,7 +4,7 @@
 
 import os
 import sys
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, dist
 from setuptools.extension import Extension
 
 #resources
@@ -19,6 +19,9 @@ URL = 'https://github.com/ustunb/risk-slim'
 LICENSE = 'new BSD'
 DOWNLOAD_URL = 'https://github.com/ustunb/risk-slim'
 VERSION = '0.0.0'
+
+# Install setup requirements
+dist.Distribution().fetch_build_eggs(['Cython', 'numpy', 'scipy'])
 
 #read requirements as listed in txt file
 try:
