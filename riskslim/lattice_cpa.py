@@ -54,8 +54,8 @@ def setup_lattice_cpa(data, constraints, settings = DEFAULT_LCPA_SETTINGS):
 
     Returns
     -------
-    mip_objects 
-    
+    mip_objects
+
     """
     # process settings then split into manageable parts
     settings = validate_settings(settings, defaults = DEFAULT_LCPA_SETTINGS)
@@ -179,9 +179,9 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     constraints, dict containing 'L0_min, L0_max, CoefficientSet'
     settings
     mip_objects output of setup_risk_slim
-    
+
     Returns
-    ------- 
+    -------
 
     """
 
@@ -233,7 +233,7 @@ def finish_lattice_cpa(data, constraints, mip_objects, settings = DEFAULT_LCPA_S
     rho_ub = np.array(constraints['coef_set'].ub)
     L0_min = constraints['L0_min']
     L0_max = constraints['L0_max']
-    trivial_L0_max = np.sum(constraints['coef_set'].penalized_indices)
+    trivial_L0_max = np.sum(constraints['coef_set'].penalized_indices())
 
     def is_feasible(rho, L0_min = L0_min, L0_max = L0_max, rho_lb = rho_lb, rho_ub = rho_ub):
         return np.all(rho_ub >= rho) and np.all(rho_lb <= rho) and (L0_min <= np.count_nonzero(rho[L0_reg_ind]) <= L0_max)
