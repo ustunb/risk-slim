@@ -523,7 +523,7 @@ class RiskSLIMFitter(object):
         elif final_loss_computation == 'lookup':
 
             import riskslim.loss_functions.lookup_log_loss as lf
-            self._Z = np.require(self._Z, requirements = ['F'], dtype = np.float)
+            self._Z = np.require(self._Z, requirements = ['F'], dtype = np.float64)
 
             s_min, s_max = get_score_bounds(Z_min = np.min(self._Z, axis = 0),
                                             Z_max = np.max(self._Z, axis = 0),
