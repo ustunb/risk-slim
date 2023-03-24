@@ -1,6 +1,5 @@
 """Test loss consistency between functions."""
 
-
 import numpy as np
 
 import riskslim.loss_functions.fast_log_loss as fast

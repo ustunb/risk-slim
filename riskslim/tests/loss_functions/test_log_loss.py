@@ -3,18 +3,13 @@
 import pytest
 import numpy as np
 
-from riskslim.loss_functions.log_loss import (
-    log_loss_value, log_loss_value_and_slope, log_loss_value_from_scores, log_probs
+from riskslim.loss_functions import log_loss
+from riskslim.loss_functions import fast_log_loss
+
+
+@pytest.mark.parametrize(
+    'log_loss_value', [log_loss.log_loss_value, fast_log_loss.fast_log_loss_value]
 )
-
-from riskslim.loss_functions.fast_log_loss import (
-    log_loss_value as fast_log_loss_value,
-    log_loss_value_and_slope as fast_log_loss_value_and_slope,
-    log_loss_value_from_scores as fast_log_loss_value_from_scores
-)
-
-
-@pytest.mark.parametrize('log_loss_value', [log_loss_value, fast_log_loss_value])
 def test_log_loss_value(log_loss_value):
     """Test log loss accuracy for small weights."""
     for d in range(1, 101):
@@ -28,8 +23,11 @@ def test_log_loss_value(log_loss_value):
         )
 
 
-@pytest.mark.parametrize('log_loss_value_and_slope',
-                         [log_loss_value_and_slope, fast_log_loss_value_and_slope])
+@pytest.mark.parametrize(
+    'log_loss_value_and_slope', [
+        log_loss.log_loss_value_and_slope, fast_log_loss.log_loss_value_and_slope
+    ]
+)
 def test_log_loss_value_and_slope(generated_class_data, log_loss_value_and_slope):
     """Test accuracy of the direction of log loss slope."""
     # Get simulated data from fixture
@@ -46,8 +44,11 @@ def test_log_loss_value_and_slope(generated_class_data, log_loss_value_and_slope
     assert loss_step < loss
 
 
-@pytest.mark.parametrize('log_loss_value_from_scores',
-                         [log_loss_value_from_scores, fast_log_loss_value_from_scores])
+@pytest.mark.parametrize(
+    'log_loss_value_from_scores', [
+        log_loss.log_loss_value_from_scores, fast_log_loss.log_loss_value_from_scores
+    ]
+)
 def test_log_loss_value_from_scores(generated_class_data, log_loss_value_from_scores):
     """Test log loss from scores."""
     # Get simulated data from fixture
@@ -55,7 +56,7 @@ def test_log_loss_value_from_scores(generated_class_data, log_loss_value_from_sc
     rho = generated_class_data['rho']
 
     # Ensure implementation is the same between functions
-    assert log_loss_value_from_scores(Z.dot(rho)) == log_loss_value(Z, rho)
+    assert log_loss_value_from_scores(Z.dot(rho)) == log_loss.log_loss_value(Z, rho)
 
 
 def test_log_probs(generated_class_data):
