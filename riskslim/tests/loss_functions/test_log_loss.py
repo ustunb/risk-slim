@@ -8,7 +8,7 @@ from riskslim.loss_functions import fast_log_loss
 
 
 @pytest.mark.parametrize(
-    'log_loss_value', [log_loss.log_loss_value, fast_log_loss.fast_log_loss_value]
+    'log_loss_value', [log_loss.log_loss_value, fast_log_loss.log_loss_value]
 )
 def test_log_loss_value(log_loss_value):
     """Test log loss accuracy for small weights."""
@@ -39,7 +39,7 @@ def test_log_loss_value_and_slope(generated_class_data, log_loss_value_and_slope
 
     # Step
     step_size = .1
-    loss_step = log_loss_value(Z, rho-step_size*slope)
+    loss_step = log_loss.log_loss_value(Z, rho-step_size*slope)
 
     assert loss_step < loss
 
@@ -71,4 +71,4 @@ def test_log_probs(generated_class_data):
     y_binary[len(y_binary)//2:] = 0
 
     # Ensure probabilities align with labels
-    assert np.all(log_probs(Z, rho) == y_binary)
+    assert np.all(log_loss.log_probs(Z, rho) == y_binary)

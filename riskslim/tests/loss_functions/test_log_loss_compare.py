@@ -10,7 +10,7 @@ from riskslim.setup_functions import _setup_training_weights
 
 
 def test_compare_log_loss_value_from_scores(generated_data):
-    """Compute cython to numpy loss computation."""
+    """Compare cython to numpy loss computation."""
 
     # Unpack variabels from fixture
     min_score = generated_data['min_score']
