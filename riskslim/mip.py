@@ -99,11 +99,11 @@ def create_risk_slim(coef_set, input):
     has_intercept = '(Intercept)' in coef_set.variable_names
     """
     RiskSLIMFitter MIP Formulation
-    
+
     minimize w_pos*loss_pos + w_neg *loss_minus + 0*rho_j + C_0j*alpha_j
-    
-    such that 
-    
+
+    such that
+
     L0_min ≤ L0 ≤ L0_max
     -rho_min * alpha_j < lambda_j < rho_max * alpha_j
 
@@ -125,7 +125,7 @@ def create_risk_slim(coef_set, input):
     lambda_j ≥ -delta_neg_j if alpha_j = 1 and sigma_j = 0
     lambda_j ≥ alpha_j for j such that lambda_j >= 0
     lambda_j ≤ -alpha_j for j such that lambda_j <= 0
-    
+
     """
 
     # create MIP object
@@ -243,10 +243,12 @@ def create_risk_slim(coef_set, input):
     if has_intercept:
         intercept_idx = coef_set.variable_names.index('(Intercept)')
         intercept_alpha_name = 'alpha_' + str(intercept_idx)
-        vars.delete([intercept_alpha_name])
 
-        alpha_names.remove(intercept_alpha_name)
-        dropped_variables.append(intercept_alpha_name)
+        # Intercept may be previously dropped above when rho_ub == rho_lb
+        if intercept_alpha_name not in dropped_variables:
+            vars.delete([intercept_alpha_name])
+            alpha_names.remove(intercept_alpha_name)
+            dropped_variables.append(intercept_alpha_name)
 
         print_from_function("dropped L0 indicator for '(Intercept)'")
         constraints_to_drop.extend(["L0_norm_ub_" + str(intercept_idx), "L0_norm_lb_" + str(intercept_idx)])
