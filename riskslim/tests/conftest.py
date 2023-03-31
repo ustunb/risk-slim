@@ -82,6 +82,7 @@ def generated_class_data():
     dims = 100
 
     # Simulate features
+    np.random.seed(0)
     X = np.random.randint(1, int(dims), size=(n_per_class*2, dims))
     X = np.sort(X, axis=1)
     X[n_per_class:] = X[n_per_class:][:, ::-1]
