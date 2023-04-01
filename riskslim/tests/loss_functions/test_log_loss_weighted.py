@@ -4,12 +4,12 @@ import numpy as np
 from riskslim.loss_functions import log_loss, log_loss_weighted
 
 
-def test_log_loss_value(generated_class_data):
+def test_log_loss_value(generated_normal_data):
     """Test weighted log loss value."""
 
     # Unpack fixture
-    Z = generated_class_data['Z']
-    rho = generated_class_data['rho']
+    Z = generated_normal_data['Z']
+    rho = generated_normal_data['rho']
 
     # Weights of one are the same as unweighted
     assert log_loss_weighted.log_loss_value(Z, np.ones(len(Z)), len(Z), rho) == \
@@ -26,12 +26,12 @@ def test_log_loss_value(generated_class_data):
     assert log_loss_weighted.log_loss_value(Z, weights, len(Z), rho) == \
         log_loss.log_loss_value(Z[ind], rho) / len(Z)
 
-def test_log_loss_value_and_slope(generated_class_data):
+def test_log_loss_value_and_slope(generated_normal_data):
     """Test weighted log loss value and slope."""
 
     # Unpack fixture
-    Z = generated_class_data['Z']
-    rho = generated_class_data['rho']
+    Z = generated_normal_data['Z']
+    rho = generated_normal_data['rho']
 
     # Weights are all one, assert equal to unweighted logloss
     wloss, wslope = log_loss_weighted.log_loss_value_and_slope(
@@ -61,12 +61,12 @@ def test_log_loss_value_and_slope(generated_class_data):
     np.testing.assert_allclose(slope * len(Z[0]) /(len(Z)), wslope)
 
 
-def test_log_loss_value_from_scores(generated_class_data):
+def test_log_loss_value_from_scores(generated_normal_data):
     """Test weighted log loss from scores."""
 
     # Unpack fixture
-    Z = generated_class_data['Z']
-    rho = generated_class_data['rho']
+    Z = generated_normal_data['Z']
+    rho = generated_normal_data['rho']
 
     # Weights are all one, assert equal to unweighted logloss
     wloss = log_loss_weighted.log_loss_value_from_scores(

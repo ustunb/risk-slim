@@ -5,6 +5,8 @@ import numpy as np
 from scipy import sparse
 import riskslim
 
+from .utils import generate_random_normal
+
 
 def test_risk_slim_persistence():
     """Test the persistency of solutions from commit to commit, or PR to PR, to prevent
@@ -57,29 +59,8 @@ def test_risk_slim_persistence():
 
     for seed in range(n_iters):
 
-        np.random.seed(seed)
-
-        # Initialize arrays
-        X = np.zeros((n_rows, n_columns), dtype=np.int32)
-
-        # Ranomly select target columns
-        inds = np.arange(1, n_columns)
-        selected = np.random.choice(inds, n_targets, replace=False)
-        selected = np.sort(selected)
-
-        # Simulate random int normals with varying overlap
-        stdevs = iter(np.linspace(100, 50, n_targets))
-
-        for ind in range(1, n_columns):
-
-            if ind in selected:
-                # Class A
-                X[:, ind] = np.random.normal(100, next(stdevs), n_rows).astype(np.int32)
-                # Class B
-                X[:n_rows//2, ind] *= -1
-            else:
-                # Noise
-                X[:, ind] = np.random.normal(0, 100, n_rows).astype(np.int32)
+        # Simulate data
+        data, _ = generate_random_normal(n_rows, n_columns, n_targets, seed)
 
         # Contraints
         coef_set = riskslim.CoefficientSet(
@@ -88,15 +69,8 @@ def test_risk_slim_persistence():
             ub=max_coefficient,
             sign=0
         )
-        coef_set.update_intercept_bounds(X, y=y, max_offset=max_offset)
+        coef_set.update_intercept_bounds(data['X'], y=data['Y'], max_offset=max_offset)
         constraints = {'L0_min': 0, 'L0_max': max_L0_value, 'coef_set': coef_set}
-
-        # Data
-        data = {}
-        data['X'] = X
-        data['Y'] = y
-        data['variable_names'] = varnames
-        data['outcome_name'] = '1'
 
         # Fit
         model_info, _, _ = riskslim.run_lattice_cpa(data, constraints, settings)

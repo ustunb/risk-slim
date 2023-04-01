@@ -28,11 +28,11 @@ def test_log_loss_value(log_loss_value):
         log_loss.log_loss_value_and_slope, fast_log_loss.log_loss_value_and_slope
     ]
 )
-def test_log_loss_value_and_slope(generated_class_data, log_loss_value_and_slope):
+def test_log_loss_value_and_slope(generated_normal_data, log_loss_value_and_slope):
     """Test accuracy of the direction of log loss slope."""
     # Get simulated data from fixture
-    Z = generated_class_data['Z']
-    rho = generated_class_data['rho']
+    Z = generated_normal_data['Z']
+    rho = generated_normal_data['rho']
 
     # Loss
     loss, slope = log_loss_value_and_slope(Z, rho)
@@ -49,26 +49,28 @@ def test_log_loss_value_and_slope(generated_class_data, log_loss_value_and_slope
         log_loss.log_loss_value_from_scores, fast_log_loss.log_loss_value_from_scores
     ]
 )
-def test_log_loss_value_from_scores(generated_class_data, log_loss_value_from_scores):
+def test_log_loss_value_from_scores(generated_normal_data, log_loss_value_from_scores):
     """Test log loss from scores."""
     # Get simulated data from fixture
-    Z = generated_class_data['Z']
-    rho = generated_class_data['rho']
+    Z = generated_normal_data['Z']
+    rho = generated_normal_data['rho']
 
     # Ensure implementation is the same between functions
     assert log_loss_value_from_scores(Z.dot(rho)) == log_loss.log_loss_value(Z, rho)
 
 
-def test_log_probs(generated_class_data):
+def test_log_probs(generated_normal_data):
     """Test log probabiltiies."""
     # Get simulated data from fixture
-    Z = generated_class_data['Z']
-    rho = generated_class_data['rho']
-    y = generated_class_data['y']
+    Z = generated_normal_data['Z']
+    X = generated_normal_data['X']
+    rho = generated_normal_data['rho_true']
+    y = generated_normal_data['y']
 
     # Convert y \in {-1, 1} to y \in {0, 1}
     y_binary = y[:, 0].copy()
     y_binary[len(y_binary)//2:] = 0
 
-    # Ensure probabilities align with labels
-    assert np.all(log_loss.log_probs(Z, rho) == y_binary)
+    # True predictions will have log probability -> 1
+    inds = np.where(np.sign(np.dot(X, rho)) == y[:, 0])[0]
+    assert np.all(log_loss.log_probs(Z, rho)[inds] > .99)

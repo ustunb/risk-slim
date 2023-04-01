@@ -55,11 +55,11 @@ def get_loss_value_and_prob_tables(min_score, offset):
     assert lookup_offset == _lookup_offset
 
 
-def log_loss_value(generated_class_data):
+def log_loss_value(generated_normal_data):
     """Test accuracy log loss lookup."""
     # Get simulated data from fixture
-    Z = generated_class_data['Z']
-    rho = generated_class_data['rho']
+    Z = generated_normal_data['Z']
+    rho = generated_normal_data['rho']
 
     min_score = -100
     max_score = 100
@@ -75,10 +75,10 @@ def log_loss_value(generated_class_data):
     del loss_value_table, lookup_offset
 
 
-def log_loss_value_from_scores(generated_class_data):
+def log_loss_value_from_scores(generated_normal_data):
     """Test loss value from scores."""
-    Z = generated_class_data['Z']
-    rho = generated_class_data['rho']
+    Z = generated_normal_data['Z']
+    rho = generated_normal_data['rho']
 
     min_score = -100
     max_score = 100
@@ -94,10 +94,10 @@ def log_loss_value_from_scores(generated_class_data):
     del loss_value_table, lookup_offset
 
 
-def log_loss_value_and_slope(generated_class_data):
+def log_loss_value_and_slope(generated_normal_data):
     """Test loss and slope."""
-    Z = generated_class_data['Z']
-    rho = generated_class_data['rho']
+    Z = generated_normal_data['Z']
+    rho = generated_normal_data['rho']
 
     min_score = -10000
     max_score = 10000

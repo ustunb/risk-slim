@@ -9,6 +9,8 @@ from riskslim.coefficient_set import get_score_bounds
 from riskslim.setup_functions import _setup_training_weights
 import riskslim.loss_functions.lookup_log_loss as lookup
 
+from .utils import generate_random_normal
+
 
 @pytest.fixture(scope='module')
 def generated_data():
@@ -76,25 +78,21 @@ def generated_data():
 
 
 @pytest.fixture(scope='module')
-def generated_class_data():
+def generated_normal_data():
     """Generate data with a solution."""
-    n_per_class = 10000
-    dims = 100
+    n_rows = 1000
+    n_columns = 100
+    n_targets = 10
+    seed = 0
 
-    # Simulate features
-    np.random.seed(0)
-    X = np.random.randint(1, int(dims), size=(n_per_class*2, dims))
-    X = np.sort(X, axis=1)
-    X[n_per_class:] = X[n_per_class:][:, ::-1]
+    data, rho_true = generate_random_normal(n_rows, n_columns, n_targets, seed)
 
-    # Assign labels
-    y = np.ones((2*n_per_class, 1))
-    y[n_per_class:] = -1
+    X = data['X']
+    y = data['Y']
 
     # Training data and weights
-    Z = X * y
-    Z = np.asfortranarray(Z)
+    Z = np.asfortranarray(X * y)
 
-    rho = np.ones(dims, order='F')
+    rho = np.ones(n_columns, order='F')
 
-    yield {'X':X, 'y':y, 'Z':Z, 'rho':rho}
+    yield {'X':X, 'y':y, 'Z':Z, 'rho':rho, 'rho_true':rho_true}
