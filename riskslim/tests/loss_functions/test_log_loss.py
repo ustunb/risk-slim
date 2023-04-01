@@ -67,10 +67,6 @@ def test_log_probs(generated_normal_data):
     rho = generated_normal_data['rho_true']
     y = generated_normal_data['y']
 
-    # Convert y \in {-1, 1} to y \in {0, 1}
-    y_binary = y[:, 0].copy()
-    y_binary[len(y_binary)//2:] = 0
-
     # True predictions will have log probability -> 1
     inds = np.where(np.sign(np.dot(X, rho)) == y[:, 0])[0]
     assert np.all(log_loss.log_probs(Z, rho)[inds] > .99)
