@@ -95,4 +95,4 @@ def generated_normal_data():
 
     rho = np.ones(n_columns, order='F')
 
-    yield {'X':X, 'y':y, 'Z':Z, 'rho':rho, 'rho_true':rho_true}
+    yield {'X':X, 'y':y, 'Z':Z, 'rho':rho, 'rho_true':rho_true, 'data': data}

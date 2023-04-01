@@ -35,6 +35,8 @@ def setup_loss_functions(data, coef_set, L0_max = None, loss_computation = None,
         final_loss_computation = 'weighted'
     elif use_lookup_table:
         final_loss_computation = 'lookup'
+    elif loss_computation == 'normal':
+        final_loss_computation = 'normal'
     else:
         final_loss_computation = 'fast'
 
