@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import warnings
+from copy import copy
 
 from scipy.special import expit
 from cplex.exceptions import CplexError
@@ -253,7 +254,7 @@ class RiskSLIMFitter(object):
         self.pool.append(pool)
 
         # update bounds
-        self.bounds = bounds.__copy__()
+        self.bounds = copy(bounds)
         self._has_warmstart = True
 
     def fit(self, **kwargs):

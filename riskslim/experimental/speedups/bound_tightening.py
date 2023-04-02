@@ -1,21 +1,11 @@
 import numpy as np
-from recordclass import recordclass
 
-DEFAULT_BOUNDS = {
-    'objval_min': 0.0,
-    'objval_max': float('inf'),
-    'loss_min': 0.0,
-    'loss_max': float('inf'),
-    'L0_min': 0,
-    'L0_max': float('inf'),
-    }
-
-Bounds = recordclass('Bounds', fields = DEFAULT_BOUNDS.keys(), defaults = DEFAULT_BOUNDS.values())
+from riskslim.experimental.data import Bounds
 
 
 def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count = 20):
 
-    b = Bounds(**bounds._asdict())
+    b = Bounds(**bounds.asdict())
 
     # update objval_min using new_value (only done once)
     if new_objval_at_relaxation is not None:
@@ -91,7 +81,7 @@ def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_a
 
 def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count = 20):
 
-    new_bounds = Bounds(**bounds._asdict())
+    new_bounds = Bounds(**bounds.asdict())
 
     # update objval_min using new_value (only done once)
     if new_objval_at_relaxation is not None:
