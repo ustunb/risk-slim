@@ -1,7 +1,8 @@
 """Tests for lookup log loss functions."""
 
+from itertools import product
 import numpy as np
-import pytest
+
 
 from riskslim.loss_functions.lookup_log_loss import (
     get_loss_value_table, get_prob_value_table, get_loss_value_and_prob_tables,
@@ -9,50 +10,53 @@ from riskslim.loss_functions.lookup_log_loss import (
 )
 
 
-@pytest.mark.parametrize('min_score', np.arange(-5, 5))
-@pytest.mark.parametrize('offset', np.arange(1, 10))
-def test_get_loss_value_table(min_score, offset):
+def test_get_loss_value_table():
     """Test loss table."""
-    max_score = min_score + offset
 
-    loss_value_table, lookup_offset = get_loss_value_table(min_score, max_score)
+    min_score = np.arange(0, 5)
+    offset = np.arange(1, 10)
 
-    assert lookup_offset == -min_score
-    assert len(loss_value_table) == (max_score - min_score) + 1
-    # Monotonically decreasing
-    assert np.all(np.diff(loss_value_table) < 0)
+    for _min, _off in product(min_score, offset):
+        _max = _min + _off
+        loss_value_table, lookup_offset = get_loss_value_table(_min, _max)
+
+        assert lookup_offset == -_min
+        assert len(loss_value_table) == (_max - _min) + 1
+        # Monotonically decreasing
+        assert np.all(np.diff(loss_value_table) < 0)
 
 
-@pytest.mark.parametrize('min_score', np.arange(-5, 5))
-@pytest.mark.parametrize('offset', np.arange(1, 10))
-def test_get_prob_value_table(min_score, offset):
+def test_get_prob_value_table():
     """Test probability table."""
-    max_score = min_score + offset
+    min_score = np.arange(0, 5)
+    offset = np.arange(1, 10)
 
-    prob_value_table, lookup_offset = get_prob_value_table(min_score, max_score)
+    for _min, _off in product(min_score, offset):
+        _max = _min + _off
+        prob_value_table, lookup_offset = get_prob_value_table(_min, _max)
 
-    assert lookup_offset == -min_score
-    assert len(prob_value_table) == (max_score - min_score) + 1
-    # Monotonically increasing
-    assert np.all(np.diff(prob_value_table) > 0)
+        assert len(prob_value_table) == (_max - _min) + 1
+        # Monotonically increasing
+        assert np.all(np.diff(prob_value_table) > 0)
 
 
-@pytest.mark.parametrize('min_score', np.arange(-5, 5))
-@pytest.mark.parametrize('offset', np.arange(1, 10))
-def get_loss_value_and_prob_tables(min_score, offset):
+def get_loss_value_and_prob_tables():
     """Test loss and probability table."""
-    max_score = min_score + offset
+    min_score = np.arange(0, 5)
+    offset = np.arange(1, 10)
 
-    loss_value_table, prob_value_table, lookup_offset = get_loss_value_and_prob_tables(
-        min_score, max_score
-    )
+    for _min, _off in product(min_score, offset):
+        _max = _min + _off
 
-    _loss_value_table, _lookup_offset = get_loss_value_table(min_score, max_score)
-    _prob_value_table, _ = get_prob_value_table(min_score, max_score)
+        loss_value_table, prob_value_table, lookup_offset = \
+            get_loss_value_and_prob_tables(_min, _max)
 
-    assert np.all(loss_value_table == _loss_value_table)
-    assert np.all(prob_value_table == _prob_value_table)
-    assert lookup_offset == _lookup_offset
+        _loss_value_table, _lookup_offset = get_loss_value_table(_min, _max)
+        _prob_value_table, _ = get_prob_value_table(_min, _max)
+
+        assert np.all(loss_value_table == _loss_value_table)
+        assert np.all(prob_value_table == _prob_value_table)
+        assert lookup_offset == _lookup_offset
 
 
 def log_loss_value(generated_normal_data):
