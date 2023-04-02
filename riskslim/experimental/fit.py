@@ -12,15 +12,16 @@ from riskslim.defaults import DEFAULT_LCPA_SETTINGS
 from riskslim.coefficient_set import CoefficientSet, get_score_bounds
 from riskslim.mip import add_mip_starts, convert_to_risk_slim_cplex_solution, create_risk_slim, set_cplex_mip_parameters
 from riskslim.solution_pool import SolutionPool, FastSolutionPool
+from riskslim.experimental.data import Bounds, Stats
 from riskslim.experimental.speedups.heuristics import discrete_descent, sequential_rounding
-from riskslim.experimental.speedups.bound_tightening import Bounds, chained_updates
+from riskslim.experimental.speedups.bound_tightening import chained_updates
 from riskslim.experimental.speedups.warmstart import run_standard_cpa, round_solution_pool,sequential_round_solution_pool, discrete_descent_solution_pool
 
-class RiskSLIMFitter(object):
+class RiskSLIM:
 
     _default_print_flag = False
 
-    def __init__(self, data, constraints, **kwargs):
+    def __init__(self, constraints, **kwargs):
 
         # empty fields
         self._fitted = False
@@ -28,13 +29,8 @@ class RiskSLIMFitter(object):
         self.initial_cuts = None
 
         # settings
-        self.settings, self.cplex_settings, self.warmstart_settings = self._parse_settings(kwargs, defaults = DEFAULT_LCPA_SETTINGS)
-
-        # data
-        check_data(data)
-        self._Z = data['X'] * data['Y']
-        self._integer_data = np.all(self._Z == np.require(self._Z, dtype = np.int_))
-        self.n_variables = self._Z.shape[1]
+        self.settings, self.cplex_settings, self.warmstart_settings = \
+            self._parse_settings(kwargs, defaults = DEFAULT_LCPA_SETTINGS)
 
         # coefficient constraints
         self.coef_set = constraints['coef_set']
@@ -56,19 +52,45 @@ class RiskSLIMFitter(object):
         self.L0_max = np.minimum(constraints['L0_max'], np.sum(self.L0_reg_ind))
         self.L0_min = np.maximum(constraints['L0_min'], 0)
 
-        # function handles
-        self._init_loss_computation(data = data, loss_computation = self.settings['loss_computation'])
+
+    def fit_init(self, X, y, variable_names=None, outcome_name=None, sample_weights=None):
+        """Pre-fit initialization routine."""
+
+        # Initialize data dict
+        if variable_names is None:
+            variable_names = [f'Variable{str(i).zfill(3)}' for i in range(len(X[0])-1)]
+            variable_names.insert(0, '(Intercept)')
+
+        data = {
+            'X': X,
+            'Y': y,
+            'variable_names': variable_names,
+        }
+
+        if outcome_name is not None:
+            data['outcome_name'] =  outcome_name
+
+        if sample_weights is not None:
+            data['sample_weights'] = sample_weights
+
+        check_data(data)
+        self._Z = data['X'] * data['Y']
+        self._integer_data = np.all(self._Z == np.require(self._Z, dtype = np.int_))
+        self.n_variables = self._Z.shape[1]
+
+        # Function handles
+        self._init_loss_computation(data=data, loss_computation = self.settings['loss_computation'])
         self.get_L0_norm = lambda rho: np.count_nonzero(rho[self.L0_reg_ind])
         self.get_L0_penalty = lambda rho: np.sum(self.C_0_nnz * (rho[self.L0_reg_ind] != 0.0))
         self.get_alpha = lambda rho: np.array(abs(rho[self.L0_reg_ind]) > 0.0, dtype = np.float_)
         self.get_L0_penalty_from_alpha = lambda alpha: np.sum(self.C_0_nnz * alpha)
         self.get_objval = lambda rho: self.compute_loss(rho) + np.sum(self.C_0_nnz * (rho[self.L0_reg_ind] != 0.0))
 
-        # bounds
+        # Bounds
         self.bounds = Bounds(L0_min = self.L0_min, L0_max = self.L0_max)
         self.bounds.loss_min, self.bounds.loss_max = self._init_loss_bounds()
 
-        # initialize
+        # Solution
         self.pool = SolutionPool(self.n_variables)
 
         # check if trivial solution is feasible, if so add it to the pool and update bounds
@@ -83,63 +105,25 @@ class RiskSLIMFitter(object):
 
         # setup mip
         mip_settings = {
-            'C_0': c0_value,
-            'coef_set': constraints['coef_set'],
+            'C_0': self.c0_value,
+            'coef_set': self.coef_set,
             'tight_formulation': self.settings['tight_formulation'],
             'drop_variables': self.settings['drop_variables'],
             'include_auxillary_variable_for_L0_norm': self.settings['include_auxillary_variable_for_L0_norm'],
             'include_auxillary_variable_for_objval': self.settings['include_auxillary_variable_for_objval']
             }
 
-        mip_settings.update(self.bounds._asdict())
+        mip_settings.update(self.bounds.asdict())
         self.mip_settings = mip_settings
 
         # setup risk slim mip
-        self._mip, self._mip_indices = create_risk_slim(coef_set = constraints['coef_set'], input = self.mip_settings)
+        self._mip, self._mip_indices = create_risk_slim(coef_set=self.coef_set, input=self.mip_settings)
         self._mip_indices.update({
             'C_0_nnz': self.C_0_nnz,
             'L0_reg_ind': self.L0_reg_ind,
             })
 
-        self.stats = {
-            'incumbent': np.repeat(np.nan, self.n_variables),
-            'upperbound': float('inf'),
-            'bounds': self.bounds,
-            'lowerbound': 0.0,
-            'relative_gap': float('inf'),
-            'nodes_processed': 0,
-            'nodes_remaining': 0,
-            #
-            'start_time': float('nan'),
-            'total_run_time': 0.0,
-            'total_cut_time': 0.0,
-            'total_polish_time': 0.0,
-            'total_round_time': 0.0,
-            'total_round_then_polish_time': 0.0,
-            #
-            'cut_callback_times_called': 0,
-            'heuristic_callback_times_called': 0,
-            'total_cut_callback_time': 0.00,
-            'total_heuristic_callback_time': 0.00,
-            #
-            # number of times solutions were updates
-            'n_incumbent_updates': 0,
-            'n_heuristic_updates': 0,
-            'n_cuts': 0,
-            'n_polished': 0,
-            'n_rounded': 0,
-            'n_rounded_then_polished': 0,
-            #
-            # total # of bound updates
-            'n_update_bounds_calls': 0,
-            'n_bound_updates': 0,
-            'n_bound_updates_loss_min': 0,
-            'n_bound_updates_loss_max': 0,
-            'n_bound_updates_L0_min': 0,
-            'n_bound_updates_L0_max': 0,
-            'n_bound_updates_objval_min': 0,
-            'n_bound_updates_objval_max': 0,
-            }
+        self.stats = Stats(incumbent=np.full(len(X[0]), np.nan), bounds=self.bounds)
 
     def warmstart(self, **kwargs):
         """
@@ -257,16 +241,10 @@ class RiskSLIMFitter(object):
         self.bounds = copy(bounds)
         self._has_warmstart = True
 
-    def fit(self, **kwargs):
+    def fit(self, X, y, variable_names=None, outcome_name=None, sample_weights=None):
 
-        if len(kwargs) > 0:
-            current_settings = dict(self.settings)
-            current_settings.update(self.cplex_settings)
-            current_settings.update(self.warmstart_settings)
-            new_settings, new_cplex_settings, new_warmstart_settings = self._parse_settings(kwargs, defaults = current_settings)
-            self.settings.update(new_settings)
-            self.new_cplex_settings.update(new_cplex_settings)
-            self.new_warmstart_settings.update(new_warmstart_settings)
+        # Initalize fitting procedure
+        self.fit_init(X, y, variable_names, outcome_name, sample_weights)
 
         # run warmstart procedure if it has not been run yet
         if self.settings['initialization_flag'] and not self.has_warmstart:
@@ -298,7 +276,7 @@ class RiskSLIMFitter(object):
         # solve riskslim optimization problem
         start_time = time.time()
         cpx.solve()
-        self.stats['total_run_time'] = time.time() - start_time
+        self.stats.total_run_time = time.time() - start_time
         self._fitted = True
 
     #### flags ####
@@ -356,34 +334,34 @@ class RiskSLIMFitter(object):
         s = self.solution
 
         try:
-            self.stats['incumbent'] = np.array(s.get_values(self.mip_indices['rho']))
-            self.stats['upperbound'] = s.get_objective_value()
-            self.stats['lowerbound'] = s.MIP.get_best_objective()
-            self.stats['relative_gap'] = s.MIP.get_mip_relative_gap()
-            self.stats['found_solution'] = True
+            self.stats.incumbent = np.array(s.get_values(self.mip_indices['rho']))
+            self.stats.upperbound = s.get_objective_value()
+            self.stats.lowerbound = s.MIP.get_best_objective()
+            self.stats.relative_gap = s.MIP.get_mip_relative_gap()
+            self.stats.found_solution = True
         except CplexError:
-            self.stats['found_solution'] = False
+            self.stats.found_solution = False
 
-        self.stats['cplex_status'] = s.get_status_string()
-        self.stats['total_callback_time'] = self.stats['total_cut_callback_time'] + self.stats['total_heuristic_callback_time']
-        self.stats['total_solver_time'] = self.stats['total_run_time'] - self.stats['total_callback_time']
-        self.stats['total_data_time'] = self.stats['total_cut_time'] + self.stats['total_polish_time'] + self.stats['total_round_time'] + self.stats['total_round_then_polish_time']
+        self.stats.cplex_status = s.get_status_string()
+        self.stats.total_callback_time = self.stats.total_cut_callback_time + self.stats.total_heuristic_callback_time
+        self.stats.total_solver_time = self.stats.total_run_time - self.stats.total_callback_time
+        self.stats.total_data_time = self.stats.total_cut_time + self.stats.total_polish_time + self.stats.total_round_time + self.stats.total_round_then_polish_time
 
         # Output for Model
         info = {
             'c0_value': self.c0_value,
             #
-            'solution': self.stats['incumbent'],
-            'objective_value': self.get_objval(self.stats['incumbent']) if self.stats['found_solution'] else float('inf'),
-            'loss_value': self.compute_loss(self.stats['incumbent']) if self.stats['found_solution'] else float('inf'),
-            'optimality_gap': self.stats['relative_gap'] if self.stats['found_solution'] else float('inf'),
+            'solution': self.stats.incumbent,
+            'objective_value': self.get_objval(self.stats.incumbent) if self.stats.found_solution else float('inf'),
+            'loss_value': self.compute_loss(self.stats.incumbent) if self.stats.found_solution else float('inf'),
+            'optimality_gap': self.stats.relative_gap if self.stats.found_solution else float('inf'),
             #
-            'run_time': self.stats['total_run_time'],
-            'solver_time': self.stats['total_solver_time'],
-            'callback_time': self.stats['total_callback_time'],
-            'data_time': self.stats['total_data_time'],
-            'nodes_processed': self.stats['nodes_processed'],
-            }
+            'run_time': self.stats.total_run_time,
+            'solver_time': self.stats.total_solver_time,
+            'callback_time': self.stats.total_callback_time,
+            'data_time': self.stats.total_data_time,
+            'nodes_processed': self.stats.nodes_processed,
+        }
 
         return info
 
@@ -736,7 +714,7 @@ class LossCallback(LazyConstraintCallback):
     def initialize(self, indices, stats, settings, compute_loss_cut, get_alpha, get_L0_penalty_from_alpha, initial_cuts = None, cut_queue = None, polish_queue = None):
 
         assert isinstance(indices, dict)
-        assert isinstance(stats, dict)
+        assert isinstance(stats, Stats)
         assert isinstance(settings, dict)
         assert callable(compute_loss_cut)
         assert callable(get_alpha)
@@ -805,36 +783,36 @@ class LossCallback(LazyConstraintCallback):
 
         """
 
-        bounds = chained_updates(bounds = self.stats['bounds'],
+        bounds = chained_updates(bounds = self.stats.bounds,
                                  C_0_nnz = self.C_0_nnz,
-                                 new_objval_at_relaxation = self.stats['lowerbound'],
-                                 new_objval_at_feasible = self.stats['upperbound'])
+                                 new_objval_at_relaxation = self.stats.lowerbound,
+                                 new_objval_at_feasible = self.stats.upperbound)
 
         #add cuts if bounds need to be tighter
-        if bounds.loss_min > self.stats['bounds'].loss_min:
+        if bounds.loss_min > self.stats.bounds.loss_min:
             self.add(constraint = self.loss_cut_constraint, sense = "G", rhs = bounds.loss_min, use = self.bound_cut_purge_flag)
-            self.stats['bounds'].loss_min = bounds.loss_min
-            self.stats['n_bound_updates_loss_min'] += 1
+            self.stats.bounds.loss_min = bounds.loss_min
+            self.stats.n_bound_updates_loss_min += 1
 
-        if bounds.objval_min > self.stats['bounds'].objval_min:
+        if bounds.objval_min > self.stats.bounds.objval_min:
             self.add(constraint = self.objval_cut_constraint, sense = "G", rhs = bounds.objval_min, use = self.bound_cut_purge_flag)
-            self.stats['bounds'].objval_min = bounds.objval_min
-            self.stats['n_bound_updates_objval_min'] += 1
+            self.stats.bounds.objval_min = bounds.objval_min
+            self.stats.n_bound_updates_objval_min += 1
 
-        if bounds.L0_max < self.stats['bounds'].L0_max:
+        if bounds.L0_max < self.stats.bounds.L0_max:
             self.add(constraint = self.L0_cut_constraint, sense="L", rhs = bounds.L0_max, use = self.bound_cut_purge_flag)
-            self.stats['bounds'].L0_max = bounds.L0_max
-            self.stats['n_bound_updates_L0_max'] += 1
+            self.stats.bounds.L0_max = bounds.L0_max
+            self.stats.n_bound_updates_L0_max += 1
 
-        if bounds.loss_max < self.stats['bounds'].loss_max:
+        if bounds.loss_max < self.stats.bounds.loss_max:
             self.add(constraint = self.loss_cut_constraint, sense="L", rhs = bounds.loss_max, use = self.bound_cut_purge_flag)
-            self.stats['bounds'].loss_max = bounds.loss_max
-            self.stats['n_bound_updates_loss_max'] += 1
+            self.stats.bounds.loss_max = bounds.loss_max
+            self.stats.n_bound_updates_loss_max += 1
 
-        if bounds.objval_max < self.stats['bounds'].objval_max:
+        if bounds.objval_max < self.stats.bounds.objval_max:
             self.add(constraint = self.objval_cut_constraint, sense="L", rhs = bounds.objval_max, use = self.bound_cut_purge_flag)
-            self.stats['bounds'].objval_max = bounds.objval_max
-            self.stats['n_bound_updates_objval_max'] += 1
+            self.stats.bounds.objval_max = bounds.objval_max
+            self.stats.n_bound_updates_objval_max += 1
 
         return
 
@@ -844,11 +822,11 @@ class LossCallback(LazyConstraintCallback):
         callback_start_time = time.time()
 
         #record entry metrics
-        self.stats['cut_callback_times_called'] += 1
-        self.stats['lowerbound'] = self.get_best_objective_value()
-        self.stats['relative_gap'] = self.get_MIP_relative_gap()
-        self.stats['nodes_processed'] = self.get_num_nodes()
-        self.stats['nodes_remaining'] = self.get_num_remaining_nodes()
+        self.stats.cut_callback_times_called += 1
+        self.stats.lowerbound = self.get_best_objective_value()
+        self.stats.relative_gap = self.get_MIP_relative_gap()
+        self.stats.nodes_processed = self.get_num_nodes()
+        self.stats.nodes_remaining = self.get_num_remaining_nodes()
 
         # add initial cuts first time the callback is used
         if self.initial_cuts is not None:
@@ -874,15 +852,15 @@ class LossCallback(LazyConstraintCallback):
 
         # if solution updates incumbent, then add solution to queue for polishing
         current_upperbound = float(loss_value + self.get_L0_penalty_from_alpha(alpha))
-        incumbent_update = current_upperbound < self.stats['upperbound']
+        incumbent_update = current_upperbound < self.stats.upperbound
 
         if incumbent_update:
-            self.stats['incumbent'] = rho
-            self.stats['upperbound'] = current_upperbound
-            self.stats['n_incumbent_updates'] += 1
+            self.stats.incumbent = rho
+            self.stats.upperbound = current_upperbound
+            self.stats.n_incumbent_updates += 1
 
         if self.settings['polish_flag']:
-            polishing_cutoff = self.stats['upperbound'] * (1.0 + self.settings['polishing_tolerance'])
+            polishing_cutoff = self.stats.upperbound * (1.0 + self.settings['polishing_tolerance'])
             if current_upperbound < polishing_cutoff:
                 self.polish_queue.add(current_upperbound, rho)
 
@@ -899,14 +877,14 @@ class LossCallback(LazyConstraintCallback):
 
         # update bounds
         if self.settings['chained_updates_flag']:
-            if (self.stats['lowerbound'] > self.stats['bounds'].objval_min) or (self.stats['upperbound'] < self.stats['bounds'].objval_max):
-                self.stats['n_update_bounds_calls'] += 1
+            if (self.stats.lowerbound > self.stats.bounds.objval_min) or (self.stats.upperbound < self.stats.bounds.objval_max):
+                self.stats.n_update_bounds_calls += 1
                 self.update_bounds()
 
         # record metrics at end
-        self.stats['n_cuts'] += cuts_added
-        self.stats['total_cut_time'] += cut_time
-        self.stats['total_cut_callback_time'] += time.time() - callback_start_time
+        self.stats.n_cuts += cuts_added
+        self.stats.total_cut_time += cut_time
+        self.stats.total_cut_callback_time += time.time() - callback_start_time
 
         #print_log('left cut callback')
         return
@@ -939,7 +917,7 @@ class PolishAndRoundCallback(HeuristicCallback):
 
         #todo: add basic assertions to make sure that nothing weird is going on
         assert isinstance(indices, dict)
-        assert isinstance(control, dict)
+        assert isinstance(control, Stats)
         assert isinstance(settings, dict)
         assert isinstance(cut_queue, FastSolutionPool)
         assert isinstance(polish_queue, FastSolutionPool)
@@ -1012,15 +990,15 @@ class PolishAndRoundCallback(HeuristicCallback):
             return
 
         callback_start_time = time.time()
-        self.stats['heuristic_callback_times_called'] += 1
-        self.stats['upperbound'] = self.get_incumbent_objective_value()
-        self.stats['lowerbound'] = self.get_best_objective_value()
-        self.stats['relative_gap'] = self.get_MIP_relative_gap()
+        self.stats.heuristic_callback_times_called += 1
+        self.stats.upperbound = self.get_incumbent_objective_value()
+        self.stats.lowerbound = self.get_best_objective_value()
+        self.stats.relative_gap = self.get_MIP_relative_gap()
 
         # check if lower bound was updated since last call
-        lowerbound_update = self.previous_lowerbound < self.stats['lowerbound']
+        lowerbound_update = self.previous_lowerbound < self.stats.lowerbound
         if lowerbound_update:
-            self.previous_lowerbound = self.stats['lowerbound']
+            self.previous_lowerbound = self.stats.lowerbound
 
         # check if incumbent solution has been updated
         # if incumbent solution is not integer, then recast as integer and update objective value manually
@@ -1030,16 +1008,16 @@ class PolishAndRoundCallback(HeuristicCallback):
             if cplex_rounding_issue:
                 cplex_incumbent = cast_to_integer(cplex_incumbent)
 
-            incumbent_update = not np.array_equal(cplex_incumbent, self.stats['incumbent'])
+            incumbent_update = not np.array_equal(cplex_incumbent, self.stats.incumbent)
 
             if incumbent_update:
-                self.stats['incumbent'] = cplex_incumbent
-                self.stats['n_incumbent_updates'] += 1
+                self.stats.incumbent = cplex_incumbent
+                self.stats.n_incumbent_updates += 1
                 if cplex_rounding_issue:
-                    self.stats['upperbound'] = self.get_objval(cplex_incumbent)
+                    self.stats.upperbound = self.get_objval(cplex_incumbent)
 
         # update flags on whether or not to keep rounding / polishing
-        self.update_heuristic_flags(n_cuts = self.stats['n_cuts'], relative_gap = self.stats['relative_gap'])
+        self.update_heuristic_flags(n_cuts = self.stats.n_cuts, relative_gap = self.stats.relative_gap)
 
         #variables to store best objective value / solution from heuristics
         best_objval = float('inf')
@@ -1054,15 +1032,15 @@ class PolishAndRoundCallback(HeuristicCallback):
             cannot_round_to_zero = np.logical_not(np.logical_or(zero_idx_rho_ceil, zero_idx_rho_floor))
             min_l0_norm = np.count_nonzero(cannot_round_to_zero[self.L0_reg_ind])
             max_l0_norm = np.count_nonzero(rho_cts[self.L0_reg_ind])
-            rounded_solution_is_feasible = (min_l0_norm < self.stats['bounds'].L0_max and max_l0_norm > self.stats['bounds'].L0_min)
+            rounded_solution_is_feasible = (min_l0_norm < self.stats.bounds.L0_max and max_l0_norm > self.stats.bounds.L0_min)
 
             if rounded_solution_is_feasible:
 
-                rounding_cutoff = self.rounding_tolerance * self.stats['upperbound']
+                rounding_cutoff = self.rounding_tolerance * self.stats.upperbound
                 rounding_start_time = time.time()
                 rounded_solution, rounded_objval, early_stop = self.rounding_handle(rho_cts, rounding_cutoff)
-                self.stats['total_round_time'] += time.time() - rounding_start_time
-                self.stats['n_rounded'] += 1
+                self.stats.total_round_time += time.time() - rounding_start_time
+                self.stats.n_rounded += 1
 
                 # round solution if sequential rounding did not stop early
                 if not early_stop:
@@ -1075,14 +1053,14 @@ class PolishAndRoundCallback(HeuristicCallback):
                         best_objval = rounded_objval
 
                     if self.polish_rounded_solutions:
-                        current_upperbound = min(rounded_objval, self.stats['upperbound'])
+                        current_upperbound = min(rounded_objval, self.stats.upperbound)
                         polishing_cutoff = current_upperbound * self.polishing_tolerance
 
                         if rounded_objval < polishing_cutoff:
                             start_time = time.time()
                             polished_solution, _, polished_objval = self.polishing_handle(rounded_solution)
-                            self.stats['total_round_then_polish_time'] += time.time() - start_time
-                            self.stats['n_rounded_then_polished'] += 1
+                            self.stats.total_round_then_polish_time += time.time() - start_time
+                            self.stats.n_rounded_then_polished += 1
 
                             if self.settings['add_cuts_at_heuristic_solutions']:
                                 self.cut_queue.add(polished_objval, polished_solution)
@@ -1095,7 +1073,7 @@ class PolishAndRoundCallback(HeuristicCallback):
         if self.polish_flag and len(self.polish_queue) > 0:
 
             #get current upperbound
-            current_upperbound = min(best_objval, self.stats['upperbound'])
+            current_upperbound = min(best_objval, self.stats.upperbound)
             polishing_cutoff = self.polishing_tolerance * current_upperbound
             self.polish_queue.filter_sort_unique(max_objval = polishing_cutoff)
 
@@ -1126,8 +1104,8 @@ class PolishAndRoundCallback(HeuristicCallback):
                         break
 
                 self.polish_queue.clear()
-                self.stats['total_polish_time'] += polish_time
-                self.stats['n_polished'] += n_polished
+                self.stats.total_polish_time += polish_time
+                self.stats.n_polished += n_polished
 
                 if self.settings['add_cuts_at_heuristic_solutions']:
                     self.cut_queue.add(polished_queue.objvals, polished_queue.solutions)
@@ -1138,16 +1116,12 @@ class PolishAndRoundCallback(HeuristicCallback):
                     best_objval, best_solution = polished_queue.get_best_objval_and_solution()
 
         # if heuristics produces a better solution then update the incumbent
-        heuristic_update = best_objval < self.stats['upperbound']
+        heuristic_update = best_objval < self.stats.upperbound
         if heuristic_update:
-            self.stats['n_heuristic_updates'] += 1
+            self.stats.n_heuristic_updates += 1
             proposed_solution, proposed_objval = convert_to_risk_slim_cplex_solution(indices = self.indices, rho = best_solution, objval = best_objval)
             self.set_solution(solution = proposed_solution, objective_value = proposed_objval)
 
-        self.stats['total_heuristic_callback_time'] += time.time() - callback_start_time
+        self.stats.total_heuristic_callback_time += time.time() - callback_start_time
         #print_log('left heuristic callback')
         return
-
-
-
-
