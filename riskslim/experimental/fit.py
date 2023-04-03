@@ -139,7 +139,7 @@ class RiskSLIM:
         cpx, cpx_indices = create_risk_slim(coef_set = self.coef_set, input = lp_settings)
         cpx = set_cplex_mip_parameters(cpx, self.cplex_settings, display_cplex_progress = settings['display_cplex_progress'])
 
-        # solve RiskSLIMFitter LP using standard CPA
+        # solve RiskSLIM LP using standard CPA
         stats, cuts, pool = run_standard_cpa(cpx = cpx, cpx_indices = cpx_indices, compute_loss = self.compute_loss_real, compute_loss_cut = self.compute_loss_cut_real, settings = settings)
 
         # update cuts
@@ -291,7 +291,7 @@ class RiskSLIM:
     @print_flag.setter
     def print_flag(self, flag):
         if flag is None:
-            self._print_flag = RiskSLIMFitter._default_print_flag
+            self._print_flag = RiskSLIM._default_print_flag
         elif isinstance(flag, bool):
             self._print_flag = bool(flag)
         else:

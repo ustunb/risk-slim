@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
 import riskslim
-from riskslim.experimental.fit import RiskSLIMFitter
+from riskslim.experimental.fit import RiskSLIM
 
 # data
 data_name = "breastcancer"                                         # name of the data
@@ -57,7 +57,7 @@ settings = {
 
 
 # train model using lattice_cpa
-clf = RiskSLIMFitter(data, constraints = constraints, **settings)
+clf = RiskSLIM(data, constraints = constraints, **settings)
 clf.fit()
 info = clf.solution_info
 

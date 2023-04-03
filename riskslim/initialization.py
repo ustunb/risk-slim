@@ -53,7 +53,7 @@ def initialize_lattice_cpa(Z,
                                  defaults = DEFAULT_INITIALIZATION_SETTINGS)
     settings['type'] = 'cvx'
 
-    # create RiskSLIMFitter LP
+    # create RiskSLIM LP
     risk_slim_settings = dict(risk_slim_settings)
     risk_slim_settings.update(bounds)
     risk_slim_settings['relax_integer_variables'] = True

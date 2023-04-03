@@ -11,15 +11,15 @@ from .utils import print_log
 
 def create_risk_slim(coef_set, input):
     """
-    create RiskSLIMFitter MIP object
+    create RiskSLIM MIP object
 
     Parameters
     ----------
-    input - dictionary of RiskSLIMFitter parameters and formulation
+    input - dictionary of RiskSLIM parameters and formulation
 
     Returns
     -------
-    mip - RiskSLIMFitter surrogate MIP without 0 cuts
+    mip - RiskSLIM surrogate MIP without 0 cuts
 
     Issues
     ----
@@ -98,7 +98,7 @@ def create_risk_slim(coef_set, input):
 
     has_intercept = '(Intercept)' in coef_set.variable_names
     """
-    RiskSLIMFitter MIP Formulation
+    RiskSLIM MIP Formulation
 
     minimize w_pos*loss_pos + w_neg *loss_minus + 0*rho_j + C_0j*alpha_j
 
@@ -370,8 +370,8 @@ def add_mip_starts(mip, indices, pool, max_mip_starts = float('inf'), mip_start_
 
     Parameters
     ----------
-    mip - RiskSLIMFitter surrogate MIP
-    indices - indices of RiskSLIMFitter surrogate MIP
+    mip - RiskSLIM surrogate MIP
+    indices - indices of RiskSLIM surrogate MIP
     pool - solution pool
     max_mip_starts - max number of mip starts to add (optional; default is add all)
     mip_start_effort_level - effort that CPLEX will spend trying to fix (optional; default is 4)
@@ -436,7 +436,7 @@ def cast_mip_start(mip_start, cpx):
 
 def convert_to_risk_slim_cplex_solution(rho, indices, loss = None, objval = None):
     """
-    Convert coefficient vector 'rho' into a solution for RiskSLIMFitter CPLEX MIP
+    Convert coefficient vector 'rho' into a solution for RiskSLIM CPLEX MIP
 
     Parameters
     ----------
