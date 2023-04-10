@@ -12,10 +12,10 @@ from riskslim.defaults import DEFAULT_LCPA_SETTINGS
 from riskslim.coefficient_set import CoefficientSet, get_score_bounds
 from riskslim.mip import add_mip_starts, convert_to_risk_slim_cplex_solution, create_risk_slim, set_cplex_mip_parameters
 from riskslim.solution_pool import SolutionPool, FastSolutionPool
-from riskslim.experimental.data import Bounds, Stats
-from riskslim.experimental.speedups.heuristics import discrete_descent, sequential_rounding
-from riskslim.experimental.speedups.bound_tightening import chained_updates
-from riskslim.experimental.speedups.warmstart import run_standard_cpa, round_solution_pool,sequential_round_solution_pool, discrete_descent_solution_pool
+from riskslim.data import Bounds, Stats
+from riskslim.speedups.heuristics import discrete_descent, sequential_rounding
+from riskslim.speedups.bound_tightening import chained_updates
+from riskslim.speedups.warmstart import run_standard_cpa, round_solution_pool,sequential_round_solution_pool, discrete_descent_solution_pool
 
 class RiskSLIM:
 

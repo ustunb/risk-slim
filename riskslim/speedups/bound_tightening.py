@@ -1,6 +1,6 @@
 import numpy as np
 
-from riskslim.experimental.data import Bounds
+from riskslim.data import Bounds
 
 
 def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count = 20):
