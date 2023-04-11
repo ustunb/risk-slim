@@ -62,7 +62,7 @@ def get_loss_value_and_prob_tables():
 def log_loss_value(generated_normal_data):
     """Test accuracy log loss lookup."""
     # Get simulated data from fixture
-    Z = generated_normal_data['Z']
+    Z = generated_normal_data['Z'][0]
     rho = generated_normal_data['rho']
 
     min_score = -100
@@ -81,7 +81,7 @@ def log_loss_value(generated_normal_data):
 
 def log_loss_value_from_scores(generated_normal_data):
     """Test loss value from scores."""
-    Z = generated_normal_data['Z']
+    Z = generated_normal_data['Z'][0]
     rho = generated_normal_data['rho']
 
     min_score = -100
@@ -100,7 +100,7 @@ def log_loss_value_from_scores(generated_normal_data):
 
 def log_loss_value_and_slope(generated_normal_data):
     """Test loss and slope."""
-    Z = generated_normal_data['Z']
+    Z = generated_normal_data['Z'][0]
     rho = generated_normal_data['rho']
 
     min_score = -10000

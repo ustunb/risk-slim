@@ -6,7 +6,6 @@ import riskslim.loss_functions.fast_log_loss as fast
 import riskslim.loss_functions.log_loss as normal
 import riskslim.loss_functions.log_loss_weighted as weighted
 import riskslim.loss_functions.lookup_log_loss as lookup
-from riskslim.setup_functions import _setup_training_weights
 
 
 def test_compare_log_loss_value_from_scores(generated_data):
@@ -99,7 +98,7 @@ def test_loss_normal_vs_weighted(generated_data):
         )
         return weighted_value, weighted_cut, weighted_scores
 
-    weights = _setup_training_weights(y, w_pos=1.0, w_neg=1.0, w_total_target=2.0)
+    weights = np.ones(len(y))
 
     weighted_value, weighted_cut, weighted_scores = \
         get_weighted(weights, Z_py, rho_py, scores_py)
@@ -113,8 +112,7 @@ def test_loss_normal_vs_weighted(generated_data):
     assert(all(np.isclose(normal_cut[1], weighted_cut[1])))
 
     # Re weight
-    weights = _setup_training_weights(y, w_pos = 0.5 + np.random.rand(),
-                                      w_neg=1.0, w_total_target=2.0)
+    weights = np.random.rand(len(y))
 
     weighted_value, weighted_cut, weighted_scores = \
         get_weighted(weights, Z_py, rho_py, scores_py)

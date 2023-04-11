@@ -97,57 +97,44 @@ default_settings = {
 @pytest.mark.parametrize('max_offset', [0, 50])
 def test_risk_slim(max_coefficient, max_L0_value, max_offset):
 
-    # load dataset
+    # Load dataset
     data = riskslim.load_data_from_csv(
         dataset_csv_file=data_csv_file, sample_weights_csv_file=sample_weights_csv_file
     )
 
     N, P = data['X'].shape
 
-    # offset value
+    # Offset value
     coef_set = riskslim.CoefficientSet(
         variable_names=data['variable_names'],
-        lb=-max_coefficient, ub=max_coefficient, sign=0
+        lb=-max_coefficient, ub=max_coefficient
     )
 
     coef_set.update_intercept_bounds(
-        X = data['X'], y = data['Y'], max_offset=max_offset, max_L0_value = max_L0_value
+        X = data['X'], y = data['y'], max_offset=max_offset, max_L0_value = max_L0_value
     )
 
-    # create constraint dictionary
+    # Create constraint dictionary
     trivial_L0_max = P - np.sum(coef_set.C_0j == 0)
     max_L0_value = min(max_L0_value, trivial_L0_max)
 
-    constraints = {
-        'L0_min': 0,
-        'L0_max': max_L0_value,
-        'coef_set':coef_set,
-    }
-
     # Train model using lattice_cpa
-    model_info, mip_info, lcpa_info = riskslim.run_lattice_cpa(
-        data, constraints, default_settings
+    rs = riskslim.RiskSLIM(
+        coef_set=coef_set, L0_min=0, L0_max=max_L0_value, settings=default_settings
     )
+    rs.fit(data['X'], y = data['y'])
 
-    # model info contains key results
-    pprint.pprint(model_info)
+    # Model info contains key results
+    pprint.pprint(rs.solution_info)
 
-    # lcpa_output contains detailed information about LCPA
-    pprint.pprint(lcpa_info)
 
-    assert model_info['L0_min'] == lcpa_info['bounds']['L0_min'] == 0
-    assert model_info['L0_max'] == lcpa_info['bounds']['L0_max'] == max_L0_value
-    assert model_info['coef_set'] == coef_set
+    assert rs.L0_min == rs.bounds.L0_min == 0
+    assert rs.L0_max == rs.bounds.L0_max == max_L0_value
+    assert rs.coef_set == coef_set
 
     # Each column of X has a rho and alpha (except for intercept,
     #   which doesn't have an alpha). There are 3 additional parameters:
     #   loss, objval, L0_norm
-    assert (len(data['X'][0]) * 2) - 1 + 3 == mip_info['risk_slim_idx']['n_variables']
-
-    # model info contains key results
-    pprint.pprint(model_info)
-
-    # lcpa_output contains detailed information about LCPA
-    pprint.pprint(lcpa_info)
+    assert (len(data['X'][0]) * 2) - 1 + 3 == rs.mip_indices['n_variables']
 
     assert True

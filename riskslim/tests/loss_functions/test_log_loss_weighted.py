@@ -8,7 +8,7 @@ def test_log_loss_value(generated_normal_data):
     """Test weighted log loss value."""
 
     # Unpack fixture
-    Z = generated_normal_data['Z']
+    Z = generated_normal_data['Z'][0]
     rho = generated_normal_data['rho']
 
     # Weights of one are the same as unweighted
@@ -26,11 +26,12 @@ def test_log_loss_value(generated_normal_data):
     assert log_loss_weighted.log_loss_value(Z, weights, len(Z), rho) == \
         log_loss.log_loss_value(Z[ind], rho) / len(Z)
 
+
 def test_log_loss_value_and_slope(generated_normal_data):
     """Test weighted log loss value and slope."""
 
     # Unpack fixture
-    Z = generated_normal_data['Z']
+    Z = generated_normal_data['Z'][0]
     rho = generated_normal_data['rho']
 
     # Weights are all one, assert equal to unweighted logloss
@@ -65,7 +66,7 @@ def test_log_loss_value_from_scores(generated_normal_data):
     """Test weighted log loss from scores."""
 
     # Unpack fixture
-    Z = generated_normal_data['Z']
+    Z = generated_normal_data['Z'][0]
     rho = generated_normal_data['rho']
 
     # Weights are all one, assert equal to unweighted logloss
