@@ -4,7 +4,7 @@ from prettytable import PrettyTable
 from .defaults import INTERCEPT_NAME
 
 
-class CoefficientSet(object):
+class CoefficientSet:
     """
     Class to represent and specify constraints on coefficients of input variables
     Constraints include upper and lower bounds, variable type, and regularization.
@@ -14,15 +14,22 @@ class CoefficientSet(object):
     _initialized = False
     _variable_names = None
 
-    def __init__(self, variable_names, **kwargs):
+    def __init__(self, variable_names, lb=-5., ub=5., c0=np.nan, vtype='I', print_flag=True):
 
-        # set variables using setter methods
+        # Set variables using setter methods
         self.variable_names = list(variable_names)
-        self.print_flag = kwargs.get('print_flag', CoefficientSet._default_print_flag)
-        ub = kwargs.get('ub', _CoefficientElement._default_ub)
-        lb = kwargs.get('lb', _CoefficientElement._default_lb)
-        c0 = kwargs.get('c0', _CoefficientElement._default_c0)
-        vtype = kwargs.get('type', _CoefficientElement._default_vtype)
+        self.print_flag = print_flag
+
+        # Ensure bounds are floats
+        if isinstance(ub, int):
+            ub = float(ub)
+        elif isinstance(ub, list):
+            ub = np.array(list, dtype=np.float64)
+
+        if isinstance(lb, int):
+            lb = float(lb)
+        elif isinstance(lb, list):
+            lb = np.array(list, dtype=np.float64)
 
         ub = self._expand_values(value = ub)
         lb = self._expand_values(value = lb)
@@ -272,8 +279,8 @@ class _CoefficientElement(object):
     Constraints include upper and lower bounds, variable type, and regularization.
     """
 
-    _default_ub = 5
-    _default_lb = -5
+    _default_ub = 5.
+    _default_lb = -5.
     _default_c0 = float('nan')
     _default_vtype = 'I'
     _valid_vtypes = ['I', 'C']
@@ -306,7 +313,7 @@ class _CoefficientElement(object):
 
     @property
     def ub(self):
-        return self._default_ub
+        return self._ub
 
     @ub.setter
     def ub(self, value):
@@ -392,7 +399,7 @@ class _CoefficientElement(object):
         s = ['-' * 60,
              'variable: %s' % self._name,
              '-' * 60,
-             '%s: %1.1f' % ('ub', self._default_ub),
+             '%s: %1.1f' % ('ub', self._ub),
              '%s: %1.1f' % ('lb', self._lb),
              '%s: %1.2g' % ('c0', self._c0),
              '%s: %1.0f' % ('sign', self.sign),
