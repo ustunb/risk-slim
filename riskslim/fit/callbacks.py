@@ -36,7 +36,11 @@ class LossCallback(LazyConstraintCallback):
       requires settings['chained_updates_flag'] = True
     """
 
-    def initialize(self, indices, stats, settings, compute_loss_cut, get_alpha, get_L0_penalty_from_alpha, initial_cuts = None, cut_queue = None, polish_queue = None):
+    def initialize(
+            self, indices, stats, settings, compute_loss_cut, get_alpha,
+            get_L0_penalty_from_alpha, initial_cuts=None, cut_queue=None, polish_queue=None,
+            verbose=True
+        ):
 
         assert isinstance(indices, dict)
         assert isinstance(stats, Stats)
@@ -48,6 +52,7 @@ class LossCallback(LazyConstraintCallback):
 
         self.settings = settings  #store pointer to shared settings so that settings can be turned on/off during B&B
         self.stats = stats  # dict containing information for flow
+        self.verbose = verbose
 
         # todo (validate initial cutting planes)
         self.initial_cuts = initial_cuts
@@ -155,7 +160,7 @@ class LossCallback(LazyConstraintCallback):
 
         # add initial cuts first time the callback is used
         if self.initial_cuts is not None:
-            print_log('adding %1.0f initial cuts' % len(self.initial_cuts['lhs']))
+            print_log('adding %1.0f initial cuts' % len(self.initial_cuts['lhs']), self.verbose)
             for cut, lhs in zip(self.initial_cuts['coefs'], self.initial_cuts['lhs']):
                 self.add(constraint = cut, sense = "G", rhs = lhs, use = self.loss_cut_purge_flag)
             self.initial_cuts = None
