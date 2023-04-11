@@ -6,7 +6,6 @@ import pytest
 import numpy as np
 
 from riskslim.coefficient_set import get_score_bounds
-from riskslim.setup_functions import _setup_training_weights
 import riskslim.loss_functions.lookup_log_loss as lookup
 
 from .utils import generate_random_normal
@@ -38,6 +37,7 @@ def generated_data():
 
     # Initialize data matrix X and label vector y
     X, y = generate_binary_data(n_rows, n_cols)
+    X[:, 0] = 1.
 
     Z = X * y
     Z = np.require(Z, requirements=['F'], dtype=np.float64)
@@ -51,7 +51,7 @@ def generated_data():
     Z_max = np.max(Z, axis=0)
 
     # Setup weights
-    weights = _setup_training_weights(y, w_pos=1.0, w_neg=1.0, w_total_target=2.0)
+    weights = np.ones(len(X))
 
     # Create lookup table
     min_score, max_score = get_score_bounds(Z_min, Z_max, rho_lb, rho_ub, L0_max=n_cols)
@@ -80,19 +80,32 @@ def generated_data():
 @pytest.fixture(scope='module')
 def generated_normal_data():
     """Generate data with a solution."""
-    n_rows = 1000
-    n_columns = 100
-    n_targets = 10
-    seed = 0
 
-    data, rho_true = generate_random_normal(n_rows, n_columns, n_targets, seed)
+    # Size of problem
+    n_columns = 12
+    n_rows = 200
+    n_targets = 4
+    n_iters = 25
 
-    X = data['X']
-    y = data['Y']
+    X = np.zeros((n_iters, n_rows, n_columns))
+    rho_true = np.zeros((n_iters, n_columns))
+    for i, seed in enumerate(range(n_iters)):
 
-    # Training data and weights
-    Z = np.asfortranarray(X * y)
+        # Simulate data
+        _data, _rho_true = generate_random_normal(n_rows, n_columns, n_targets, seed)
 
-    rho = np.ones(n_columns, order='F')
+        # Track features and true rho
+        X[i] = _data['X']
+        rho_true[i] = _rho_true
 
-    yield {'X':X, 'y':y, 'Z':Z, 'rho':rho, 'rho_true':rho_true, 'data': data}
+    # Labels
+    y = _data['y']
+
+    rho = np.ones(n_columns)
+
+    Z = X * y
+
+    names = ['var_' + str(i).zfill(2) for i in range(n_columns-1)]
+    names.insert(0, '(Intercept)')
+
+    yield {'X':X, 'y':y, 'Z':Z, 'rho':rho, 'rho_true':rho_true, 'variable_names':names}

@@ -50,6 +50,9 @@ def generate_random_normal(n_rows, n_columns, n_targets, seed):
             # Noise
             X[:, ind] = np.random.normal(0, 100, n_rows).astype(np.int32)
 
+    # Intercept
+    X[:, 0]= 1.
+
     # Variale names
     variable_names = ['var_' + str(i).zfill(2) for i in range(n_columns-1)]
     variable_names.insert(0, '(Intercept)')
@@ -57,7 +60,7 @@ def generate_random_normal(n_rows, n_columns, n_targets, seed):
     # Data
     data = {}
     data['X'] = X
-    data['Y'] = y
+    data['y'] = y
     data['variable_names'] = variable_names
     data['outcome_name'] = '1'
 
