@@ -3,7 +3,8 @@ import numpy as np
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
 from riskslim.solution_pool import SolutionPool
 from riskslim.bound_tightening import chained_updates, chained_updates_for_lp
-from riskslim.speedups.heuristics import discrete_descent, sequential_rounding
+from riskslim.heuristics import discrete_descent, sequential_rounding
+from riskslim.data import Bounds
 from riskslim.defaults import DEFAULT_CPA_SETTINGS
 from riskslim.utils import print_log, validate_settings
 
@@ -42,14 +43,14 @@ def run_standard_cpa(cpx,
     else:
         get_alpha = lambda: np.array([])
 
-    bounds = {
-        'loss_min': cpx.variables.get_lower_bounds(loss_idx),
-        'loss_max': cpx.variables.get_upper_bounds(loss_idx),
-        'objval_min': cpx.variables.get_lower_bounds(objval_idx),
-        'objval_max': cpx.variables.get_upper_bounds(objval_idx),
-        'L0_min': cpx.variables.get_lower_bounds(L0_idx),
-        'L0_max': cpx.variables.get_upper_bounds(L0_idx),
-        }
+    bounds = Bounds(
+        loss_min=cpx.variables.get_lower_bounds(loss_idx),
+        loss_max=cpx.variables.get_upper_bounds(loss_idx),
+        objval_min=cpx.variables.get_lower_bounds(objval_idx),
+        objval_max=cpx.variables.get_upper_bounds(objval_idx),
+        L0_min=cpx.variables.get_lower_bounds(L0_idx),
+        L0_max=cpx.variables.get_upper_bounds(L0_idx),
+    )
 
     if settings['update_bounds'] and settings['type'] == 'cvx':
         update_bounds = lambda bounds, lb, ub: chained_updates_for_lp(bounds, C_0_nnz, ub, lb)
@@ -165,12 +166,13 @@ def run_standard_cpa(cpx,
 
         # switch bounds
         if settings['update_bounds']:
-            cpx.variables.set_lower_bounds(L0_idx, bounds['L0_min'])
-            cpx.variables.set_upper_bounds(L0_idx, bounds['L0_max'])
-            cpx.variables.set_lower_bounds(loss_idx, bounds['loss_min'])
-            cpx.variables.set_upper_bounds(loss_idx, bounds['loss_max'])
-            cpx.variables.set_lower_bounds(objval_idx, bounds['objval_min'])
-            cpx.variables.set_upper_bounds(objval_idx, bounds['objval_max'])
+            cpx.variables.set_lower_bounds(L0_idx, bounds.L0_min
+                                           )
+            cpx.variables.set_upper_bounds(L0_idx, bounds.L0_max)
+            cpx.variables.set_lower_bounds(loss_idx, bounds.loss_min)
+            cpx.variables.set_upper_bounds(loss_idx, bounds.loss_max)
+            cpx.variables.set_lower_bounds(objval_idx, bounds.objval_min)
+            cpx.variables.set_upper_bounds(objval_idx, bounds.objval_max)
 
         # add loss cut
         cpx.linear_constraints.add(lin_expr = cut_constraint, senses = ["G"], rhs = cut_lhs)
@@ -192,7 +194,7 @@ def run_standard_cpa(cpx,
         'cplex_time': total_time - cut_time,
         }
 
-    stats.update(bounds)
+    stats.update(bounds.asdict())
     if settings['save_progress']:
         progress_stats['cplex_times'] = (np.array(stats['total_times']) - np.array(stats['cut_times'])).tolist()
         progress_stats['objvals'] = objvals

@@ -14,9 +14,9 @@ from riskslim.coefficient_set import CoefficientSet, get_score_bounds
 from riskslim.mip import add_mip_starts, create_risk_slim, set_cplex_mip_parameters
 from riskslim.solution_pool import SolutionPool, FastSolutionPool
 from riskslim.data import Bounds, Stats
-from riskslim.speedups.heuristics import discrete_descent, sequential_rounding
-from riskslim.speedups.bound_tightening import chained_updates
-from riskslim.speedups.warmstart import (
+from riskslim.heuristics import discrete_descent, sequential_rounding
+from riskslim.bound_tightening import chained_updates
+from riskslim.warmstart import (
     run_standard_cpa,
     round_solution_pool,
     sequential_round_solution_pool,

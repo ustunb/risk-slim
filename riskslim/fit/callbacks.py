@@ -9,7 +9,7 @@ from riskslim.utils import cast_to_integer, is_integer
 from riskslim.mip import convert_to_risk_slim_cplex_solution
 from riskslim.data import Stats
 from riskslim.solution_pool import FastSolutionPool
-from riskslim.speedups.bound_tightening import chained_updates
+from riskslim.bound_tightening import chained_updates
 from riskslim.utils import print_log
 
 
