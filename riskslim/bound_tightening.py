@@ -1,94 +1,133 @@
-import numpy as np
+"""Tighten loss bounds."""
 
+import numpy as np
 from riskslim.data import Bounds
 
 
 def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count = 20):
+    """Update bounds using chained updates.
 
-    b = Bounds(**bounds.asdict())
+    Parameters
+    ----------
+    bounds : riskslim.data.Bounds
+        Parameters bounds.
+    C_0_nnz : 1d array
+        Regularized coefficients.
+    new_objval_at_feasible : float
+        New maximum objective value.
+    new_objval_at_relaxation : float
+        New minimum objective value.
+    max_chain_count : int
+        Maximum number of times to update chain.
 
-    # update objval_min using new_value (only done once)
+    Returns
+    -------
+    new_bounds : riskslim.data.Bounds
+        Updated parameter bounds.
+    """
+    new_bounds = Bounds(**bounds.asdict().copy())
+
+    # Update objval_min using new_value (only done once)
     if new_objval_at_relaxation is not None:
-        if b.objval_min < new_objval_at_relaxation:
-            b.objval_min = new_objval_at_relaxation
+        if new_bounds.objval_min < new_objval_at_relaxation:
+            new_bounds.objval_min = new_objval_at_relaxation
 
-    # update objval_max using new_value (only done once)
+    # Update objval_max using new_value (only done once)
     if new_objval_at_feasible is not None:
-        if b.objval_max > new_objval_at_feasible:
-            b.objval_max = new_objval_at_feasible
+        if new_bounds.objval_max > new_objval_at_feasible:
+            new_bounds.objval_max = new_objval_at_feasible
 
-    # we have already converged
-    if b.objval_max <= b.objval_min:
-        b.objval_max = max(b.objval_max, b.objval_min)
-        b.objval_min = min(b.objval_max, b.objval_min)
-        b.loss_max = min(b.objval_max, b.loss_max)
-        return b
+    # We have already converged
+    if new_bounds.objval_max <= new_bounds.objval_min:
+        new_bounds.objval_max = max(new_bounds.objval_max, new_bounds.objval_min)
+        new_bounds.objval_min = min(new_bounds.objval_max, new_bounds.objval_min)
+        new_bounds.loss_max = min(new_bounds.objval_max, new_bounds.loss_max)
+        return new_bounds
 
-    # start update chain
+    # Start update chain
     cnt = 0
     improved = True
 
     while improved and cnt < max_chain_count:
 
         improved = False
-        L0_penalty_min = np.sum(np.sort(C_0_nnz)[np.arange(int(b.L0_min))])
-        L0_penalty_max = np.sum(-np.sort(-C_0_nnz)[np.arange(int(b.L0_max))])
+        L0_penalty_min = np.sum(np.sort(C_0_nnz)[np.arange(int(new_bounds.L0_min))])
+        L0_penalty_max = np.sum(-np.sort(-C_0_nnz)[np.arange(int(new_bounds.L0_max))])
 
         # loss_min
-        if b.objval_min > L0_penalty_max:
-            proposed_loss_min = b.objval_min - L0_penalty_max
-            if proposed_loss_min > b.loss_min:
-                b.loss_min = proposed_loss_min
+        if new_bounds.objval_min > L0_penalty_max:
+            proposed_loss_min = new_bounds.objval_min - L0_penalty_max
+            if proposed_loss_min > new_bounds.loss_min:
+                new_bounds.loss_min = proposed_loss_min
                 improved = True
 
         # L0_min
-        if b.objval_min > b.loss_max:
-            proposed_L0_min = np.ceil((b.objval_min - b.loss_max) / np.min(C_0_nnz))
-            if proposed_L0_min > b.L0_min:
-                b.L0_min = proposed_L0_min
+        if new_bounds.objval_min > new_bounds.loss_max:
+            proposed_L0_min = np.ceil((new_bounds.objval_min - new_bounds.loss_max) / np.min(C_0_nnz))
+            if proposed_L0_min > new_bounds.L0_min:
+                new_bounds.L0_min = proposed_L0_min
                 improved = True
 
         # objval_min = max(objval_min, loss_min + L0_penalty_min)
-        proposed_objval_min = min(b.loss_min, L0_penalty_min)
-        if proposed_objval_min > b.objval_min:
-            b.objval_min = proposed_objval_min
+        proposed_objval_min = min(new_bounds.loss_min, L0_penalty_min)
+        if proposed_objval_min > new_bounds.objval_min:
+            new_bounds.objval_min = proposed_objval_min
             improved = True
 
         # loss max
-        if b.objval_max > L0_penalty_min:
-            proposed_loss_max = b.objval_max - L0_penalty_min
-            if proposed_loss_max < b.loss_max:
-                b.loss_max = proposed_loss_max
+        if new_bounds.objval_max > L0_penalty_min:
+            proposed_loss_max = new_bounds.objval_max - L0_penalty_min
+            if proposed_loss_max < new_bounds.loss_max:
+                new_bounds.loss_max = proposed_loss_max
                 improved = True
 
         # L0_max
-        if b.objval_max > b.loss_min:
-            proposed_L0_max = np.floor((b.objval_max - b.loss_min) / np.min(C_0_nnz))
-            if proposed_L0_max < b.L0_max:
-                b.L0_max = proposed_L0_max
+        if new_bounds.objval_max > new_bounds.loss_min:
+            proposed_L0_max = np.floor((new_bounds.objval_max - new_bounds.loss_min) / np.min(C_0_nnz))
+            if proposed_L0_max < new_bounds.L0_max:
+                new_bounds.L0_max = proposed_L0_max
                 improved = True
 
         # objval_max = min(objval_max, loss_max + penalty_max)
-        proposed_objval_max = b.loss_max + L0_penalty_max
-        if proposed_objval_max < b.objval_max:
-            b.objval_max = proposed_objval_max
+        proposed_objval_max = new_bounds.loss_max + L0_penalty_max
+        if proposed_objval_max < new_bounds.objval_max:
+            new_bounds.objval_max = proposed_objval_max
             improved = True
 
         cnt += 1
 
-    return b
+    return new_bounds
 
 
 def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count = 20):
+    """Update bounds using chained updates for a linear program.
 
-    new_bounds = Bounds(**bounds.asdict())
+    Parameters
+    ----------
+    bounds : riskslim.data.Bounds
+        Parameters bounds.
+    C_0_nnz : 1d array
+        Regularized coefficients.
+    new_objval_at_feasible : float
+        New objective value.
+    new_objval_at_relaxation : float
+        New objective value relaxing integer requirement.
+    max_chain_count : int
+        Maximum number of times to update chain.
 
-    # update objval_min using new_value (only done once)
+    Returns
+    -------
+    new_bounds : riskslim.data.Bounds
+        Updated parameter bounds.
+    """
+    new_bounds = Bounds(**bounds.asdict().copy())
+
+    # Update objval_min using new_value (only done once)
     if new_objval_at_relaxation is not None:
         if new_bounds.objval_min < new_objval_at_relaxation:
             new_bounds.objval_min = new_objval_at_relaxation
 
-    # update objval_max using new_value (only done once)
+    # Update objval_max using new_value (only done once)
     if new_objval_at_feasible is not None:
         if new_bounds.objval_max > new_objval_at_feasible:
             new_bounds.objval_max = new_objval_at_feasible
@@ -156,4 +195,3 @@ def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_o
         chain_count += 1
 
     return new_bounds
-

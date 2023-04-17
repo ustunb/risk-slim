@@ -24,12 +24,12 @@ class CoefficientSet:
         if isinstance(ub, int):
             ub = float(ub)
         elif isinstance(ub, list):
-            ub = np.array(list, dtype=np.float64)
+            ub = np.array(ub, dtype=np.float64)
 
         if isinstance(lb, int):
             lb = float(lb)
         elif isinstance(lb, list):
-            lb = np.array(list, dtype=np.float64)
+            lb = np.array(lb, dtype=np.float64)
 
         ub = self._expand_values(value = ub)
         lb = self._expand_values(value = lb)
@@ -161,6 +161,7 @@ class CoefficientSet:
 
     #### coefficient element access ####
     def __getattr__(self, name):
+
         # todo: remove
         if name == 'C_0j':
             name = 'c0'
@@ -296,7 +297,6 @@ class _CoefficientElement(object):
         self._vtype = kwargs.get('vtype', _CoefficientElement._default_vtype)
         assert self._check_rep()
 
-
     @property
     def name(self):
         return self._name
@@ -321,7 +321,7 @@ class _CoefficientElement(object):
             assert len(value) == 1
             value = value[0]
         assert value >= self._lb
-        self._default_ub = float(value)
+        self._ub = float(value)
 
 
     @property
@@ -334,7 +334,7 @@ class _CoefficientElement(object):
         if hasattr(value, '__len__'):
             assert len(value) == 1
             value = value[0]
-        assert value <= self._default_ub
+        assert value <= self._ub
         self._lb = float(value)
 
 
@@ -358,9 +358,9 @@ class _CoefficientElement(object):
 
     @property
     def sign(self):
-        if np.greater(self._default_ub, 0.0) and np.greater_equal(self._lb, 0.0):
+        if np.greater(self._ub, 0.0) and np.greater_equal(self._lb, 0.0):
             return 1
-        elif np.less_equal(self._default_ub, 0.0) and np.less(self._lb, 0.0):
+        elif np.less_equal(self._ub, 0.0) and np.less(self._lb, 0.0):
             return -1
         else:
             return 0
@@ -370,7 +370,7 @@ class _CoefficientElement(object):
         if np.greater(value, 0.0):
             self._lb = 0.0
         elif np.less(value, 0.0):
-            self._default_ub = 0.0
+            self._ub = 0.0
 
     def _check_rep(self):
 
