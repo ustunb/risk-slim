@@ -180,9 +180,9 @@ def test_RiskSLIM_warmstart(generated_normal_data, use_rounding, polishing_after
 @pytest.mark.parametrize('polish_flag', [True, False])
 def test_RiskSLIM_fit(generated_normal_data, polish_flag):
     """Test fitting RiskSLIM."""
-    X = generated_normal_data['X']
-    y = generated_normal_data['y']
-    variable_names = generated_normal_data['variable_names']
+    X = generated_normal_data['X'].copy()
+    y = generated_normal_data['y'].copy()
+    variable_names = generated_normal_data['variable_names'].copy()
 
     coef_set = CoefficientSet(variable_names)
 
