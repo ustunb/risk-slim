@@ -110,9 +110,7 @@ def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_f
     -------
 
     """
-    """
-    
-    """
+
     assert callable(compute_loss_from_scores)
     assert callable(get_L0_penalty)
 
