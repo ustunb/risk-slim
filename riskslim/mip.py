@@ -299,7 +299,7 @@ def create_risk_slim(coef_set, input):
     return mip, indices
 
 
-def set_cplex_mip_parameters(cpx, param, display_cplex_progress = False):
+def set_cplex_mip_parameters(mip, param, display_cplex_progress = False):
     """
     Helper function to set CPLEX parameters of CPLEX MIP object
 
@@ -314,17 +314,18 @@ def set_cplex_mip_parameters(cpx, param, display_cplex_progress = False):
     MIP with parameters
 
     """
-    p = cpx.parameters
+    p = mip.parameters
     p.randomseed.set(param['randomseed'])
     p.threads.set(param['n_cores'])
     p.output.clonelog.set(0)
     p.parallel.set(1)
 
     if display_cplex_progress is (None or False):
-        cpx = set_cpx_display_options(cpx, display_mip = False, display_lp = False, display_parameters = False)
+        mip = set_cpx_display_options(mip, display_mip = False, display_lp = False, display_parameters = False)
 
-    problem_type = cpx.problem_type[cpx.get_problem_type()]
-    if problem_type == 'MIP':
+    problem_type = mip.problem_type[mip.get_problem_type()]
+
+    if problem_type == 'MILP':
         # CPLEX Memory Parameters
         # MIP.Param.workdir.Cur  = exp_workdir;
         # MIP.Param.workmem.Cur                    = cplex_workingmem;
@@ -343,26 +344,26 @@ def set_cplex_mip_parameters(cpx, param, display_cplex_progress = False):
         p.mip.pool.replace.set(param['poolreplace'])
         # 0 = replace oldest /1: replace worst objective / #2 = replace least diverse solutions
 
-    return cpx
+    return mip
 
 
-def set_cpx_display_options(cpx, display_mip = True, display_parameters = False, display_lp = False):
+def set_cpx_display_options(mip, display_mip = True, display_parameters = False, display_lp = False):
 
-    cpx.parameters.mip.display.set(display_mip)
-    cpx.parameters.simplex.display.set(display_lp)
+    mip.parameters.mip.display.set(display_mip)
+    mip.parameters.simplex.display.set(display_lp)
 
     try:
-        cpx.parameters.paramdisplay.set(display_parameters)
+        mip.parameters.paramdisplay.set(display_parameters)
     except AttributeError:
         pass
 
     if not (display_mip or display_lp):
-        cpx.set_results_stream(None)
-        cpx.set_log_stream(None)
-        cpx.set_error_stream(None)
-        cpx.set_warning_stream(None)
+        mip.set_results_stream(None)
+        mip.set_log_stream(None)
+        mip.set_error_stream(None)
+        mip.set_warning_stream(None)
 
-    return cpx
+    return mip
 
 
 def add_mip_starts(mip, indices, pool, max_mip_starts = float('inf'), mip_start_effort_level = 4):
@@ -405,25 +406,25 @@ def add_mip_starts(mip, indices, pool, max_mip_starts = float('inf'), mip_start_
     return mip
 
 
-def cast_mip_start(mip_start, cpx):
+def cast_mip_start(mip_start, mip):
     """
     casts the solution values and indices in a Cplex SparsePair
 
     Parameters
     ----------
     mip_start cplex SparsePair
-    cpx Cplex
+    mip Cplex
 
     Returns
     -------
     Cplex SparsePair where the indices are integers and the values for each variable match the variable type specified in CPLEX Object
     """
 
-    assert isinstance(cpx, Cplex)
+    assert isinstance(mip, Cplex)
     assert isinstance(mip_start, SparsePair)
     vals = list(mip_start.val)
     idx = np.array(list(mip_start.ind), dtype = int).tolist()
-    types = cpx.variables.get_types(idx)
+    types = mip.variables.get_types(idx)
 
     for j, t in enumerate(types):
         if t in ['B', 'I']:

@@ -573,10 +573,10 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
 
         settings = validate_settings(settings, defaults)
         warmstart_settings = {
-            k.lstrip("init_"): settings[k] for k in settings if k.startswith("init_")
+            k[5:]: settings[k] for k in settings if k.startswith("init_")
         }
         cplex_settings = {
-            k.lstrip("cplex_"): settings[k] for k in settings if k.startswith("cplex_")
+            k[6:]: settings[k] for k in settings if k.startswith("cplex_")
         }
         lcpa_settings = {
             k: settings[k]
