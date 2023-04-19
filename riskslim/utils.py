@@ -197,7 +197,7 @@ def print_model(rho, X, variable_names, outcome_name, show_omitted_variables=Fal
     else:
         intercept_val = 0
 
-    if outcome_name is not None:
+    if outcome_name is None:
         predict_string = "Pr(Y = +1) = 1.0/(1.0 + exp(-(%d + score))" % intercept_val
     else:
         predict_string = "Pr(%s = +1) = 1.0/(1.0 + exp(-(%d + score))" % (outcome_name.upper(), intercept_val)
