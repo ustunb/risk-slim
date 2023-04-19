@@ -196,7 +196,8 @@ def run_standard_cpa(cpx,
 
     stats.update(bounds.asdict())
     if settings['save_progress']:
-        progress_stats['cplex_times'] = (np.array(stats['total_times']) - np.array(stats['cut_times'])).tolist()
+        progress_stats['cplex_times'] = (np.array(progress_stats['total_times']) - \
+                                         np.array(progress_stats['cut_times'])).tolist()
         progress_stats['objvals'] = objvals
         progress_stats['solutions'] = solutions
         stats.update(progress_stats)

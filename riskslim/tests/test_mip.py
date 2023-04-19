@@ -96,7 +96,6 @@ def test_add_mip_starts(generated_normal_data):
     variable_names = generated_normal_data['variable_names'].copy()
 
     vtypes = ['C'] * len(variable_names)
-    vtypes[1] = 'C'
 
     coef_set = CoefficientSet(variable_names, vtype=vtypes)
 
