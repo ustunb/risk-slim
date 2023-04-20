@@ -2,6 +2,7 @@ import time
 import numpy as np
 import warnings
 from copy import copy
+from prettytable import PrettyTable
 
 from scipy.special import expit
 from cplex.exceptions import CplexError
@@ -23,6 +24,7 @@ from riskslim.warmstart import (
     discrete_descent_solution_pool,
 )
 from riskslim.fit.callbacks import LossCallback, PolishAndRoundCallback
+from riskslim.utils import print_model
 
 
 class RiskSLIM(BaseEstimator, ClassifierMixin):
@@ -54,6 +56,10 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
 
         # Settings
         settings = {} if settings is None else settings
+
+        if 'display_cplex_progress' not in settings.keys():
+            settings['display_cplex_progress'] = verbose
+
         (
             self.settings,
             self.cplex_settings,
@@ -68,6 +74,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         self.L0_min = L0_min
         self.L0_max = L0_max
         self.coef_set = coef_set
+        self.rho = None
 
         if self.coef_set is not None:
             self.init_coeffs()
@@ -83,6 +90,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         # Features and labels
         self.X = None
         self.y = None
+
 
     def init_coeffs(self):
         """Initialize coefficient constraints.
@@ -429,6 +437,38 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         cpx.solve()
         self.stats.total_run_time = time.time() - start_time
         self.fitted = True
+        self.rho = self.solution_info['solution']
+
+
+    def print_solution(self):
+        """Print coefficient solution."""
+        if self.fitted:
+            print_model(
+                self.rho,
+                self.X,
+                self.variable_names,
+                self.outcome_name
+            )
+        else:
+            raise ValueError('Model is not fit.')
+
+
+    def print_model(self):
+        """Print model info."""
+        if self.fitted:
+            # Adds rho to table
+            table = PrettyTable()
+            table.align = "r"
+            table.add_column("variable_name", self.coef_set._variable_names)
+            table.add_column("vtype", self.coef_set.vtype)
+            table.add_column("sign", self.coef_set.sign)
+            table.add_column("lb", self.coef_set.lb)
+            table.add_column("ub", self.coef_set.ub)
+            table.add_column("c0", self.coef_set.c0)
+            table.add_column("rho", self.rho)
+            print(str(table))
+        else:
+            print(self.coef_set)
 
     #### properties ####
 

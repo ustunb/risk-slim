@@ -186,8 +186,6 @@ def test_RiskSLIM_fit(generated_normal_data, polish_flag):
 
     coef_set = CoefficientSet(variable_names)
 
-    rs = RiskSLIM(coef_set=coef_set, L0_min=0, L0_max=5)
-
     # Size of problem
     n_columns = 12
     n_iters = 25
@@ -233,9 +231,20 @@ def test_RiskSLIM_fit(generated_normal_data, polish_flag):
         # Initalize
         rs = RiskSLIM(coef_set=coef_set, L0_min=0, L0_max=10, settings=settings)
 
+        if ind == 0:
+            # Ensure printable
+            rs.print_model()
+            with pytest.raises(ValueError):
+                rs.print_solution()
+
         # Fit
         rs.fit(X[ind], y)
         assert rs.fitted
+
+        if ind == 0:
+            # Ensure printable
+            rs.print_model()
+            rs.print_solution()
 
         # Get solutions
         solutions[ind] = rs.solution_info['solution']
