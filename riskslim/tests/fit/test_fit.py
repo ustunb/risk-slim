@@ -63,6 +63,7 @@ def test_RiskSLIM_init_fit(generated_normal_data, use_coef_set):
     rs.sample_weights = None
 
     rs.init_fit()
+    rs.init_mip()
 
     # Checks
     assert isinstance(rs.coef_set, CoefficientSet)
@@ -110,6 +111,7 @@ def test_RiskSLIM_init_loss(generated_normal_data, loss_computation):
         rs.sample_weights = np.random.rand(len(X))
 
     rs.init_fit()
+    rs.init_mip()
 
     rs.coef_set = coef_set
     rs._init_loss_computation()
@@ -159,6 +161,7 @@ def test_RiskSLIM_warmstart(generated_normal_data, use_rounding, polishing_after
 
     # Initalize fitting procedure
     rs.init_fit()
+    rs.init_mip()
 
     # Test warm start
     if use_rounding or polishing_after:

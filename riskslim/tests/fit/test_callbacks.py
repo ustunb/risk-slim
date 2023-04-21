@@ -28,6 +28,7 @@ def test_losscallback(generated_normal_data, cut_queue, polish_queue):
     rs.outcome_name = None
     rs.sample_weights = None
     rs.init_fit()
+    rs.init_mip()
     rs.warmstart()
 
     # Initialize solution queues
@@ -74,6 +75,7 @@ def test_polish_and_round_callback(generated_normal_data):
     rs.outcome_name = None
     rs.sample_weights = None
     rs.init_fit()
+    rs.init_mip()
     rs.warmstart()
 
     # Initialize solution queues

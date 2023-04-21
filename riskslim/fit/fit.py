@@ -228,7 +228,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
 
         # Setup risk slim mip
         self.mip, self.mip_indices = create_risk_slim(
-            coef_set=self.coef_set, input=self.mip_settings
+            coef_set=self.coef_set, settings=self.mip_settings
         )
         self.mip_indices.update(
             {
@@ -262,7 +262,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         # Construct LP relaxation
         lp_settings = dict(self.mip_settings)
         lp_settings["relax_integer_variables"] = True
-        cpx, cpx_indices = create_risk_slim(coef_set=self.coef_set, input=lp_settings)
+        cpx, cpx_indices = create_risk_slim(coef_set=self.coef_set, settings=lp_settings)
         cpx = set_cplex_mip_parameters(
             cpx,
             self.cplex_settings,
