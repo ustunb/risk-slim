@@ -206,6 +206,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
                 self.bounds = chained_updates(self.bounds, self.C_0_nnz)
             self.pool.add(objvals=trivial_objval, solutions=trivial_solution)
 
+
     def init_mip(self):
         """Initalize a CPLEX MIP solver."""
         # Setup mip
@@ -239,6 +240,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         self.stats = Stats(
             incumbent=np.full(self.X.shape[1], np.nan), bounds=self.bounds
         )
+
 
     def warmstart(self, warmstart_settings=None):
         """Run an initialization routine to speed up RiskSLIM
@@ -396,6 +398,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         # Update bounds
         self.bounds = copy(bounds)
         self.has_warmstart = True
+
 
     def fit(self, X, y, variable_names=None, outcome_name=None, sample_weights=None):
         """Fit RiskSlim.
