@@ -33,11 +33,11 @@ def test_RiskSLIM_init(init_coef):
         expected_type = (float, int, np.ndarray)
         assert rs.variable_names == variable_names
     else:
-        expected_type = type(None)
+        expected_type = (type(None), float)
         assert type_check(rs.variable_names, expected_type)
 
-    assert type_check(rs.rho_lb, expected_type)
-    assert type_check(rs.rho_ub, expected_type)
+    assert type_check(rs.rho_min, expected_type)
+    assert type_check(rs.rho_max, expected_type)
     assert type_check(rs.c0_value, expected_type)
     assert type_check(rs.L0_reg_ind, expected_type)
     assert type_check(rs.C_0, expected_type)
@@ -66,8 +66,8 @@ def test_RiskSLIM_init_fit(generated_normal_data, use_coef_set):
 
     # Checks
     assert isinstance(rs.coef_set, CoefficientSet)
-    assert isinstance(rs.rho_lb, np.ndarray)
-    assert isinstance(rs.rho_lb, np.ndarray)
+    assert isinstance(rs.rho_min, np.ndarray)
+    assert isinstance(rs.rho_max, np.ndarray)
 
     assert isinstance(rs.mip, Cplex)
     assert isinstance(rs.mip_indices, dict)
@@ -184,8 +184,6 @@ def test_RiskSLIM_fit(generated_normal_data, polish_flag):
     y = generated_normal_data['y'].copy()
     variable_names = generated_normal_data['variable_names'].copy()
 
-    coef_set = CoefficientSet(variable_names)
-
     # Size of problem
     n_columns = 12
     n_iters = 25
@@ -226,10 +224,9 @@ def test_RiskSLIM_fit(generated_normal_data, polish_flag):
         lb[0] = 0.
         ub[0] = 0.
 
-        coef_set = CoefficientSet(variable_names=variable_names, lb=lb, ub=ub)
-
         # Initalize
-        rs = RiskSLIM(coef_set=coef_set, L0_min=0, L0_max=10, settings=settings)
+        rs = RiskSLIM(L0_min=0, L0_max=10, rho_min=lb, rho_max=ub, c0_value=c0_value,
+                      settings=settings)
 
         if ind == 0:
             # Ensure printable
@@ -238,7 +235,7 @@ def test_RiskSLIM_fit(generated_normal_data, polish_flag):
                 rs.print_solution()
 
         # Fit
-        rs.fit(X[ind], y)
+        rs.fit(X[ind], y, variable_names=variable_names)
         assert rs.fitted
 
         if ind == 0:

@@ -55,7 +55,7 @@ def create_risk_slim(coef_set, input):
     P = len(coef_set)
     w_pos, w_neg = input['w_pos'], input['w_neg']
     C_0j = np.copy(coef_set.c0)
-    L0_reg_ind = np.isnan(C_0j)
+    L0_reg_ind = np.isnan(C_0j) + C_0j != 0.0
     C_0j[L0_reg_ind] = input['C_0']
     C_0j = C_0j.tolist()
     C_0_rho = np.copy(C_0j)

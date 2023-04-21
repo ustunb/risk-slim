@@ -28,25 +28,43 @@ from riskslim.utils import print_model
 
 
 class RiskSLIM(BaseEstimator, ClassifierMixin):
-    """RiskSlim fitting object.
+    """RiskSLIM model object.
 
     Parameters
     ----------
-    coefficient_set : riskslim.coefficient_set.CoefficientSet
-        Contraints (bounds) on coefficients of input variables.
     L0_min : int, optional, default: None
         Minimum number of regularized coefficients.
         None defaults to zero.
     L0_max : int, optional, default: None
         Maximum number of regularized coefficients.
-        None defauls to length of input variables.
-    settings, dict, optional, defaul: None
+        None defaults to length of input variables.
+    rho_min : float or 1d array, optional, default: -5.
+        Minimum coefficient.
+    rho_max : float or 1d array, optional, default: 5.
+        Maximum coefficient.
+    c0_value : 1d array or float, optional, default: 1e-6
+        L0-penalty for all parameters when an integer or for each parameter
+        separately when an array.
+    max_abs_offset : float, optional, default: None
+        Maximum absolute value of intercept. This may be specificed as the first value
+        of rho_min and rho_max. However, if rho_min and rho_max are floats, this parameter
+        provides a convenient way to set bounds on the offset.
+    vtype : str or list of str, optional, default: "I"
+        Variable types for coefficients. Must be either "I" for integers or "C" for floats.
+    settings, dict, optional, defaults: None
         Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
         None defaults to settings defined in riskslim.defaults.
+    coefficient_set : riskslim.coefficient_set.CoefficientSet, optional, default: None
+        Contraints (bounds) on coefficients of input variables.
+        If None, this is constructed based on values passed to other initalization kwargs.
+        If not None, other kwargs may be overwritten.
+    verbose : bool, optional, default: True
+        Prints out log information if True, supresses if False.
     """
 
     def __init__(
-        self, coef_set=None, L0_min=None, L0_max=None, settings=None, verbose=True
+        self, L0_min=None, L0_max=None, rho_min=-5., rho_max=5., c0_value=1e-6,
+        max_abs_offset=None, vtype="I", settings=None, coef_set=None, verbose=True
     ):
         # Empty fields
         self.fitted = False
@@ -74,14 +92,16 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         self.L0_min = L0_min
         self.L0_max = L0_max
         self.coef_set = coef_set
+        self.rho_min = rho_min
+        self.rho_max = rho_max
         self.rho = None
+        self.c0_value = c0_value
+        self.vtype = vtype
+        self.max_abs_offset = max_abs_offset
 
         if self.coef_set is not None:
             self.init_coeffs()
         else:
-            self.rho_lb = None
-            self.rho_ub = None
-            self.c0_value = None
             self.L0_reg_ind = None
             self.C_0 = None
             self.C_0_nnz = None
@@ -101,16 +121,16 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         Otherwise, this will be ran when calling the fit method.
         """
         # Coefficients
-        self.rho_lb = np.array(self.coef_set.lb)
-        self.rho_ub = np.array(self.coef_set.ub)
+        self.rho_min = np.array(self.coef_set.lb)
+        self.rho_max = np.array(self.coef_set.ub)
 
         # Regularization parameter
-        c0_value = float(self.settings["c0_value"])
+        c0_value = self.c0_value
         assert c0_value > 0.0, "C0 should be positive"
         self.c0_value = c0_value
 
         # Vectorized regularization parameters
-        self.L0_reg_ind = np.isnan(self.coef_set.c0)
+        self.L0_reg_ind = np.isnan(self.coef_set.c0) + self.coef_set.c0 != 0.0
         self.C_0 = np.array(self.coef_set.c0)
         self.C_0[self.L0_reg_ind] = c0_value
         self.C_0_nnz = self.C_0[self.L0_reg_ind]
@@ -124,6 +144,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         # Variable names
         self.variable_names = self.coef_set.variable_names
 
+
     def init_fit(self):
         """Pre-fit initialization routine."""
         # Initialize data dict
@@ -135,7 +156,14 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
 
         # Initialize coefficients if not given on initialization
         if self.coef_set is None:
-            self.coef_set = CoefficientSet(self.variable_names)
+            self.coef_set = CoefficientSet(
+                self.variable_names,
+                lb=self.rho_min,
+                ub=self.rho_max,
+                c0=self.c0_value,
+                vtype=self.vtype,
+                print_flag=self.verbose
+            )
             self.init_coeffs()
 
         # Check data types and shapes
@@ -178,6 +206,8 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
                 self.bounds = chained_updates(self.bounds, self.C_0_nnz)
             self.pool.add(objvals=trivial_objval, solutions=trivial_solution)
 
+    def init_mip(self):
+        """Initalize a CPLEX MIP solver."""
         # Setup mip
         mip_settings = {
             "C_0": self.c0_value,
@@ -395,6 +425,15 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         # Initalize fitting procedure
         self.init_fit()
 
+        if self.max_abs_offset is not None:
+            # Set offset bounds
+            self.coef_set.update_intercept_bounds(
+                X=self.X, y=self.y, max_offset=self.max_abs_offset
+            )
+
+        # Initalize MIP
+        self.init_mip()
+
         # Run warmstart procedure if it has not been run yet
         if self.settings["initialization_flag"] and not self.has_warmstart:
             self.warmstart()
@@ -593,8 +632,8 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
     # helper functions
     def is_feasible(self, rho):
         return (
-            np.all(self.rho_ub >= rho)
-            and np.all(self.rho_lb <= rho)
+            np.all(self.rho_max >= rho)
+            and np.all(self.rho_min <= rho)
             and (self.L0_min <= np.count_nonzero(rho[self.L0_reg_ind]) <= self.L0_max)
         )
 
@@ -830,8 +869,8 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
                 rho,
                 self.Z,
                 self.C_0,
-                self.rho_ub,
-                self.rho_lb,
+                self.rho_max,
+                self.rho_min,
                 self.get_L0_penalty,
                 self.compute_loss_from_scores,
                 active_set_flag,
@@ -869,8 +908,8 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         num_max_reg_coefs = self.L0_max
 
         # calculate the smallest and largest score that can be attained by each point
-        scores_at_lb = self.Z * self.rho_lb
-        scores_at_ub = self.Z * self.rho_ub
+        scores_at_lb = self.Z * self.rho_min
+        scores_at_ub = self.Z * self.rho_max
         max_scores_matrix = np.maximum(scores_at_ub, scores_at_lb)
         min_scores_matrix = np.minimum(scores_at_ub, scores_at_lb)
         assert np.all(max_scores_matrix >= min_scores_matrix)
