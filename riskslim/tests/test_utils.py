@@ -90,11 +90,9 @@ def test_check_data(y, variable_names, outcome_name, sample_weights):
 @pytest.mark.parametrize('outcome_name', ['Outcome',None])
 def test_print_model(variable_names, outcome_name):
 
-    X = np.random.rand(100, 10)
-
     rho = np.random.rand(10)
 
-    print_model(rho, X, variable_names, outcome_name)
+    print_model(rho, variable_names, outcome_name)
 
 
 @pytest.mark.parametrize('log_to_console', [True, False])
