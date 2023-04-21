@@ -4,6 +4,6 @@ scipy
 Cython
 IPython
 traitlets
-nose
 pandas
 prettytable
+scikit-learn

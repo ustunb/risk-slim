@@ -11,15 +11,15 @@ from .utils import print_log
 
 def create_risk_slim(coef_set, input):
     """
-    create RiskSLIMFitter MIP object
+    create RiskSLIM MIP object
 
     Parameters
     ----------
-    input - dictionary of RiskSLIMFitter parameters and formulation
+    input - dictionary of RiskSLIM parameters and formulation
 
     Returns
     -------
-    mip - RiskSLIMFitter surrogate MIP without 0 cuts
+    mip - RiskSLIM surrogate MIP without 0 cuts
 
     Issues
     ----
@@ -55,7 +55,7 @@ def create_risk_slim(coef_set, input):
     P = len(coef_set)
     w_pos, w_neg = input['w_pos'], input['w_neg']
     C_0j = np.copy(coef_set.c0)
-    L0_reg_ind = np.isnan(C_0j)
+    L0_reg_ind = np.isnan(C_0j) + C_0j != 0.0
     C_0j[L0_reg_ind] = input['C_0']
     C_0j = C_0j.tolist()
     C_0_rho = np.copy(C_0j)
@@ -98,12 +98,12 @@ def create_risk_slim(coef_set, input):
 
     has_intercept = '(Intercept)' in coef_set.variable_names
     """
-    RiskSLIMFitter MIP Formulation
-    
+    RiskSLIM MIP Formulation
+
     minimize w_pos*loss_pos + w_neg *loss_minus + 0*rho_j + C_0j*alpha_j
-    
-    such that 
-    
+
+    such that
+
     L0_min ≤ L0 ≤ L0_max
     -rho_min * alpha_j < lambda_j < rho_max * alpha_j
 
@@ -125,7 +125,7 @@ def create_risk_slim(coef_set, input):
     lambda_j ≥ -delta_neg_j if alpha_j = 1 and sigma_j = 0
     lambda_j ≥ alpha_j for j such that lambda_j >= 0
     lambda_j ≤ -alpha_j for j such that lambda_j <= 0
-    
+
     """
 
     # create MIP object
@@ -243,10 +243,12 @@ def create_risk_slim(coef_set, input):
     if has_intercept:
         intercept_idx = coef_set.variable_names.index('(Intercept)')
         intercept_alpha_name = 'alpha_' + str(intercept_idx)
-        vars.delete([intercept_alpha_name])
 
-        alpha_names.remove(intercept_alpha_name)
-        dropped_variables.append(intercept_alpha_name)
+        # Intercept may be previously dropped above when rho_ub == rho_lb
+        if intercept_alpha_name not in dropped_variables:
+            vars.delete([intercept_alpha_name])
+            alpha_names.remove(intercept_alpha_name)
+            dropped_variables.append(intercept_alpha_name)
 
         print_from_function("dropped L0 indicator for '(Intercept)'")
         constraints_to_drop.extend(["L0_norm_ub_" + str(intercept_idx), "L0_norm_lb_" + str(intercept_idx)])
@@ -297,7 +299,7 @@ def create_risk_slim(coef_set, input):
     return mip, indices
 
 
-def set_cplex_mip_parameters(cpx, param, display_cplex_progress = False):
+def set_cplex_mip_parameters(mip, param, display_cplex_progress = False):
     """
     Helper function to set CPLEX parameters of CPLEX MIP object
 
@@ -312,17 +314,18 @@ def set_cplex_mip_parameters(cpx, param, display_cplex_progress = False):
     MIP with parameters
 
     """
-    p = cpx.parameters
+    p = mip.parameters
     p.randomseed.set(param['randomseed'])
     p.threads.set(param['n_cores'])
     p.output.clonelog.set(0)
     p.parallel.set(1)
 
     if display_cplex_progress is (None or False):
-        cpx = set_cpx_display_options(cpx, display_mip = False, display_lp = False, display_parameters = False)
+        mip = set_cpx_display_options(mip, display_mip = False, display_lp = False, display_parameters = False)
 
-    problem_type = cpx.problem_type[cpx.get_problem_type()]
-    if problem_type == 'MIP':
+    problem_type = mip.problem_type[mip.get_problem_type()]
+
+    if problem_type == 'MILP':
         # CPLEX Memory Parameters
         # MIP.Param.workdir.Cur  = exp_workdir;
         # MIP.Param.workmem.Cur                    = cplex_workingmem;
@@ -341,26 +344,26 @@ def set_cplex_mip_parameters(cpx, param, display_cplex_progress = False):
         p.mip.pool.replace.set(param['poolreplace'])
         # 0 = replace oldest /1: replace worst objective / #2 = replace least diverse solutions
 
-    return cpx
+    return mip
 
 
-def set_cpx_display_options(cpx, display_mip = True, display_parameters = False, display_lp = False):
+def set_cpx_display_options(mip, display_mip = True, display_parameters = False, display_lp = False):
 
-    cpx.parameters.mip.display.set(display_mip)
-    cpx.parameters.simplex.display.set(display_lp)
+    mip.parameters.mip.display.set(display_mip)
+    mip.parameters.simplex.display.set(display_lp)
 
     try:
-        cpx.parameters.paramdisplay.set(display_parameters)
+        mip.parameters.paramdisplay.set(display_parameters)
     except AttributeError:
         pass
 
     if not (display_mip or display_lp):
-        cpx.set_results_stream(None)
-        cpx.set_log_stream(None)
-        cpx.set_error_stream(None)
-        cpx.set_warning_stream(None)
+        mip.set_results_stream(None)
+        mip.set_log_stream(None)
+        mip.set_error_stream(None)
+        mip.set_warning_stream(None)
 
-    return cpx
+    return mip
 
 
 def add_mip_starts(mip, indices, pool, max_mip_starts = float('inf'), mip_start_effort_level = 4):
@@ -368,8 +371,8 @@ def add_mip_starts(mip, indices, pool, max_mip_starts = float('inf'), mip_start_
 
     Parameters
     ----------
-    mip - RiskSLIMFitter surrogate MIP
-    indices - indices of RiskSLIMFitter surrogate MIP
+    mip - RiskSLIM surrogate MIP
+    indices - indices of RiskSLIM surrogate MIP
     pool - solution pool
     max_mip_starts - max number of mip starts to add (optional; default is add all)
     mip_start_effort_level - effort that CPLEX will spend trying to fix (optional; default is 4)
@@ -403,25 +406,25 @@ def add_mip_starts(mip, indices, pool, max_mip_starts = float('inf'), mip_start_
     return mip
 
 
-def cast_mip_start(mip_start, cpx):
+def cast_mip_start(mip_start, mip):
     """
     casts the solution values and indices in a Cplex SparsePair
 
     Parameters
     ----------
     mip_start cplex SparsePair
-    cpx Cplex
+    mip Cplex
 
     Returns
     -------
     Cplex SparsePair where the indices are integers and the values for each variable match the variable type specified in CPLEX Object
     """
 
-    assert isinstance(cpx, Cplex)
+    assert isinstance(mip, Cplex)
     assert isinstance(mip_start, SparsePair)
     vals = list(mip_start.val)
     idx = np.array(list(mip_start.ind), dtype = int).tolist()
-    types = cpx.variables.get_types(idx)
+    types = mip.variables.get_types(idx)
 
     for j, t in enumerate(types):
         if t in ['B', 'I']:
@@ -434,7 +437,7 @@ def cast_mip_start(mip_start, cpx):
 
 def convert_to_risk_slim_cplex_solution(rho, indices, loss = None, objval = None):
     """
-    Convert coefficient vector 'rho' into a solution for RiskSLIMFitter CPLEX MIP
+    Convert coefficient vector 'rho' into a solution for RiskSLIM CPLEX MIP
 
     Parameters
     ----------

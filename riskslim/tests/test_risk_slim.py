@@ -1,6 +1,8 @@
 import os
 import pprint
 
+import pytest
+
 import numpy as np
 import riskslim
 
@@ -44,7 +46,7 @@ default_settings = {
     'tight_formulation': True,                          # use a slightly formulation of surrogate MIP that provides a slightly improved formulation
     #
     # Other LCPA Heuristics
-    'chained_updates_flag': True,                         # use chained updates
+    'chained_updates_flag': True,                       # use chained updates
     'add_cuts_at_heuristic_solutions': True,            # add cuts at integer feasible solutions found using polishing/rounding
     #
     # LCPA Rounding Heuristic
@@ -90,41 +92,49 @@ default_settings = {
 }
 
 
-def test_risk_slim(data_csv_file, sample_weights_csv_file = None, max_coefficient = 5, max_L0_value = 5, max_offset = 50, c0_value = 1e-6, w_pos = 1.00, settings = None):
+@pytest.mark.parametrize('max_coefficient', [5])
+@pytest.mark.parametrize('max_L0_value', [0, 1, 5])
+@pytest.mark.parametrize('max_offset', [0, 50])
+def test_risk_slim(max_coefficient, max_L0_value, max_offset):
 
-    # load dataset
-    data = riskslim.load_data_from_csv(dataset_csv_file = data_csv_file, sample_weights_csv_file = sample_weights_csv_file)
+    # Load dataset
+    data = riskslim.load_data_from_csv(
+        dataset_csv_file=data_csv_file, sample_weights_csv_file=sample_weights_csv_file
+    )
+
     N, P = data['X'].shape
 
-    # offset value
-    coef_set = riskslim.CoefficientSet(variable_names=data['variable_names'], lb=-max_coefficient, ub=max_coefficient, sign=0)
-    coef_set.update_intercept_bounds(X = data['X'], y = data['Y'], max_offset = max_offset, max_L0_value = max_L0_value)
+    # Offset value
+    coef_set = riskslim.CoefficientSet(
+        variable_names=data['variable_names'],
+        lb=-max_coefficient, ub=max_coefficient
+    )
 
-    # create constraint dictionary
+    coef_set.update_intercept_bounds(
+        X = data['X'], y = data['y'], max_offset=max_offset, max_L0_value = max_L0_value
+    )
+
+    # Create constraint dictionary
     trivial_L0_max = P - np.sum(coef_set.C_0j == 0)
     max_L0_value = min(max_L0_value, trivial_L0_max)
 
-    constraints = {
-        'L0_min': 0,
-        'L0_max': max_L0_value,
-        'coef_set':coef_set,
-    }
-
     # Train model using lattice_cpa
-    model_info, mip_info, lcpa_info = riskslim.run_lattice_cpa(data, constraints, settings)
+    rs = riskslim.RiskSLIM(
+        coef_set=coef_set, L0_min=0, L0_max=max_L0_value, settings=default_settings
+    )
+    rs.fit(data['X'], y = data['y'])
 
-    #model info contains key results
-    pprint.pprint(model_info)
-
-    # lcpa_output contains detailed information about LCPA
-    pprint.pprint(lcpa_info)
-
-    return True
+    # Model info contains key results
+    pprint.pprint(rs.solution_info)
 
 
-test_risk_slim(data_csv_file = data_csv_file, max_coefficient = 5, max_L0_value = 5, max_offset = 50, settings = default_settings)
-test_risk_slim(data_csv_file = data_csv_file, max_coefficient = 5, max_L0_value = 1, max_offset = 50, settings = default_settings)
-test_risk_slim(data_csv_file = data_csv_file, max_coefficient = 5, max_L0_value = 0, max_offset = 50, settings = default_settings)
-test_risk_slim(data_csv_file = data_csv_file, max_coefficient = 5, max_L0_value = 0, max_offset = 0, settings = default_settings)
+    assert rs.L0_min == rs.bounds.L0_min == 0
+    assert rs.L0_max == rs.bounds.L0_max == max_L0_value
+    assert rs.coef_set == coef_set
 
+    # Each column of X has a rho and alpha (except for intercept,
+    #   which doesn't have an alpha). There are 3 additional parameters:
+    #   loss, objval, L0_norm
+    assert (len(data['X'][0]) * 2) - 1 + 3 == rs.mip_indices['n_variables']
 
+    assert True

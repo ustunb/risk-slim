@@ -9,44 +9,45 @@ import prettytable as pt
 from .defaults import INTERCEPT_NAME
 
 # DATA
-def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_csv_file = None, fold_num = 0):
-    """
+def load_data_from_csv(dataset_csv_file, sample_weights_csv_file=None, fold_csv_file=None, fold_num=0):
+    """Load data from a csv.
 
     Parameters
     ----------
-    dataset_csv_file                csv file containing the training data
-                                    see /datasets/adult_data.csv for an example
-                                    training data stored as a table with N+1 rows and d+1 columns
-                                    column 1 is the outcome variable entries must be (-1,1) or (0,1)
-                                    column 2 to d+1 are the d input variables
-                                    row 1 contains unique names for the outcome variable, and the input vairable
-
-    sample_weights_csv_file         csv file containing sample weights for the training data
-                                    weights stored as a table with N rows and 1 column
-                                    all sample weights must be non-negative
-
-    fold_csv_file                   csv file containing indices of folds for K-fold cross validation
-                                    fold indices stored as a table with N rows and 1 column
-                                    folds must be integers between 1 to K
-                                    if fold_csv_file is None, then we do not use folds
-
-    fold_num                        int between 0 to K, where K is set by the fold_csv_file
-                                    let fold_idx be the N x 1 index vector listed in fold_csv_file
-                                    samples where fold_idx == fold_num will be used to test
-                                    samples where fold_idx != fold_num will be used to train the model
-                                    fold_num = 0 means use "all" of the training data (since all values of fold_idx \in [1,K])
-                                    if fold_csv_file is None, then fold_num is set to 0
-
+    dataset_csv_file
+        Csv file containing the training data
+        See /datasets/adult_data.csv for an example
+        Training data stored as a table with N+1 rows and d+1 columns
+        Column 1 is the outcome variable entries must be (-1,1) or (0,1)
+        Column 2 to d+1 are the d input variables
+        Row 1 contains unique names for the outcome variable, and the input vairable
+    sample_weights_csv_file
+        Csv file containing sample weights for the training data
+        Weights stored as a table with N rows and 1 column
+        All sample weights must be non-negative
+    fold_csv_file
+        Csv file containing indices of folds for K-fold cross validation
+        Fold indices stored as a table with N rows and 1 column
+        Folds must be integers between 1 to K
+        If fold_csv_file is None, then we do not use folds
+    fold_num
+        Int between 0 to K, where K is set by the fold_csv_file
+        Let fold_idx be the N x 1 index vector listed in fold_csv_file
+        Samples where fold_idx == fold_num will be used to test
+        Samples where fold_idx != fold_num will be used to train the model
+        Fold_num = 0 means use "all" of the training data (since all values of fold_idx \in [1,K])
+        If fold_csv_file is None, then fold_num is set to 0
 
     Returns
     -------
-    dictionary containing training data for a binary classification problem with the fields:
+    data : dict
+        Cotains training data for a binary classification problem with the fields:
 
-     - 'X' N x P matrix of features (numpy.ndarray) with a column of 1s for the INTERCEPT_NAME
-     - 'Y' N x 1 vector of labels (+1/-1) (numpy.ndarray)
-     - 'variable_names' list of strings containing the names of each feature (list)
-     - 'Y_name' string containing the name of the output (optional)
-     - 'sample_weights' N x 1 vector of sample weights, must all be positive
+        - 'X' N x P matrix of features (numpy.ndarray) with a column of 1s for the INTERCEPT_NAME
+        - 'Y' N x 1 vector of labels (+1/-1) (numpy.ndarray)
+        - 'variable_names' list of strings containing the names of each feature (list)
+        - 'Y_name' string containing the name of the output (optional)
+        - 'sample_weights' N x 1 vector of sample weights, must all be positive
 
     """
     dataset_csv_file = Path(dataset_csv_file)
@@ -59,21 +60,20 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
     data_headers = list(df.columns.values)
     N = raw_data.shape[0]
 
-    # setup Y vector and Y_name
-    Y_col_idx = [0]
-    Y = raw_data[:, Y_col_idx]
-    Y_name = data_headers[Y_col_idx[0]]
-    Y[Y == 0] = -1
+    # Setup Y vector and Y_name
+    y_col_idx = [0]
+    y = raw_data[:, y_col_idx]
+    y[y == 0] = -1
+    outcome_name = data_headers[y_col_idx[0]]
 
-    # setup X and X_names
-    X_col_idx = [j for j in range(raw_data.shape[1]) if j not in Y_col_idx]
+    # Setup X and X_names
+    X_col_idx = [j for j in range(raw_data.shape[1]) if j not in y_col_idx]
     X = raw_data[:, X_col_idx]
     variable_names = [data_headers[j] for j in X_col_idx]
 
-    # insert a column of ones to X for the intercept
+    # Insert a column of ones to X for the intercept
     X = np.insert(arr=X, obj=0, values=np.ones(N), axis=1)
     variable_names.insert(0, INTERCEPT_NAME)
-
 
     if sample_weights_csv_file is None:
         sample_weights = np.ones(N)
@@ -86,13 +86,13 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
 
     data = {
         'X': X,
-        'Y': Y,
+        'y': y,
         'variable_names': variable_names,
-        'outcome_name': Y_name,
+        'outcome_name': outcome_name,
         'sample_weights': sample_weights,
-        }
+    }
 
-    #load folds
+    # Load folds
     if fold_csv_file is not None:
         fold_csv_file = Path(fold_csv_file)
         if not fold_csv_file.exists():
@@ -106,63 +106,53 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file = None, fold_cs
         assert np.all(all_fold_nums == np.arange(1, K+1)), "folds should contain indices between 1 to %r" % K
         assert fold_num in np.arange(0, K+1), "fold_num should either be 0 or an integer between 1 to %r" % K
         if fold_num >= 1:
-            #test_idx = fold_num == fold_idx
             train_idx = fold_num != fold_idx
             data['X'] = data['X'][train_idx,]
-            data['Y'] = data['Y'][train_idx]
+            data['y'] = data['y'][train_idx]
             data['sample_weights'] = data['sample_weights'][train_idx]
 
-    assert check_data(data)
+    assert check_data(X, y, variable_names, outcome_name, sample_weights)
+
     return data
 
 
-def check_data(data):
-    """
-    makes sure that 'data' contains training data that is suitable for binary classification problems
-    throws AssertionError if
+def check_data(X, y, variable_names, outcome_name=None, sample_weights=None):
+    """Ensures that data contains training data that is suitable for binary
+    classification problems throws AssertionError if not.
 
-    'data' is a dictionary that must contain:
-
-     - 'X' N x P matrix of features (numpy.ndarray) with a column of 1s for the INTERCEPT_NAME
-     - 'Y' N x 1 vector of labels (+1/-1) (numpy.ndarray)
-     - 'variable_names' list of strings containing the names of each feature (list)
-
-     data can also contain:
-
-     - 'outcome_name' string containing the name of the output (optional)
-     - 'sample_weights' N x 1 vector of sample weights, must all be positive
+    Parameters
+    ----------
+    X : 2d-array
+        Observations (rows) and features (columns).
+        With an addtional column of 1s for the INTERCEPT_NAME.
+    y : 2d-array
+        Class labels (+1, -1) with shape (n_rows, 1).
+    variable_names : list of str
+        Names of each features.
+    outcome_name : str, optional, default: None
+        Name of the output class.
+    sample_weights : 2d array.
+        Sample weights with shape (n_features, 1). Must all be positive.
 
     Returns
     -------
     True if data passes checks
-
     """
     # type checks
-    assert type(data) is dict, "data should be a dict"
+    assert type(X) is np.ndarray, "type(X) should be numpy.ndarray"
+    assert type(y) is np.ndarray, "type(y) should be numpy.ndarray"
+    assert type(variable_names) is list, "variable_names should be a list"
 
-    assert 'X' in data, "data should contain X matrix"
-    assert type(data['X']) is np.ndarray, "type(X) should be numpy.ndarray"
-
-    assert 'Y' in data, "data should contain Y matrix"
-    assert type(data['Y']) is np.ndarray, "type(Y) should be numpy.ndarray"
-
-    assert 'variable_names' in data, "data should contain variable_names"
-    assert type(data['variable_names']) is list, "variable_names should be a list"
-
-    X = data['X']
-    Y = data['Y']
-    variable_names = data['variable_names']
-
-    if 'outcome_name' in data:
-        assert type(data['outcome_name']) is str, "outcome_name should be a str"
+    if outcome_name is not None:
+        assert type(outcome_name) is str, "outcome_name should be a str"
 
     # sizes and uniqueness
     N, P = X.shape
     assert N > 0, 'X matrix must have at least 1 row'
     assert P > 0, 'X matrix must have at least 1 column'
-    assert len(Y) == N, 'dimension mismatch. Y must contain as many entries as X. Need len(Y) = N.'
-    assert len(list(set(data['variable_names']))) == len(data['variable_names']), 'variable_names is not unique'
-    assert len(data['variable_names']) == P, 'len(variable_names) should be same as # of cols in X'
+    assert len(y) == N, 'dimension mismatch. Y must contain as many entries as X. Need len(Y) = N.'
+    assert len(list(set(variable_names))) == len(variable_names), 'variable_names is not unique'
+    assert len(variable_names) == P, 'len(variable_names) should be same as # of cols in X'
 
     # feature matrix
     assert np.all(~np.isnan(X)), 'X has nan entries'
@@ -170,34 +160,31 @@ def check_data(data):
 
     # offset in feature matrix
     if INTERCEPT_NAME in variable_names:
-        assert all(X[:, variable_names.index(INTERCEPT_NAME)] == 1.0), "(Intercept)' column should only be composed of 1s"
+        assert np.all(X[:, variable_names.index(INTERCEPT_NAME)] == 1.0), "(Intercept)' column should only be composed of 1s"
     else:
         warnings.warn("there is no column named INTERCEPT_NAME in variable_names")
 
     # labels values
-    assert all((Y == 1) | (Y == -1)), 'Need Y[i] = [-1,1] for all i.'
-    if all(Y == 1):
+    assert np.all((y == 1) | (y == -1)), 'Need Y[i] = [-1,1] for all i.'
+    if np.all(y == 1):
         warnings.warn('Y does not contain any positive examples. Need Y[i] = +1 for at least 1 i.')
-    if all(Y == -1):
+    if np.all(y == -1):
         warnings.warn('Y does not contain any negative examples. Need Y[i] = -1 for at least 1 i.')
 
-    if 'sample_weights' in data:
-        sample_weights = data['sample_weights']
-        type(sample_weights) is np.ndarray
+    if sample_weights is not None:
+        assert type(sample_weights) is np.ndarray, 'sample_weights should be an array'
         assert len(sample_weights) == N, 'sample_weights should contain N elements'
         assert all(sample_weights > 0.0), 'sample_weights[i] > 0 for all i '
 
         # by default, we set sample_weights as an N x 1 array of ones. if not, then sample weights is non-trivial
-        if any(sample_weights != 1.0) and len(np.unique(sample_weights)) < 2:
+        if np.any(sample_weights != 1.0) and len(np.unique(sample_weights)) < 2:
             warnings.warn('note: sample_weights only has <2 unique values')
 
     return True
 
 
 # MODEL PRINTING
-def print_model(rho, data,  show_omitted_variables = False):
-
-    variable_names = data['variable_names']
+def print_model(rho, X, variable_names, outcome_name, show_omitted_variables=False):
 
     rho_values = np.copy(rho)
     rho_names = list(variable_names)
@@ -210,16 +197,16 @@ def print_model(rho, data,  show_omitted_variables = False):
     else:
         intercept_val = 0
 
-    if 'outcome_name' in data:
+    if outcome_name is None:
         predict_string = "Pr(Y = +1) = 1.0/(1.0 + exp(-(%d + score))" % intercept_val
     else:
-        predict_string = "Pr(%s = +1) = 1.0/(1.0 + exp(-(%d + score))" % (data['outcome_name'].upper(), intercept_val)
+        predict_string = "Pr(%s = +1) = 1.0/(1.0 + exp(-(%d + score))" % (outcome_name.upper(), intercept_val)
 
     if not show_omitted_variables:
         selected_ind = np.flatnonzero(rho_values)
         rho_values = rho_values[selected_ind]
         rho_names = [rho_names[i] for i in selected_ind]
-        rho_binary = [np.all((data['X'][:,j] == 0) | (data['X'][:,j] == 1)) for j in selected_ind]
+        rho_binary = [np.all((X[:,j] == 0) | (X[:,j] == 1)) for j in selected_ind]
 
         #sort by most positive to most negative
         sort_ind = np.argsort(-np.array(rho_values))
