@@ -14,18 +14,22 @@ from riskslim.utils import print_model
 class RiskScores:
     """Risk scores (rho), derived metrics, and reports."""
 
-    def __init__(self, riskslim):
+    def __init__(self, estimator, X, y, cv=None):
 
-        if not riskslim.fitted:
+        if not isinstance(estimator, list) and not estimator.fitted:
+            # Ensure single model if fit
             raise ValueError("RiskScores expects a fit RiskSLIM input.")
 
         # Unpack references to RiskSLIM arrays
-        self.rho = riskslim.rho
-        self._X = riskslim.X
-        self._y = riskslim.y
-        self._coef_set = riskslim.coef_set
-        self._variable_names = riskslim.coef_set.variable_names
-        self._outcome_name = riskslim.outcome_name
+        self._X = X
+        self._y = y
+        self.estimator = estimator
+        self.rho = estimator.rho
+        self._coef_set = estimator.coef_set
+        self._variable_names = estimator.coef_set.variable_names
+        self._outcome_name = estimator.outcome_name
+
+        self.cv = cv
 
         # Table
         self._table = print_model(
@@ -38,7 +42,7 @@ class RiskScores:
         self._preprare_table()
 
         # Performance measures
-        self.proba = riskslim.predict_proba(self._X)
+        self.proba = estimator.predict_proba(self._X)
         self.proba_true = None
         self.proba_pred = None
         self.fpr = None
@@ -59,16 +63,18 @@ class RiskScores:
         print(self.coef_set)
 
 
-    def compute_metrics(self):
+    def compute_metrics(self, y, proba):
         """Computes calibration and ROC."""
 
         # Calibration curve
-        self.prob_true, self.prob_pred = calibration_curve(self._y, self.proba, pos_label=1)
-        self.prob_pred *= 100
-        self.prob_true *= 100
+        prob_true, prob_pred = calibration_curve(y, proba, pos_label=1)
+        prob_pred *= 100
+        prob_true *= 100
 
         # ROC curve
-        self.fpr, self.tpr, _ = roc_curve(self._y.reshape(-1), self.proba)
+        fpr, tpr, _ = roc_curve(y.reshape(-1), proba)
+
+        return prob_pred, prob_true, fpr, tpr
 
 
     def _preprare_table(self):
@@ -108,9 +114,8 @@ class RiskScores:
             Calls fig.show() if True.
         """
 
-        # Compute required measures
-        if self.fpr is None or self.tpr is None:
-            self.compute_metrics()
+        self.prob_pred, self.prob_true, self.fpr, self.tpr = \
+            self.compute_metrics(self._y, self.proba)
 
         # Initalize subplots
         fig = make_subplots(
@@ -171,6 +176,46 @@ class RiskScores:
             col=1
         )
 
+        # Folds
+        if self.cv is not None:
+
+            for _, test in self.cv.split(self._X):
+
+                # Calibration
+                proba = self.estimator.predict_proba(self._X[test])
+
+                prob_pred, prob_true, fpr, tpr = self.compute_metrics(
+                    self._y[test], proba
+                )
+
+                fig.add_trace(
+                    go.Scattergl(
+                        x=prob_pred,
+                        y=prob_true,
+                        mode='markers+lines',
+                        line=dict(color='black', width=2),
+                        opacity=.2,
+                        name=""
+                    ),
+                    row=3,
+                    col=1
+                )
+
+                # ROC
+                fig.add_trace(
+                    go.Scattergl(
+                        x=fpr,
+                        y=tpr,
+                        mode='lines',
+                        line=dict(color='black', width=2),
+                        name="",
+                        opacity=.2
+                    ),
+                    row=3,
+                    col=2
+                )
+
+
         # Calibration
         fig.add_trace(
             go.Scattergl(
@@ -197,7 +242,8 @@ class RiskScores:
             col=1
         )
 
-        #
+
+        # ROC curve
         fig.add_trace(
             go.Scattergl(
                 x=self.fpr,
@@ -222,7 +268,6 @@ class RiskScores:
             row=3,
             col=2
         )
-
 
         fig.update_layout(
             # General
