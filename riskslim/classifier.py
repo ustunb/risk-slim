@@ -12,29 +12,29 @@ from sklearn.metrics import check_scoring
 
 from .optimizer import RiskSLIMOptimizer
 from .risk_scores import RiskScores
-
+from .coefficient_set import CoefficientSet
 
 class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
     """RiskSLIM classifier object.
 
     Parameters
     ----------
-    L0_min : int, optional, default: None
+    min_size : int, optional, default: None
         Minimum number of regularized coefficients.
         None defaults to zero.
-    L0_max : int, optional, default: None
+    max_size : int, optional, default: None
         Maximum number of regularized coefficients.
         None defaults to length of input variables.
-    rho_min : float or 1d array, optional, default: -5.
+    min_coef : float or 1d array, optional, default: -5.
         Minimum coefficient.
-    rho_max : float or 1d array, optional, default: 5.
+    max_coef : float or 1d array, optional, default: 5.
         Maximum coefficient.
     c0_value : 1d array or float, optional, default: 1e-6
         L0-penalty for all parameters when an integer or for each parameter
         separately when an array.
     max_abs_offset : float, optional, default: None
         Maximum absolute value of intercept. This may be specificed as the first value
-        of rho_min and rho_max. However, if rho_min and rho_max are floats, this parameter
+        of min_coef and rho_max. However, if min_coef and rho_max are floats, this parameter
         provides a convenient way to set bounds on the offset.
     vtype : str or list of str, optional, default: "I"
         Variable types for coefficients. Must be either "I" for integers or "C" for floats.
@@ -48,22 +48,41 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
     verbose : bool, optional, default: True
         Prints out log information if True, supresses if False.
     """
-
     def __init__(
-        self, L0_min=None, L0_max=None, rho_min=-5., rho_max=5., c0_value=1e-6,
-        max_abs_offset=None, vtype="I", settings=None, coef_set=None, verbose=True
-    ):
-        # Settings
-        self.L0_min  =  L0_min
-        self.L0_max = L0_max
-        self.rho_min = rho_min
-        self.rho_max = rho_max
-        self.c0_value = c0_value
-        self.max_abs_offset = max_abs_offset
-        self.vtype = vtype
-        self.settings = settings
-        self.coef_set = coef_set
+        self, min_size=None, max_size=None, min_coef=-5., max_coef=5., c0_value=1e-6, max_abs_offset=None, verbose=True, **kwargs):
+
+        #todo: option for variable name, outcome_name
+
         self.verbose = verbose
+        # add
+        if 'coef_set' in kwargs:
+            assert isinstance(kwargs['coef_set'], CoefficientSet)
+            coef_set = kwargs.pop('coef_set')
+        else:
+            coef_set = CoefficientSet(self.variable_names, lb=min_coef, ub=max_coef, c0=c0_value, vtype='I', print_flag=self.verbose)
+            # todo set offset to max_abs_offset in coefficient set
+
+        # pull min_coef/max_coef
+        self.coef_set = coef_set
+        self.max_abs_offset = max_abs_offset
+
+        # todo: pull values from coefficient set
+        #  np.max(coef_set.ub), np.min(coef_set.lb), np.min(coef_set.c0)
+        self.rho_min = min_coef
+        self.rho_max = max_coef
+        self.c0_value = c0_value
+
+        # Settings
+        # check that 0 < L0_min < L0_max < d
+        self.L0_min = min_size #todo: set to 0 by default
+        self.L0_max = max_size #todo: set to len(coef_set) - 1 by default
+
+        # todo drop these if not uses
+        self.vtype = "I"
+
+        # filter kwargs to only include keys in RiskOptimizer.
+        self.settings = kwargs
+
         self.cv = None
         self.best_estimator = None
 
@@ -87,6 +106,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             Sample weights with shape (n_features, 1). Must all be positive.
         """
 
+        # remove variable_names, outcome_names from this
         self.classes_, _ = np.unique(y, return_inverse=True)
 
         self.variable_names = variable_names
@@ -105,8 +125,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         self.scores = RiskScores(self, self.X, self.y)
 
 
-    def cross_validate(self, X, y, variable_names=None, outcome_name=None,
-                       sample_weights=None, cv=5, scoring="roc_auc"):
+    def fitcv(self, X, y, variable_names=None, outcome_name=None, sample_weights=None, k=5, scoring= "roc_auc"):
         """Validate RiskSLIM classifier.
 
         Parameters
@@ -130,9 +149,9 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             - a single string (see sklearn `scoring_parameter`);
             - a callable (see sklearn `scoring`) that returns a single value.
 
-        cv : int, sklearn cross-validation generator or an iterable, default: 5
+        k : int, sklearn cross-validation generator or an iterable, default: 5
             Determines the cross-validation splitting strategy.
-            Possible inputs for cv are:
+            Possible inputs for k are:
 
             - None, to use the default 5-fold cross validation,
             - int, to specify the number of folds in a `(Stratified)KFold`,
@@ -148,12 +167,10 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         }
 
         # Run cross-validation
-        cv_results = cross_validate(self, X, y, cv=5, return_estimator=True,
-                                    scoring='roc_auc', fit_params=fit_params)
-
+        cv_results = cross_validate(self, X, y, k, return_estimator=True, scoring='roc_auc', fit_params=fit_params)
         # Get scorer and cross-validator
         scorer = check_scoring(self, scoring)
-        self.cv = check_cv(cv=cv, y=y)
+        self.cv = check_cv(cv=k, y=y)
 
         # Select the estimator that maximizes the scoring method across all folds
         cv_scores = np.zeros((self.cv.n_splits, self.cv.n_splits, 1))
@@ -162,7 +179,6 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
                 cv_scores[i_est, i_fold] = scorer(estimator, X[test], y[test])
 
         self.best_estimator = cv_results['estimator'][np.argmax(cv_scores.mean(axis=1)[:, 0])]
-
         self.scores = RiskScores(self.best_estimator, X, y, cv=self.cv)
 
 
@@ -242,13 +258,13 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         return X.dot(self.coefficients)
 
 
-    def report(self, file_name=None, show=False):
-        """Create a RiskSLIM report using plotly.
+    def create_report(self, file_name=None, show=False):
+        """Create a RiskSLIM create_report using plotly.
 
         Parameters
         ----------
         file_name : str
-            Name of file and extension to save report to.
+            Name of file and extension to save create_report to.
             Supported extensions include ".pdf" and ".html".
         show : bool, optional, default: True
             Calls fig.show() if True.

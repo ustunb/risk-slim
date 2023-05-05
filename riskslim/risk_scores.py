@@ -105,12 +105,12 @@ class RiskScores:
 
 
     def report(self, file_name=None, show=False):
-        """Create a RiskSLIM report using plotly.
+        """Create a RiskSLIM create_report using plotly.
 
         Parameters
         ----------
         file_name : str
-            Name of file and extension to save report to.
+            Name of file and extension to save create_report to.
             Supported extensions include ".pdf" and ".html".
         show : bool, optional, default: True
             Calls fig.show() if True.

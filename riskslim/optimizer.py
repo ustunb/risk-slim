@@ -21,7 +21,7 @@ from riskslim.warmstart import (
     sequential_round_solution_pool,
     discrete_descent_solution_pool,
 )
-from riskslim.fit.callbacks import LossCallback, PolishAndRoundCallback
+from riskslim.callbacks import LossCallback, PolishAndRoundCallback
 
 
 class RiskSLIMOptimizer:
@@ -44,7 +44,7 @@ class RiskSLIMOptimizer:
         separately when an array.
     max_abs_offset : float, optional, default: None
         Maximum absolute value of intercept. This may be specificed as the first value
-        of rho_min and rho_max. However, if rho_min and rho_max are floats, this parameter
+        of min_coef and max_coef. However, if min_coef and max_coef are floats, this parameter
         provides a convenient way to set bounds on the offset.
     vtype : str or list of str, optional, default: "I"
         Variable types for coefficients. Must be either "I" for integers or "C" for floats.
@@ -58,6 +58,9 @@ class RiskSLIMOptimizer:
     verbose : bool, optional, default: True
         Prints out log information if True, supresses if False.
     """
+    #DEFAULT_SETTINGS = {
+        # ''
+        # }
 
     def __init__(
         self, L0_min=None, L0_max=None, rho_min=-5., rho_max=5., c0_value=1e-6,
@@ -239,8 +242,8 @@ class RiskSLIMOptimizer:
         )
 
         constraints = {
-            "L0_min": self.L0_min,
-            "L0_max": self.L0_max,
+            "min_size": self.L0_min,
+            "max_size": self.L0_max,
             "coef_set": self.coef_set,
         }
 
