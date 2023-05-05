@@ -63,6 +63,7 @@ class RiskSLIMOptimizer:
         self, L0_min=None, L0_max=None, rho_min=-5., rho_max=5., c0_value=1e-6,
         max_abs_offset=None, vtype="I", settings=None, coef_set=None, verbose=True
     ):
+
         # Empty fields
         self.fitted = False
         self.has_warmstart = False

@@ -1,67 +1,154 @@
+"""
+01. Quickstart
+==============
+
+A minimial example for learning risk scores.
+"""
+
+###################################################################################################
+
 import os
-import pprint
 import numpy as np
-import riskslim
+from riskslim import RiskSLIMClassifier, load_data_from_csv
 
-# data
-data_name = "breastcancer"                                  # name of the data
-data_dir = os.getcwd() + '/examples/data/'                  # directory where datasets are stored
-data_csv_file = data_dir + data_name + '_data.csv'          # csv file for the dataset
-sample_weights_csv_file = None                              # csv file of sample weights for the dataset (optional)
+###################################################################################################
+# Load Data
+# ---------
+#
+# The example dataset in this tutorial is used to predict if a breast cancer tumor is beign or
+# malignant.
+#
 
-# problem parameters
-max_coefficient = 5                                         # value of largest/smallest coefficient
-max_L0_value = 5                                            # maximum model size (set as float(inf))
-max_offset = 50                                             # maximum value of offset parameter (optional)
-c0_value = 1e-6                                             # L0-penalty parameter such that c0_value > 0; larger values -> sparser models; we set to a small value (1e-6) so that we get a model with max_L0_value terms
+# Paths
+data_name = "breastcancer"                  # name of the data
+data_dir = "../examples"                    # directory where datasets are stored
+data_csv_file = os.path.join(               # csv file for the dataset
+    data_dir, "data", data_name+"_data.csv"
+)
+sample_weights_csv_file = None              # csv file of sample weights for the dataset (optional)
 
 
-# load data from disk
-data = riskslim.load_data_from_csv(dataset_csv_file = data_csv_file, sample_weights_csv_file = sample_weights_csv_file)
+# Load data
+data = load_data_from_csv(
+    dataset_csv_file=data_csv_file, sample_weights_csv_file=sample_weights_csv_file
+)
 
-# create coefficient set and set the value of the offset parameter
-coef_set = riskslim.CoefficientSet(variable_names = data['variable_names'], lb = -max_coefficient, ub = max_coefficient, sign = 0)
-coef_set.update_intercept_bounds(X = data['X'], y = data['Y'], max_offset = max_offset)
+###################################################################################################
+# Settings
+# --------
+#
+# RiskSLIM settings and brief descriptions are provided below. See the next example for
+# a full set of options.
+#
 
-constraints = {
-    'L0_min': 0,
-    'L0_max': max_L0_value,
-    'coef_set':coef_set,
-}
-
-# major settings (see riskslim_ex_02_complete for full set of options)
+# Major settings
 settings = {
-    # Problem Parameters
-    'c0_value': c0_value,
-    #
     # LCPA Settings
-    'max_runtime': 30.0,                               # max runtime for LCPA
-    'max_tolerance': np.finfo('float').eps,             # tolerance to stop LCPA (set to 0 to return provably optimal solution)
-    'display_cplex_progress': True,                     # print CPLEX progress on screen
-    'loss_computation': 'fast',                         # how to compute the loss function ('normal','fast','lookup')
-    #
+    # -------------
+    # max runtime for LCPA
+    "max_runtime": 30.0,
+    # tolerance to stop LCPA (set to 0 to return provably optimal solution)
+    "max_tolerance": np.finfo("float").eps,
+    # how to compute the loss function ("normal","fast","lookup")
+    "loss_computation": "fast",
+
     # LCPA Improvements
-    'round_flag': True,                                # round continuous solutions with SeqRd
-    'polish_flag': True,                               # polish integer feasible solutions with DCD
-    'chained_updates_flag': True,                      # use chained updates
-    'add_cuts_at_heuristic_solutions': True,            # add cuts at integer feasible solutions found using polishing/rounding
-    #
+    # -----------------
+    # round continuous solutions with SeqRd
+    "round_flag": True,
+    # polish integer feasible solutions with DCD
+    "polish_flag": True,
+    # use chained updates
+    "chained_updates_flag": True,
+    # add cuts at integer feasible solutions found using polishing/rounding
+    "add_cuts_at_heuristic_solutions": True,
+
     # Initialization
-    'initialization_flag': True,                       # use initialization procedure
-    'init_max_runtime': 120.0,                         # max time to run CPA in initialization procedure
-    'init_max_coefficient_gap': 0.49,
-    #
+    # --------------
+    # use initialization procedure
+    "initialization_flag": True,
+    # max time to run CPA in initialization procedure
+    "init_max_runtime": 120.0,
+    "init_max_coefficient_gap": 0.49,
+
     # CPLEX Solver Parameters
-    'cplex_randomseed': 0,                              # random seed
-    'cplex_mipemphasis': 0,                             # cplex MIP strategy
+    # -----------------------
+    # random seed
+    "cplex_randomseed": 0,
+    # cplex MIP strategy
+    "cplex_mipemphasis": 0,
 }
 
-# train model using lattice_cpa
-model_info, mip_info, lcpa_info = riskslim.run_lattice_cpa(data, constraints, settings)
 
-#print model contains model
-riskslim.print_model(model_info['solution'], data)
+###################################################################################################
+# Problem Parameters
+# ------------------
+#
+# These parameters determine the sparisty and constraints of the model. The bounds on magnitiude of
+# coefficients and number of non-zero coefficents are set below. Pass these parameters to a
+# ``RiskSLIM`` object during initialization.
+#
 
-#model info contains key results
-pprint.pprint(model_info)
+# Value of largest/smallest coefficient
+max_coefficient = 5
 
+# Maximum model size (number of non-zero coefficients; default set as float(inf))
+max_L0 = 5
+
+# Maximum value of offset (intercept) parameter (optional)
+max_offset = 50
+
+# L0-penalty parameter
+#   c0_value > 0
+#   larger values -> sparser models
+#   small values (1e-6) give model with max_L0 terms
+c0_value = 1e-6
+
+
+###################################################################################################
+# Initialize & Fit
+# ----------------
+#
+# The ``RiskSLIM`` model is first initalized using the coefficient set, bounds on the number of
+# non-zero coefficients (``L0_min`` and ``L0_max``), and the settings defined in the previous
+# cell. Fitting the model object is performed using ``.fit(X, y)``, where ``X`` is a 2d-array of
+# features and ``y`` is an array of class labels.
+#
+
+rs = RiskSLIMClassifier(
+    L0_min=0,
+    L0_max=max_L0,
+    rho_max=max_coefficient,
+    rho_min=-max_coefficient,
+    c0_value=c0_value,
+    max_abs_offset=max_offset,
+    settings=settings,
+    verbose=False
+)
+
+rs.fit(
+    data["X"],
+    data["y"],
+    variable_names=data["variable_names"],
+    outcome_name=data["outcome_name"]
+)
+
+###################################################################################################
+# Results
+# -------
+#
+# The CPLEX object and dictionary of solution is store in the ``.solution`` and ``.solution_info``
+# attributes, respectively. Optimized risk scores are accessible from the ``.scores`` attribute.
+# Reports may be generated using the ``.report()`` method.
+#
+
+rs.scores
+
+###################################################################################################
+
+rs.report()
+
+# sphinx_gallery_start_ignore
+from plotly.io import show
+show(rs.report())
+# sphinx_gallery_end_ignore

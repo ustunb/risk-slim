@@ -32,14 +32,16 @@ class RiskScores:
         self.cv = cv
 
         # Table
-        self._table = print_model(
-            self.rho,
-            self._variable_names,
-            self._outcome_name,
-            show_omitted_variables=False,
-            return_only=True
-        )
-        self._preprare_table()
+        if not np.all(self.rho == 0.):
+
+            self._table = print_model(
+                self.rho,
+                self._variable_names,
+                self._outcome_name,
+                show_omitted_variables=False,
+                return_only=True
+            )
+            self._preprare_table()
 
         # Performance measures
         self.proba = estimator.predict_proba(self._X)
@@ -60,7 +62,7 @@ class RiskScores:
 
     def print_coefs(self):
         """Print coefficient info."""
-        print(self.coef_set)
+        print(self.estimator.coef_set)
 
 
     def compute_metrics(self, y, proba):
@@ -102,7 +104,7 @@ class RiskScores:
 
 
 
-    def report(self, file_name=None, show=True):
+    def report(self, file_name=None, show=False):
         """Create a RiskSLIM report using plotly.
 
         Parameters
@@ -307,6 +309,9 @@ class RiskScores:
         if file_name is not None and file_name.endswith('pdf'):
             # Save as pdf
             write_image(fig, file_name, format='pdf')
+        elif file_name is not None and file_name.endswith('png'):
+            # Save as pdf
+            write_image(fig, file_name, format='png')
         elif file_name is not None and file_name.endswith('html'):
             # Save as html
             with open(file_name, 'w') as f:
@@ -316,3 +321,5 @@ class RiskScores:
 
         if show:
             fig.show()
+        else:
+            return fig

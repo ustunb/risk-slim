@@ -1,5 +1,7 @@
 """RiskSLIM Classifier."""
 
+from inspect import signature
+
 import numpy as np
 from scipy.special import expit
 
@@ -104,7 +106,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
 
 
     def cross_validate(self, X, y, variable_names=None, outcome_name=None,
-                       sample_weights=None, cv=5, scoring='auc_roc'):
+                       sample_weights=None, cv=5, scoring="roc_auc"):
         """Validate RiskSLIM classifier.
 
         Parameters
@@ -121,7 +123,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             Name of the output class.
         sample_weights : 2d array, optional, default: None
             Sample weights with shape (n_features, 1). Must all be positive.
-        scoring : str, callable, list, tuple, or dict, default: "auc_roc"
+        scoring : str, callable, list, tuple, or dict, default: "roc_auc"
             Strategy to evaluate the performance of the cross-validated model on
             the test set.
 
@@ -197,7 +199,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             Probability of classes.
         """
         assert self.fitted
-        return expit(X.dot(self.coefficients))
+        return expit(X.dot(self.rho))
 
 
     def predict_log_proba(self, X):
@@ -240,7 +242,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         return X.dot(self.coefficients)
 
 
-    def report(self, file_name=None, show=True):
+    def report(self, file_name=None, show=False):
         """Create a RiskSLIM report using plotly.
 
         Parameters
@@ -251,4 +253,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         show : bool, optional, default: True
             Calls fig.show() if True.
         """
-        self.scores.report(file_name, show)
+        if show:
+            self.scores.report(file_name, show)
+        else:
+            return self.scores.report(file_name, show)
