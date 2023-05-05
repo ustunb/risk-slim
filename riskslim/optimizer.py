@@ -58,10 +58,7 @@ class RiskSLIMOptimizer:
     verbose : bool, optional, default: True
         Prints out log information if True, supresses if False.
     """
-    #DEFAULT_SETTINGS = {
-        # ''
-        # }
-
+    
     def __init__(
         self, L0_min=None, L0_max=None, rho_min=-5., rho_max=5., c0_value=1e-6,
         max_abs_offset=None, vtype="I", settings=None, coef_set=None, verbose=True
@@ -87,7 +84,7 @@ class RiskSLIMOptimizer:
 
         self.loss_computation = self.settings["loss_computation"]
         self.verbose = verbose
-        self.print_log = lambda msg: print_log(msg, print_flag=self.verbose)
+        self.log = lambda msg: print_log(msg, print_flag = self.verbose)
 
         # Coefficient constraints
         self.L0_min = L0_min
@@ -233,7 +230,7 @@ class RiskSLIMOptimizer:
         )
 
         # Update cuts
-        self.print_log("warmstart CPA produced %d cuts" % len(cuts["coefs"]))
+        self.log("warmstart CPA produced {} cuts".format(len(cuts["coefs"])))
         self.initial_cuts = cuts
 
         # Update bounds
@@ -263,12 +260,12 @@ class RiskSLIMOptimizer:
         pool = pool.remove_infeasible(rounded_model_size_is_ok).distinct().sort()
 
         if len(pool) == 0:
-            self.print_log("all CPA solutions are infeasible")
+            self.log("all CPA solutions are infeasible")
 
         # Round CPA solutions
         if settings["use_rounding"] and len(pool) > 0:
-            self.print_log("running naive rounding on %d solutions" % len(pool))
-            self.print_log("best objective value: %1.4f" % np.min(pool.objvals))
+            self.log(f"running naive rounding on {len(pool)} solutions")
+            self.log("best objective value: %1.4f" % np.min(pool.objvals))
             rnd_pool, _, _ = round_solution_pool(
                 pool,
                 constraints,
@@ -278,18 +275,18 @@ class RiskSLIMOptimizer:
             rnd_pool = rnd_pool.compute_objvals(self.get_objval).remove_infeasible(
                 self.is_feasible
             )
-            self.print_log("rounding produced %d integer solutions" % len(rnd_pool))
+            self.log(f"rounding produced {len(rnd_pool)} integer solutions")
 
             if len(rnd_pool) > 0:
                 pool.append(rnd_pool)
-                self.print_log(
+                self.log(
                     "best objective value is %1.4f" % np.min(rnd_pool.objvals)
                 )
 
         # Sequentially round CPA solutions
         if settings["use_sequential_rounding"] and len(pool) > 0:
-            self.print_log("running sequential rounding on %d solutions" % len(pool))
-            self.print_log("best objective value: %1.4f" % np.min(pool.objvals))
+            self.log(f"running sequential rounding on {len(pool)} solutions")
+            self.log("best objective value: %1.4f" % np.min(pool.objvals))
 
             sqrnd_pool, _, _ = sequential_round_solution_pool(
                 pool=pool,
@@ -303,18 +300,16 @@ class RiskSLIMOptimizer:
             )
 
             sqrnd_pool = sqrnd_pool.remove_infeasible(self.is_feasible)
-            self.print_log(
-                "sequential rounding produced %d integer solutions" % len(sqrnd_pool)
-            )
+            self.log(f"sequential rounding produced {len(sqrnd_pool)} integer solutions")
 
             if len(sqrnd_pool) > 0:
                 pool = pool.append(sqrnd_pool)
-                self.print_log("best objective value: %1.4f" % np.min(pool.objvals))
+                self.log("best objective value: %1.4f" % np.min(pool.objvals))
 
         # Polish rounded solutions
         if settings["polishing_after"] and len(pool) > 0:
-            self.print_log("polishing %d solutions" % len(pool))
-            self.print_log("best objective value: %1.4f" % np.min(pool.objvals))
+            self.log("polishing %d solutions" % len(pool))
+            self.log("best objective value: %1.4f" % np.min(pool.objvals))
             dcd_pool, _, _ = discrete_descent_solution_pool(
                 pool=pool,
                 Z=self.Z,
@@ -328,7 +323,7 @@ class RiskSLIMOptimizer:
 
             dcd_pool = dcd_pool.remove_infeasible(self.is_feasible)
             if len(dcd_pool) > 0:
-                self.print_log(
+                self.log(
                     "polishing produced %d integer solutions" % len(dcd_pool)
                 )
                 pool.append(dcd_pool)
@@ -338,13 +333,13 @@ class RiskSLIMOptimizer:
             pool = pool.remove_nonintegral().distinct().sort()
 
         # Update upper and lower bounds
-        self.print_log("initialization produced %1.0f feasible solutions" % len(pool))
+        self.log("initialization produced %1.0f feasible solutions" % len(pool))
 
         if len(pool) > 0:
             bounds = chained_updates(
                 bounds, self.C_0_nnz, new_objval_at_feasible=np.min(pool.objvals)
             )
-            self.print_log("best objective value: %1.4f" % np.min(pool.objvals))
+            self.log("best objective value: %1.4f" % np.min(pool.objvals))
 
         self.pool.append(pool)
 
@@ -563,7 +558,7 @@ class RiskSLIMOptimizer:
                 L0_max=self.L0_max,
             )
 
-            self.print_log("%d rows in lookup table" % (s_max - s_min + 1))
+            self.log("%d rows in lookup table" % (s_max - s_min + 1))
             (
                 loss_value_tbl,
                 prob_value_tbl,
@@ -597,6 +592,7 @@ class RiskSLIMOptimizer:
             self.compute_loss_real = self.compute_loss
             self.compute_loss_cut_real = self.compute_loss_cut
             self.compute_loss_from_scores_real = self.compute_loss_from_scores
+
 
     def _init_training_weights(self, w_pos=1.0, w_neg=1.0, w_total_target=2.0):
         """Initialize weights.

@@ -148,7 +148,7 @@ class LossCallback(LazyConstraintCallback):
 
     def __call__(self):
 
-        #print_log('in cut callback')
+        #log('in cut callback')
         callback_start_time = time.time()
 
         #record entry metrics
@@ -216,7 +216,7 @@ class LossCallback(LazyConstraintCallback):
         self.stats.total_cut_time += cut_time
         self.stats.total_cut_callback_time += time.time() - callback_start_time
 
-        #print_log('left cut callback')
+        #log('left cut callback')
         return
 
 
@@ -315,7 +315,7 @@ class PolishAndRoundCallback(HeuristicCallback):
     def __call__(self):
         # todo write rounding/polishing as separate function calls
 
-        # print_log('in heuristic callback')
+        # log('in heuristic callback')
         if not (self.round_flag or self.polish_flag):
             return
 
@@ -453,5 +453,5 @@ class PolishAndRoundCallback(HeuristicCallback):
             self.set_solution(solution = proposed_solution, objective_value = proposed_objval)
 
         self.stats.total_heuristic_callback_time += time.time() - callback_start_time
-        #print_log('left heuristic callback')
+        #log('left heuristic callback')
         return
