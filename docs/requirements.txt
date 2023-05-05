@@ -1,0 +1,10 @@
+# Requirements for building the documentation site
+sphinx
+sphinx-gallery
+sphinx-copybutton
+sphinx-design
+sphinx-remove-toctrees
+sphinx-bootstrap-theme
+numpydoc
+pillow
+matplotlib
