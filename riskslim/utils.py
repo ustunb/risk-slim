@@ -184,7 +184,7 @@ def check_data(X, y, variable_names, outcome_name=None, sample_weights=None):
 
 
 # MODEL PRINTING
-def print_model(rho, X, variable_names, outcome_name, show_omitted_variables=False):
+def print_model(rho, variable_names, outcome_name, show_omitted_variables=False, return_only=False):
 
     rho_values = np.copy(rho)
     rho_names = list(variable_names)
@@ -206,13 +206,11 @@ def print_model(rho, X, variable_names, outcome_name, show_omitted_variables=Fal
         selected_ind = np.flatnonzero(rho_values)
         rho_values = rho_values[selected_ind]
         rho_names = [rho_names[i] for i in selected_ind]
-        rho_binary = [np.all((X[:,j] == 0) | (X[:,j] == 1)) for j in selected_ind]
 
         #sort by most positive to most negative
         sort_ind = np.argsort(-np.array(rho_values))
         rho_values = [rho_values[j] for j in sort_ind]
         rho_names = [rho_names[j] for j in sort_ind]
-        rho_binary = [rho_binary[j] for j in sort_ind]
         rho_values = np.array(rho_values)
 
     rho_values_string = [str(int(i)) + " points" for i in rho_values]
@@ -238,7 +236,9 @@ def print_model(rho, X, variable_names, outcome_name, show_omitted_variables=Fal
     m.align["Points"] = "r"
     m.align["Tally"] = "r"
 
-    print(m)
+    if not return_only:
+        print(m)
+
     return m
 
 

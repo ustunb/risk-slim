@@ -215,8 +215,7 @@ class CoefficientSet:
         return self.tabulate()
 
     def __repr__(self):
-        if self.print_flag:
-            return self.tabulate()
+        return self.tabulate()
 
     def _check_rep(self):
 

@@ -1,13 +1,11 @@
+"""RiskSLIM optimizer."""
+
 import time
 import numpy as np
 import warnings
 from copy import copy
-from prettytable import PrettyTable
 
-from scipy.special import expit
 from cplex.exceptions import CplexError
-
-from sklearn.base import BaseEstimator, ClassifierMixin
 
 from riskslim.utils import check_data, validate_settings, print_log
 from riskslim.defaults import DEFAULT_LCPA_SETTINGS
@@ -24,11 +22,10 @@ from riskslim.warmstart import (
     discrete_descent_solution_pool,
 )
 from riskslim.fit.callbacks import LossCallback, PolishAndRoundCallback
-from riskslim.utils import print_model
 
 
-class RiskSLIM(BaseEstimator, ClassifierMixin):
-    """RiskSLIM model object.
+class RiskSLIMOptimizer:
+    """RiskSLIM optimizer object.
 
     Parameters
     ----------
@@ -66,6 +63,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         self, L0_min=None, L0_max=None, rho_min=-5., rho_max=5., c0_value=1e-6,
         max_abs_offset=None, vtype="I", settings=None, coef_set=None, verbose=True
     ):
+
         # Empty fields
         self.fitted = False
         self.has_warmstart = False
@@ -100,7 +98,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         self.max_abs_offset = max_abs_offset
 
         if self.coef_set is not None:
-            self.init_coeffs()
+            self._init_coeffs()
         else:
             self.L0_reg_ind = None
             self.C_0 = None
@@ -112,138 +110,90 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         self.y = None
 
 
-    def init_coeffs(self):
-        """Initialize coefficient constraints.
+    def optimize(self, X, y, variable_names=None, outcome_name=None, sample_weights=None):
+        """Optimize RiskSLIM.
 
-        Notes
-        -----
-        If coef_set is passed during initalization, this is ran at initalization time.
-        Otherwise, this will be ran when calling the fit method.
+        Parameters
+        ----------
+        X : 2d-array
+            Observations (rows) and features (columns).
+            With an addtional column of 1s for the intercept.
+        y : 2d-array
+            Class labels (+1, -1) with shape (n_rows, 1).
+        variable_names : list of str, optional, default: None
+            Names of each features. Only needed if coefficients is not passed on
+            initalization. None defaults to generic variable names.
+        outcome_name : str, optional, default: None
+            Name of the output class.
+        sample_weights : 2d array, optional, default: None
+            Sample weights with shape (n_features, 1). Must all be positive.
         """
-        # Coefficients
-        self.rho_min = np.array(self.coef_set.lb)
-        self.rho_max = np.array(self.coef_set.ub)
+        # Set data attributes
+        self.X = X
+        self.y = y
+        self.variable_names = variable_names
+        self.outcome_name = outcome_name
+        self.sample_weights = sample_weights
 
-        # Regularization parameter
-        c0_value = self.c0_value
-        assert c0_value > 0.0, "C0 should be positive"
-        self.c0_value = c0_value
+        # Initalize fitting procedure
+        self._init_fit()
 
-        # Vectorized regularization parameters
-        self.L0_reg_ind = np.isnan(self.coef_set.c0) + self.coef_set.c0 != 0.0
-        self.C_0 = np.array(self.coef_set.c0)
-        self.C_0[self.L0_reg_ind] = c0_value
-        self.C_0_nnz = self.C_0[self.L0_reg_ind]
-
-        # Model size constraints
-        L0_max = np.inf if self.L0_max is None else self.L0_max
-        L0_min = 0 if self.L0_min is None else self.L0_min
-        self.L0_max = np.minimum(L0_max, np.sum(self.L0_reg_ind))
-        self.L0_min = np.maximum(L0_min, 0)
-
-        # Variable names
-        self.variable_names = self.coef_set.variable_names
-
-
-    def init_fit(self):
-        """Pre-fit initialization routine."""
-        # Initialize data dict
-        if self.variable_names is None:
-            self.variable_names = [
-                f"Variable_{str(i).zfill(3)}" for i in range(len(self.X[0]) - 1)
-            ]
-            self.variable_names.insert(0, "(Intercept)")
-
-        # Initialize coefficients if not given on initialization
-        if self.coef_set is None:
-            self.coef_set = CoefficientSet(
-                self.variable_names,
-                lb=self.rho_min,
-                ub=self.rho_max,
-                c0=self.c0_value,
-                vtype=self.vtype,
-                print_flag=self.verbose
+        if self.max_abs_offset is not None:
+            # Set offset bounds
+            self.coef_set.update_intercept_bounds(
+                X=self.X, y=self.y, max_offset=self.max_abs_offset
             )
-            self.init_coeffs()
 
-        # Check data types and shapes
-        check_data(
-            self.X, self.y, self.variable_names, self.outcome_name, self.sample_weights
+        # Initalize MIP
+        self._init_mip()
+
+        # Run warmstart procedure if it has not been run yet
+        if self.settings["initialization_flag"] and not self.has_warmstart:
+            self.warmstart()
+
+        # Set cplex parameters and runtime
+        cpx = self.mip
+        cpx = set_cplex_mip_parameters(
+            cpx,
+            self.cplex_settings,
+            display_cplex_progress=self.settings["display_cplex_progress"],
         )
+        cpx.parameters.timelimit.set(self.settings["max_runtime"])
 
-        self.Z = (self.X * self.y).astype(np.float64)
-        self._integer_data = np.all(self.Z == np.require(self.Z, dtype=np.int_))
-        self.n_variables = self.Z.shape[1]
+        # Initialize solution queues
+        self.cut_queue = FastSolutionPool(self.n_variables)
+        self.polish_queue = FastSolutionPool(self.n_variables)
 
-        # Function handles
-        self._init_loss_computation()
-        self.get_L0_norm = lambda rho: np.count_nonzero(rho[self.L0_reg_ind])
-        self.get_L0_penalty = lambda rho: np.sum(
-            self.C_0_nnz * (rho[self.L0_reg_ind] != 0.0)
-        )
-        self.get_alpha = lambda rho: np.array(
-            abs(rho[self.L0_reg_ind]) > 0.0, dtype=np.float_
-        )
-        self.get_L0_penalty_from_alpha = lambda alpha: np.sum(self.C_0_nnz * alpha)
-        self.get_objval = lambda rho: self.compute_loss(rho) + np.sum(
-            self.C_0_nnz * (rho[self.L0_reg_ind] != 0.0)
-        )
+        if not self.fitted:
+            self._init_callbacks()
 
-        # Bounds
-        self.bounds = Bounds(L0_min=self.L0_min, L0_max=self.L0_max)
-        self.bounds.loss_min, self.bounds.loss_max = self._init_loss_bounds()
+        # Initialize solution pool
+        if len(self.pool) > 0:
+            # Initialize using the polish_queue when possible to avoid bugs with
+            #   the CPLEX MIPStart interface
+            if self.settings["polish_flag"]:
+                self.polish_queue.add(self.pool.objvals[0], self.pool.solutions[0])
+            else:
+                cpx = add_mip_starts(
+                    cpx,
+                    self.mip_indices,
+                    self.pool,
+                    mip_start_effort_level=cpx.MIP_starts.effort_level.repair,
+                )
 
-        # Solution
-        self.pool = SolutionPool(self.n_variables)
+            if self.settings["add_cuts_at_heuristic_solutions"] and len(self.pool) > 1:
+                self.cut_queue.add(self.pool.objvals[1:], self.pool.solutions[1:])
 
-        # Check if trivial solution is feasible, if so add it to the pool and update bounds
-        trivial_solution = np.zeros(self.n_variables, dtype=np.float64)
-        if self.is_feasible(trivial_solution):
-            trivial_objval = self.compute_loss(trivial_solution)
-            if self.settings["initial_bound_updates"]:
-                self.bounds.objval_max = min(self.bounds.objval_max, trivial_objval)
-                self.bounds.loss_max = min(self.bounds.loss_max, trivial_objval)
-                self.bounds = chained_updates(self.bounds, self.C_0_nnz)
-            self.pool.add(objvals=trivial_objval, solutions=trivial_solution)
-
-
-    def init_mip(self):
-        """Initalize a CPLEX MIP solver."""
-        # Setup mip
-        mip_settings = {
-            "C_0": self.c0_value,
-            "coef_set": self.coef_set,
-            "tight_formulation": self.settings["tight_formulation"],
-            "drop_variables": self.settings["drop_variables"],
-            "include_auxillary_variable_for_L0_norm": self.settings[
-                "include_auxillary_variable_for_L0_norm"
-            ],
-            "include_auxillary_variable_for_objval": self.settings[
-                "include_auxillary_variable_for_objval"
-            ],
-        }
-
-        mip_settings.update(self.bounds.asdict())
-        self.mip_settings = mip_settings
-
-        # Setup risk slim mip
-        self.mip, self.mip_indices = create_risk_slim(
-            coef_set=self.coef_set, input=self.mip_settings
-        )
-        self.mip_indices.update(
-            {
-                "C_0_nnz": self.C_0_nnz,
-                "L0_reg_ind": self.L0_reg_ind,
-            }
-        )
-
-        self.stats = Stats(
-            incumbent=np.full(self.X.shape[1], np.nan), bounds=self.bounds
-        )
+        # Solve riskslim optimization problem
+        start_time = time.time()
+        cpx.solve()
+        self.stats.total_run_time = time.time() - start_time
+        self.fitted = True
+        self.rho = self.solution_info['solution']
 
 
     def warmstart(self, warmstart_settings=None):
-        """Run an initialization routine to speed up RiskSLIM
+        """Run an initialization routine to speed up RiskSLIM.
 
         Parameters
         ----------
@@ -262,7 +212,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         # Construct LP relaxation
         lp_settings = dict(self.mip_settings)
         lp_settings["relax_integer_variables"] = True
-        cpx, cpx_indices = create_risk_slim(coef_set=self.coef_set, input=lp_settings)
+        cpx, cpx_indices = create_risk_slim(coef_set=self.coef_set, settings=lp_settings)
         cpx = set_cplex_mip_parameters(
             cpx,
             self.cplex_settings,
@@ -399,119 +349,6 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         self.bounds = copy(bounds)
         self.has_warmstart = True
 
-
-    def fit(self, X, y, variable_names=None, outcome_name=None, sample_weights=None):
-        """Fit RiskSlim.
-
-        Parameters
-        ----------
-        X : 2d-array
-            Observations (rows) and features (columns).
-            With an addtional column of 1s for the INTERCEPT_NAME.
-        y : 2d-array
-            Class labels (+1, -1) with shape (n_rows, 1).
-        variable_names : list of str, optional, default: None
-            Names of each features. Only needed if coefficients is not passed on
-            initalization. None defaults to generic variable names.
-        outcome_name : str, optional, default: None
-            Name of the output class.
-        sample_weights : 2d array, optional, default: None
-            Sample weights with shape (n_features, 1). Must all be positive.
-        """
-        # Set data attributes
-        self.X = X
-        self.y = y
-        self.variable_names = variable_names
-        self.outcome_name = outcome_name
-        self.sample_weights = sample_weights
-
-        # Initalize fitting procedure
-        self.init_fit()
-
-        if self.max_abs_offset is not None:
-            # Set offset bounds
-            self.coef_set.update_intercept_bounds(
-                X=self.X, y=self.y, max_offset=self.max_abs_offset
-            )
-
-        # Initalize MIP
-        self.init_mip()
-
-        # Run warmstart procedure if it has not been run yet
-        if self.settings["initialization_flag"] and not self.has_warmstart:
-            self.warmstart()
-
-        # Set cplex parameters and runtime
-        cpx = self.mip
-        cpx = set_cplex_mip_parameters(
-            cpx,
-            self.cplex_settings,
-            display_cplex_progress=self.settings["display_cplex_progress"],
-        )
-        cpx.parameters.timelimit.set(self.settings["max_runtime"])
-
-        # Initialize solution queues
-        self.cut_queue = FastSolutionPool(self.n_variables)
-        self.polish_queue = FastSolutionPool(self.n_variables)
-
-        if not self.fitted:
-            self._init_callbacks()
-
-        # Initialize solution pool
-        if len(self.pool) > 0:
-            # Initialize using the polish_queue when possible to avoid bugs with
-            #   the CPLEX MIPStart interface
-            if self.settings["polish_flag"]:
-                self.polish_queue.add(self.pool.objvals[0], self.pool.solutions[0])
-            else:
-                cpx = add_mip_starts(
-                    cpx,
-                    self.mip_indices,
-                    self.pool,
-                    mip_start_effort_level=cpx.MIP_starts.effort_level.repair,
-                )
-
-            if self.settings["add_cuts_at_heuristic_solutions"] and len(self.pool) > 1:
-                self.cut_queue.add(self.pool.objvals[1:], self.pool.solutions[1:])
-
-        # Solve riskslim optimization problem
-        start_time = time.time()
-        cpx.solve()
-        self.stats.total_run_time = time.time() - start_time
-        self.fitted = True
-        self.rho = self.solution_info['solution']
-
-
-    def print_solution(self):
-        """Print coefficient solution."""
-        if self.fitted:
-            print_model(
-                self.rho,
-                self.X,
-                self.variable_names,
-                self.outcome_name
-            )
-        else:
-            raise ValueError('Model is not fit.')
-
-
-    def print_model(self):
-        """Print model info."""
-        if self.fitted:
-            # Adds rho to table
-            table = PrettyTable()
-            table.align = "r"
-            table.add_column("variable_name", self.coef_set._variable_names)
-            table.add_column("vtype", self.coef_set.vtype)
-            table.add_column("sign", self.coef_set.sign)
-            table.add_column("lb", self.coef_set.lb)
-            table.add_column("ub", self.coef_set.ub)
-            table.add_column("c0", self.coef_set.c0)
-            table.add_column("rho", self.rho)
-            print(str(table))
-        else:
-            print(self.coef_set)
-
     #### properties ####
 
     @property
@@ -603,37 +440,14 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
             coefs = np.repeat(np.nan, self.n_variables)
         return coefs
 
-    #### classifier API ####
-    def predict(self, X):
-        assert self.fitted
-        return np.sign(X.dot(self.coefficients))
-
-    def predict_proba(self, X):
-        assert self.fitted
-        return expit(X.dot(self.coefficients))
-
-    def predict_log_proba(self, X):
-        """Predict logarithm of probability estimates.
-
-        The returned estimates for all classes are ordered by the
-        label of classes.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Vector to be scored, where `n_samples` is the number of samples and
-            `n_features` is the number of features.
-
-        Returns
-        -------
-        T : array-like of shape (n_samples, n_classes)
-            Returns the log-probability of the sample for each class in the
-            model, where classes are ordered as they are in ``self.y``.
-        """
-        return np.log(self.predict_proba(X))
 
     # helper functions
     def is_feasible(self, rho):
+        """Ensure constraints are obeyed.
+
+        Parameters
+        ---------
+        """
         return (
             np.all(self.rho_max >= rho)
             and np.all(self.rho_min <= rho)
@@ -642,16 +456,7 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
 
     ### initialization ####
     def _parse_settings(self, settings, defaults):
-        """
-        Parameters
-        ----------
-        settings
-        defaults
-
-        Returns
-        -------
-
-        """
+        """Parse settings and separete into warmstart, lcpa, cplex."""
 
         settings = validate_settings(settings, defaults)
         warmstart_settings = {
@@ -668,21 +473,9 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         }
         return lcpa_settings, cplex_settings, warmstart_settings
 
+
     def _init_loss_computation(self, w_pos=1.0):
-        """
-
-        Parameters
-        ----------
-        data
-        coef_set
-        L0_max
-        loss_computation
-        w_pos
-
-        Returns
-        -------
-
-        """
+        """Initalize loss functions."""
         # todo check if fast/lookup loss is installed
         assert self.loss_computation in ["normal", "weighted", "fast", "lookup"]
 
@@ -843,6 +636,137 @@ class RiskSLIM(BaseEstimator, ClassifierMixin):
         training_weights[~pos_ind] *= w_neg
 
         return training_weights
+
+
+    def _init_coeffs(self):
+        """Initialize coefficient constraints.
+
+        Notes
+        -----
+        If coef_set is passed during initalization, this is ran at initalization time.
+        Otherwise, this will be ran when calling the fit method.
+        """
+        # Coefficients
+        self.rho_min = np.array(self.coef_set.lb)
+        self.rho_max = np.array(self.coef_set.ub)
+
+        # Regularization parameter
+        c0_value = self.c0_value
+        assert c0_value > 0.0, "C0 should be positive"
+        self.c0_value = c0_value
+
+        # Vectorized regularization parameters
+        self.L0_reg_ind = np.isnan(self.coef_set.c0) + self.coef_set.c0 != 0.0
+        self.C_0 = np.array(self.coef_set.c0)
+        self.C_0[self.L0_reg_ind] = c0_value
+        self.C_0_nnz = self.C_0[self.L0_reg_ind]
+
+        # Model size constraints
+        L0_max = np.inf if self.L0_max is None else self.L0_max
+        L0_min = 0 if self.L0_min is None else self.L0_min
+        self.L0_max = np.minimum(L0_max, np.sum(self.L0_reg_ind))
+        self.L0_min = np.maximum(L0_min, 0)
+
+        # Variable names
+        self.variable_names = self.coef_set.variable_names
+
+
+    def _init_fit(self):
+        """Pre-fit initialization routine."""
+        # Initialize data dict
+        if self.variable_names is None:
+            self.variable_names = [
+                f"Variable_{str(i).zfill(3)}" for i in range(len(self.X[0]) - 1)
+            ]
+            self.variable_names.insert(0, "(Intercept)")
+
+        # Initialize coefficients if not given on initialization
+        if self.coef_set is None:
+            self.coef_set = CoefficientSet(
+                self.variable_names,
+                lb=self.rho_min,
+                ub=self.rho_max,
+                c0=self.c0_value,
+                vtype=self.vtype,
+                print_flag=self.verbose
+            )
+            self._init_coeffs()
+
+        # Check data types and shapes
+        check_data(
+            self.X, self.y, self.variable_names, self.outcome_name, self.sample_weights
+        )
+
+        self.Z = (self.X * self.y).astype(np.float64)
+        self._integer_data = np.all(self.Z == np.require(self.Z, dtype=np.int_))
+        self.n_variables = self.Z.shape[1]
+
+        # Function handles
+        self._init_loss_computation()
+        self.get_L0_norm = lambda rho: np.count_nonzero(rho[self.L0_reg_ind])
+        self.get_L0_penalty = lambda rho: np.sum(
+            self.C_0_nnz * (rho[self.L0_reg_ind] != 0.0)
+        )
+        self.get_alpha = lambda rho: np.array(
+            abs(rho[self.L0_reg_ind]) > 0.0, dtype=np.float_
+        )
+        self.get_L0_penalty_from_alpha = lambda alpha: np.sum(self.C_0_nnz * alpha)
+        self.get_objval = lambda rho: self.compute_loss(rho) + np.sum(
+            self.C_0_nnz * (rho[self.L0_reg_ind] != 0.0)
+        )
+
+        # Bounds
+        self.bounds = Bounds(L0_min=self.L0_min, L0_max=self.L0_max)
+        self.bounds.loss_min, self.bounds.loss_max = self._init_loss_bounds()
+
+        # Solution
+        self.pool = SolutionPool(self.n_variables)
+
+        # Check if trivial solution is feasible, if so add it to the pool and update bounds
+        trivial_solution = np.zeros(self.n_variables, dtype=np.float64)
+        if self.is_feasible(trivial_solution):
+            trivial_objval = self.compute_loss(trivial_solution)
+            if self.settings["initial_bound_updates"]:
+                self.bounds.objval_max = min(self.bounds.objval_max, trivial_objval)
+                self.bounds.loss_max = min(self.bounds.loss_max, trivial_objval)
+                self.bounds = chained_updates(self.bounds, self.C_0_nnz)
+            self.pool.add(objvals=trivial_objval, solutions=trivial_solution)
+
+
+    def _init_mip(self):
+        """Initalize a CPLEX MIP solver."""
+        # Setup mip
+        mip_settings = {
+            "C_0": self.c0_value,
+            "coef_set": self.coef_set,
+            "tight_formulation": self.settings["tight_formulation"],
+            "drop_variables": self.settings["drop_variables"],
+            "include_auxillary_variable_for_L0_norm": self.settings[
+                "include_auxillary_variable_for_L0_norm"
+            ],
+            "include_auxillary_variable_for_objval": self.settings[
+                "include_auxillary_variable_for_objval"
+            ],
+        }
+
+        mip_settings.update(self.bounds.asdict())
+        self.mip_settings = mip_settings
+
+        # Setup risk slim mip
+        self.mip, self.mip_indices = create_risk_slim(
+            coef_set=self.coef_set, settings=self.mip_settings
+        )
+        self.mip_indices.update(
+            {
+                "C_0_nnz": self.C_0_nnz,
+                "L0_reg_ind": self.L0_reg_ind,
+            }
+        )
+
+        self.stats = Stats(
+            incumbent=np.full(self.X.shape[1], np.nan), bounds=self.bounds
+        )
+
 
     def _init_callbacks(self):
         """Initializes callback functions"""

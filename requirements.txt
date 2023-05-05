@@ -7,3 +7,4 @@ traitlets
 pandas
 prettytable
 scikit-learn
+plotly
