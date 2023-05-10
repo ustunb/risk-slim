@@ -1,6 +1,5 @@
 """RiskSLIM Classifier."""
 
-from inspect import signature
 from warnings import warn
 
 import numpy as np
@@ -41,11 +40,6 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         Maximum absolute value of intercept. This may be specificed as the first value
         of min_coef and max_coef. However, if min_coef and max_coef are floats, this parameter
         provides a convenient way to set bounds on the offset.
-    vtype : str or list of str, optional, default: "I"
-        Variable types for coefficients. Must be either "I" for integers or "C" for floats.
-    settings, dict, optional, defaults: None
-        Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
-        None defaults to settings defined in riskslim.defaults.
     variable_names : list of str, optional, default: None
         Names of each features. Only needed if coefficients is not passed on initalization.
         None defaults to generic variable names.
@@ -53,6 +47,22 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         Name of the output class.
     verbose : bool, optional, default: True
         Prints out log information if True, supresses if False.
+    **kwargs
+        May include key value pairs:
+
+            "coef_set" : riskslim.coefficient_set.CoefficientSet
+                Contraints (bounds) on coefficients of input variables.
+                If None, this is constructed based on values passed to other initalization kwargs.
+                If not None, other kwargs may be overwritten.
+
+            "vtype" : str or list of str
+                Variable types for coefficients.
+                Must be either "I" for integers or "C" for floats.
+
+            **settings : unpacked dict
+                Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
+                Defaults are defined in defaults.DEFAULT_LCPA_SETTINGS.
+
     """
 
     def __init__(
@@ -69,51 +79,26 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         **kwargs
     ):
 
-        self.variable_names = variable_names
-        self.outcome_name = outcome_name
-        self.verbose = verbose
-
-        self.vtype = kwargs.pop("vtype", "I")
-
-        # Create or pop coefficient set from kwargs
-        if "coef_set" in kwargs:
-            assert isinstance(kwargs["coef_set"], CoefficientSet)
-            coef_set = kwargs.pop("coef_set")
-
-            # Warn if using a coef_set and potentially conflicts with other iniit kwargs
-            #   Defaults to values defined in coef_set
-            for param, pstr in zip([min_size, max_coef, c0_value],
-                                   ["min_size", "max_coef", "c0_value"]):
-                if param is not None:
-                    warn(f"Coefficient set overwritting {pstr}.")
-
-            min_coef = np.min(coef_set.lb)
-            max_coef = np.max(coef_set.ub)
-            c0_value = np.min(coef_set.c0)
-
-        else:
-            coef_set = CoefficientSet(
-                self.variable_names,
-                lb=min_coef,
-                ub=max_coef,
-                c0=c0_value,
-                vtype=self.vtype,
-                print_flag=self.verbose,
-            )
-
         # Pull min_coef/max_coef
         #   Note: max offset is set in coef_set during super().optimize
-        self.coef_set = coef_set
         self.max_abs_offset = max_abs_offset
         self.min_coef = min_coef
         self.max_coef = max_coef
         self.c0_value = c0_value
-        self.min_size = 0 if min_size is None else min_size
-        self.max_size = len(coef_set) - 1 if max_size  is None else max_size
+        self.min_size = min_size
+        self.max_size = max_size
 
-        # Setttings
-        #   Verified in super's init call to validate_settings
-        self.settings = kwargs
+        self.variable_names = variable_names
+        self.outcome_name = outcome_name
+        self.verbose = verbose
+
+        # Coefficient set
+        self.coef_set = kwargs.pop("coef_set", None)
+        self.vtype = kwargs.pop("vtype", "I")
+
+        # Setttings: verified in super's init call to validate_settings
+        #   Must contain keys defined in defaults.py
+        self.settings = {} if kwargs is None else kwargs
 
         self.cv = None
         self.best_estimator = None
@@ -135,6 +120,43 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         self.sample_weights = sample_weights
         self.classes_, _ = np.unique(y, return_inverse=True)
 
+        # Create or pop coefficient set from kwargs
+        #   This must be done here rather than init, since variable_names is optional
+        #   it's length can only be inferred from X.
+        if self.variable_names is None:
+            self.variable_names = ["var_"+str(i) for i in range(len(X[0]))]
+
+        if self.coef_set is not None:
+
+            assert isinstance(self.coef_set, CoefficientSet)
+
+            # Warn if using a coef_set and potentially conflicts with other iniit kwargs
+            #   Defaults to values defined in coef_set
+            for param, pstr in zip([self.min_size, self.max_coef, self.c0_value],
+                                   ["min_size", "max_coef", "c0_value"]):
+                if param is not None:
+                    warn(f"Coefficient set overwritting {pstr}.")
+
+            self.min_coef = np.min(self.coef_set.lb)
+            self.max_coef = np.max(self.coef_set.ub)
+            self.c0_value = np.min(self.coef_set.c0)
+
+        elif self.coef_set is None:
+
+            self.coef_set = CoefficientSet(
+                self.variable_names,
+                lb=self.min_coef,
+                ub=self.max_coef,
+                c0=self.c0_value,
+                vtype=self.vtype,
+                print_flag=self.verbose
+            )
+
+        # Default max size is unknown until coefficient set is constructed,
+        #   assuming variable_names is not passed during initalization
+        self.min_size = 0 if self.min_size is None else self.min_size
+        self.max_size = len(self.coef_set) - 1 if self.max_size  is None else self.max_size
+
         # Sci-kit learns requires only attributes directly passed in init signature
         #   to be set in init. Other variables are initalized at fit time
         super().__init__(
@@ -147,8 +169,9 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             variable_names=self.variable_names,
             outcome_name=self.outcome_name,
             verbose=self.verbose,
-            vtype=self.vtype,
+            # Captured by **kwargs
             coef_set=self.coef_set,
+            vtype=self.vtype,
             **self.settings
         )
         # Fit

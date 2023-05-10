@@ -68,6 +68,10 @@ class RiskSLIMOptimizer:
             "vtype" : str or list of str
                 Variable types for coefficients.
                 Must be either "I" for integers or "C" for floats.
+
+            **settings : unpacked dict
+                Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
+                Defaults are defined in defaults.DEFAULT_LCPA_SETTINGS.
     """
 
     def __init__(
