@@ -301,7 +301,7 @@ def print_log(msg, print_flag = True):
         sys.stdout.flush()
 
 # Settings
-def validate_settings(settings = None, defaults = None):
+def validate_settings(settings=None, defaults=None, raise_key_error=True):
 
     if settings is None:
         settings = dict()
@@ -311,7 +311,15 @@ def validate_settings(settings = None, defaults = None):
 
     if defaults is not None:
         assert isinstance(defaults, dict)
-        settings = {k: settings[k] if k in settings else defaults[k] for k in defaults}
+        _settings = defaults.copy()
+        for k, v in settings.items():
+            # Raise error if key isn't valid
+            if raise_key_error and k not in defaults:
+                raise ValueError(f"Invalid setting: {k}")
+            else:
+                _settings[k] = v
+
+        settings = _settings
 
     return settings
 

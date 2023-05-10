@@ -83,13 +83,13 @@ class CoefficientSet:
 
         # get max # of non-zero coefficients given model size limit
         penalized_idx = [self._coef_elements[n].penalized for n in variable_names]
-        trivial_L0_max = len(penalized_idx)
+        trivial_max_size = len(penalized_idx)
 
         if max_L0_value is None:
-            max_L0_value = trivial_L0_max
+            max_L0_value = trivial_max_size
 
         if max_L0_value > 0:
-            max_L0_value = min(trivial_L0_max, max_L0_value)
+            max_L0_value = min(trivial_max_size, max_L0_value)
 
         # update intercept bounds
         Z = X * y
@@ -105,7 +105,7 @@ class CoefficientSet:
                                         rho_lb = self.lb[variable_idx],
                                         rho_ub = self.ub[variable_idx],
                                         L0_reg_ind = L0_reg_ind,
-                                        L0_max = max_L0_value)
+                                        max_size = max_L0_value)
 
         # get max # of non-zero coefficients given model size limit
         conservative_offset = max(abs(s_min), abs(s_max)) + 1
@@ -407,21 +407,21 @@ class _CoefficientElement(object):
         return t
 
 
-def get_score_bounds(Z_min, Z_max, rho_lb, rho_ub, L0_reg_ind = None, L0_max = None):
+def get_score_bounds(Z_min, Z_max, rho_lb, rho_ub, L0_reg_ind = None, max_size = None):
 
     edge_values = np.vstack([Z_min * rho_lb, Z_max * rho_lb, Z_min * rho_ub, Z_max * rho_ub])
 
-    if (L0_max is None) or (L0_reg_ind is None) or (L0_max == Z_min.shape[0]):
+    if (max_size is None) or (L0_reg_ind is None) or (max_size == Z_min.shape[0]):
         s_min = np.sum(np.min(edge_values, axis=0))
         s_max = np.sum(np.max(edge_values, axis=0))
     else:
         min_values = np.min(edge_values, axis=0)
-        s_min_reg = np.sum(np.sort(min_values[L0_reg_ind])[0:L0_max])
+        s_min_reg = np.sum(np.sort(min_values[L0_reg_ind])[0:max_size])
         s_min_no_reg = np.sum(min_values[~L0_reg_ind])
         s_min = s_min_reg + s_min_no_reg
 
         max_values = np.max(edge_values, axis=0)
-        s_max_reg = np.sum(-np.sort(-max_values[L0_reg_ind])[0:L0_max])
+        s_max_reg = np.sum(-np.sort(-max_values[L0_reg_ind])[0:max_size])
         s_max_no_reg = np.sum(max_values[~L0_reg_ind])
         s_max = s_max_reg + s_max_no_reg
 

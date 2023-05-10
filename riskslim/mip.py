@@ -39,7 +39,7 @@ def create_risk_slim(coef_set, settings):
 
     such that
 
-    L0_min ≤ L0 ≤ L0_max
+    min_size ≤ L0 ≤ max_size
     -rho_min * alpha_j < lambda_j < rho_max * alpha_j
 
     L_0 in 0 to P
@@ -76,8 +76,8 @@ def create_risk_slim(coef_set, settings):
     settings.setdefault('include_auxillary_variable_for_L0_norm', True)
     settings.setdefault('loss_min', 0.00)
     settings.setdefault('loss_max', float(CPX_INFINITY))
-    settings.setdefault('L0_min', 0)
-    settings.setdefault('L0_max', len(coef_set))
+    settings.setdefault('min_size', 0)
+    settings.setdefault('max_size', len(coef_set))
     settings.setdefault('objval_min', 0.00)
     settings.setdefault('objval_max', float(CPX_INFINITY))
     settings.setdefault('relax_integer_variables', False)
@@ -93,8 +93,8 @@ def create_risk_slim(coef_set, settings):
     C_0j[L0_reg_ind] = settings['C_0']
     C_0j = C_0j.tolist()
     C_0_rho = np.copy(C_0j)
-    trivial_L0_min = 0
-    trivial_L0_max = np.sum(L0_reg_ind)
+    trivial_min_size = 0
+    trivial_max_size = np.sum(L0_reg_ind)
 
     rho_ub = list(coef_set.ub)
     rho_lb = list(coef_set.lb)
@@ -105,11 +105,11 @@ def create_risk_slim(coef_set, settings):
     loss_max = min(CPX_INFINITY, float(settings['loss_max']))
 
     # calculate min/max values for model size
-    L0_min = np.maximum(settings['L0_min'], 0.0)
-    L0_max = np.minimum(settings['L0_max'], trivial_L0_max)
-    L0_min = np.ceil(L0_min)
-    L0_max = np.floor(L0_max)
-    assert L0_min <= L0_max
+    min_size = np.maximum(settings['min_size'], 0.0)
+    max_size = np.minimum(settings['max_size'], trivial_max_size)
+    min_size = np.ceil(min_size)
+    max_size = np.floor(max_size)
+    assert min_size <= max_size
 
     # calculate min/max values for objval
     objval_min = max(settings['objval_min'], 0.0)
@@ -117,11 +117,11 @@ def create_risk_slim(coef_set, settings):
     assert objval_min <= objval_max
 
     # include constraint on min/max model size?
-    nontrivial_L0_min = L0_min > trivial_L0_min
-    nontrivial_L0_max = L0_max < trivial_L0_max
+    nontrivial_min_size = min_size > trivial_min_size
+    nontrivial_max_size = max_size < trivial_max_size
     include_auxillary_variable_for_L0_norm = settings['include_auxillary_variable_for_L0_norm'] or \
-                                             nontrivial_L0_min or \
-                                             nontrivial_L0_max
+                                             nontrivial_min_size or \
+                                             nontrivial_max_size
 
     # include constraint on min/max objective value?
     nontrivial_objval_min = objval_min > 0.0
@@ -171,11 +171,11 @@ def create_risk_slim(coef_set, settings):
 
     if include_auxillary_variable_for_L0_norm:
         L0_norm_auxillary_name = ['L0_norm']
-        L0_norm_auxillary_ub = [L0_max]
-        L0_norm_auxillary_lb = [L0_min]
+        L0_norm_auxillary_ub = [max_size]
+        L0_norm_auxillary_lb = [min_size]
         L0_norm_type = 'I'
 
-        print_from_function("adding auxiliary variable for L0_norm s.t. %d <= L0_norm <= %d" % (L0_min, L0_max))
+        print_from_function("adding auxiliary variable for L0_norm s.t. %d <= L0_norm <= %d" % (min_size, max_size))
         obj += [0.0]
         ub += L0_norm_auxillary_ub
         lb += L0_norm_auxillary_lb

@@ -29,15 +29,15 @@ class RiskSLIMOptimizer:
 
     Parameters
     ----------
-    L0_min : int, optional, default: None
+    min_size : int, optional, default: None
         Minimum number of regularized coefficients.
         None defaults to zero.
-    L0_max : int, optional, default: None
+    max_size : int, optional, default: None
         Maximum number of regularized coefficients.
         None defaults to length of input variables.
-    rho_min : float or 1d array, optional, default: -5.
+    min_coef : float or 1d array, optional, default: -5.
         Minimum coefficient.
-    rho_max : float or 1d array, optional, default: 5.
+    max_coef : float or 1d array, optional, default: 5.
         Maximum coefficient.
     c0_value : 1d array or float, optional, default: 1e-6
         L0-penalty for all parameters when an integer or for each parameter
@@ -46,35 +46,57 @@ class RiskSLIMOptimizer:
         Maximum absolute value of intercept. This may be specificed as the first value
         of min_coef and max_coef. However, if min_coef and max_coef are floats, this parameter
         provides a convenient way to set bounds on the offset.
-    vtype : str or list of str, optional, default: "I"
-        Variable types for coefficients. Must be either "I" for integers or "C" for floats.
+
     settings, dict, optional, defaults: None
         Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
         None defaults to settings defined in riskslim.defaults.
-    coefficient_set : riskslim.coefficient_set.CoefficientSet, optional, default: None
-        Contraints (bounds) on coefficients of input variables.
-        If None, this is constructed based on values passed to other initalization kwargs.
-        If not None, other kwargs may be overwritten.
+    variable_names : list of str, optional, default: None
+            Names of each features. Only needed if coefficients is not passed on
+            initalization. None defaults to generic variable names.
+    outcome_name : str, optional, default: None
+        Name of the output class.
     verbose : bool, optional, default: True
         Prints out log information if True, supresses if False.
-    """
-    
-    def __init__(
-        self, L0_min=None, L0_max=None, rho_min=-5., rho_max=5., c0_value=1e-6,
-        max_abs_offset=None, vtype="I", settings=None, coef_set=None, verbose=True
-    ):
+    **kwargs
+        May include key value pairs:
 
+            "coef_set" : riskslim.coefficient_set.CoefficientSet
+                Contraints (bounds) on coefficients of input variables.
+                If None, this is constructed based on values passed to other initalization kwargs.
+                If not None, other kwargs may be overwritten.
+
+            "vtype" : str or list of str
+                Variable types for coefficients.
+                Must be either "I" for integers or "C" for floats.
+    """
+
+    def __init__(
+        self,
+        min_size=None,
+        max_size=None,
+        min_coef=-5.0,
+        max_coef=5.0,
+        c0_value=1e-6,
+        max_abs_offset=None,
+        variable_names=None,
+        outcome_name=None,
+        verbose=True,
+        **kwargs
+    ):
         # Empty fields
         self.fitted = False
         self.has_warmstart = False
         self._default_print_flag = False
         self.initial_cuts = None
 
-        # Settings
-        settings = {} if settings is None else settings
+        # Handle kwargs
+        self.vtype = kwargs.pop("vtype", None)
+        self.coef_set = kwargs.pop("coef_set", None)
+        settings = kwargs
 
-        if 'display_cplex_progress' not in settings.keys():
-            settings['display_cplex_progress'] = verbose
+        # Parse settings
+        if "display_cplex_progress" not in settings.keys():
+            settings["display_cplex_progress"] = verbose
 
         (
             self.settings,
@@ -84,17 +106,15 @@ class RiskSLIMOptimizer:
 
         self.loss_computation = self.settings["loss_computation"]
         self.verbose = verbose
-        self.log = lambda msg: print_log(msg, print_flag = self.verbose)
+        self.log = lambda msg: print_log(msg, print_flag=self.verbose)
 
         # Coefficient constraints
-        self.L0_min = L0_min
-        self.L0_max = L0_max
-        self.coef_set = coef_set
-        self.rho_min = rho_min
-        self.rho_max = rho_max
+        self.min_size = min_size
+        self.max_size = max_size
+        self.min_coef = min_coef
+        self.max_coef = max_coef
         self.rho = None
         self.c0_value = c0_value
-        self.vtype = vtype
         self.max_abs_offset = max_abs_offset
 
         if self.coef_set is not None:
@@ -109,8 +129,12 @@ class RiskSLIMOptimizer:
         self.X = None
         self.y = None
 
+        self.variable_names = variable_names
+        self.outcome_name = outcome_name
 
-    def optimize(self, X, y, variable_names=None, outcome_name=None, sample_weights=None):
+    def optimize(
+        self, X, y, sample_weights=None
+    ):
         """Optimize RiskSLIM.
 
         Parameters
@@ -120,19 +144,12 @@ class RiskSLIMOptimizer:
             With an addtional column of 1s for the intercept.
         y : 2d-array
             Class labels (+1, -1) with shape (n_rows, 1).
-        variable_names : list of str, optional, default: None
-            Names of each features. Only needed if coefficients is not passed on
-            initalization. None defaults to generic variable names.
-        outcome_name : str, optional, default: None
-            Name of the output class.
         sample_weights : 2d array, optional, default: None
             Sample weights with shape (n_features, 1). Must all be positive.
         """
         # Set data attributes
         self.X = X
         self.y = y
-        self.variable_names = variable_names
-        self.outcome_name = outcome_name
         self.sample_weights = sample_weights
 
         # Initalize fitting procedure
@@ -189,8 +206,7 @@ class RiskSLIMOptimizer:
         cpx.solve()
         self.stats.total_run_time = time.time() - start_time
         self.fitted = True
-        self.rho = self.solution_info['solution']
-
+        self.rho = self.solution_info["solution"]
 
     def warmstart(self, warmstart_settings=None):
         """Run an initialization routine to speed up RiskSLIM.
@@ -212,7 +228,9 @@ class RiskSLIMOptimizer:
         # Construct LP relaxation
         lp_settings = dict(self.mip_settings)
         lp_settings["relax_integer_variables"] = True
-        cpx, cpx_indices = create_risk_slim(coef_set=self.coef_set, settings=lp_settings)
+        cpx, cpx_indices = create_risk_slim(
+            coef_set=self.coef_set, settings=lp_settings
+        )
         cpx = set_cplex_mip_parameters(
             cpx,
             self.cplex_settings,
@@ -239,8 +257,8 @@ class RiskSLIMOptimizer:
         )
 
         constraints = {
-            "min_size": self.L0_min,
-            "max_size": self.L0_max,
+            "min_size": self.min_size,
+            "max_size": self.max_size,
             "coef_set": self.coef_set,
         }
 
@@ -250,11 +268,11 @@ class RiskSLIMOptimizer:
             cannot_round_to_zero = np.logical_not(
                 np.logical_or(zero_idx_rho_ceil, zero_idx_rho_floor)
             )
-            rounded_rho_L0_min = np.count_nonzero(cannot_round_to_zero[self.L0_reg_ind])
-            rounded_rho_L0_max = np.count_nonzero(rho[self.L0_reg_ind])
+            rounded_min_coef_size = np.count_nonzero(cannot_round_to_zero[self.L0_reg_ind])
+            rounded_max_coef_size = np.count_nonzero(rho[self.L0_reg_ind])
             return (
-                rounded_rho_L0_min >= self.L0_min >= 0
-                and rounded_rho_L0_max <= self.L0_max
+                rounded_min_coef_size >= self.min_size >= 0
+                and rounded_max_coef_size <= self.max_size
             )
 
         pool = pool.remove_infeasible(rounded_model_size_is_ok).distinct().sort()
@@ -279,9 +297,7 @@ class RiskSLIMOptimizer:
 
             if len(rnd_pool) > 0:
                 pool.append(rnd_pool)
-                self.log(
-                    "best objective value is %1.4f" % np.min(rnd_pool.objvals)
-                )
+                self.log("best objective value is %1.4f" % np.min(rnd_pool.objvals))
 
         # Sequentially round CPA solutions
         if settings["use_sequential_rounding"] and len(pool) > 0:
@@ -300,7 +316,9 @@ class RiskSLIMOptimizer:
             )
 
             sqrnd_pool = sqrnd_pool.remove_infeasible(self.is_feasible)
-            self.log(f"sequential rounding produced {len(sqrnd_pool)} integer solutions")
+            self.log(
+                f"sequential rounding produced {len(sqrnd_pool)} integer solutions"
+            )
 
             if len(sqrnd_pool) > 0:
                 pool = pool.append(sqrnd_pool)
@@ -323,9 +341,7 @@ class RiskSLIMOptimizer:
 
             dcd_pool = dcd_pool.remove_infeasible(self.is_feasible)
             if len(dcd_pool) > 0:
-                self.log(
-                    "polishing produced %d integer solutions" % len(dcd_pool)
-                )
+                self.log("polishing produced %d integer solutions" % len(dcd_pool))
                 pool.append(dcd_pool)
 
         # Remove solutions that are not feasible, not integer
@@ -438,7 +454,6 @@ class RiskSLIMOptimizer:
             coefs = np.repeat(np.nan, self.n_variables)
         return coefs
 
-
     # helper functions
     def is_feasible(self, rho):
         """Ensure constraints are obeyed.
@@ -447,9 +462,9 @@ class RiskSLIMOptimizer:
         ---------
         """
         return (
-            np.all(self.rho_max >= rho)
-            and np.all(self.rho_min <= rho)
-            and (self.L0_min <= np.count_nonzero(rho[self.L0_reg_ind]) <= self.L0_max)
+            np.all(self.max_coef >= rho)
+            and np.all(self.min_coef <= rho)
+            and (self.min_size <= np.count_nonzero(rho[self.L0_reg_ind]) <= self.max_size)
         )
 
     ### initialization ####
@@ -470,7 +485,6 @@ class RiskSLIMOptimizer:
             if not k.startswith(("init_", "cplex_"))
         }
         return lcpa_settings, cplex_settings, warmstart_settings
-
 
     def _init_loss_computation(self, w_pos=1.0):
         """Initalize loss functions."""
@@ -555,7 +569,7 @@ class RiskSLIMOptimizer:
                 rho_lb=self.coef_set.lb,
                 rho_ub=self.coef_set.ub,
                 L0_reg_ind=np.array(self.coef_set.c0) == 0.0,
-                L0_max=self.L0_max,
+                max_size=self.max_size,
             )
 
             self.log("%d rows in lookup table" % (s_max - s_min + 1))
@@ -592,7 +606,6 @@ class RiskSLIMOptimizer:
             self.compute_loss_real = self.compute_loss
             self.compute_loss_cut_real = self.compute_loss_cut
             self.compute_loss_from_scores_real = self.compute_loss_from_scores
-
 
     def _init_training_weights(self, w_pos=1.0, w_neg=1.0, w_total_target=2.0):
         """Initialize weights.
@@ -636,7 +649,6 @@ class RiskSLIMOptimizer:
 
         return training_weights
 
-
     def _init_coeffs(self):
         """Initialize coefficient constraints.
 
@@ -646,8 +658,8 @@ class RiskSLIMOptimizer:
         Otherwise, this will be ran when calling the fit method.
         """
         # Coefficients
-        self.rho_min = np.array(self.coef_set.lb)
-        self.rho_max = np.array(self.coef_set.ub)
+        self.min_coef = np.array(self.coef_set.lb)
+        self.max_coef = np.array(self.coef_set.ub)
 
         # Regularization parameter
         c0_value = self.c0_value
@@ -661,14 +673,13 @@ class RiskSLIMOptimizer:
         self.C_0_nnz = self.C_0[self.L0_reg_ind]
 
         # Model size constraints
-        L0_max = np.inf if self.L0_max is None else self.L0_max
-        L0_min = 0 if self.L0_min is None else self.L0_min
-        self.L0_max = np.minimum(L0_max, np.sum(self.L0_reg_ind))
-        self.L0_min = np.maximum(L0_min, 0)
+        max_size = np.inf if self.max_size is None else self.max_size
+        min_size = 0 if self.min_size is None else self.min_size
+        self.max_size = np.minimum(max_size, np.sum(self.L0_reg_ind))
+        self.min_size = np.maximum(min_size, 0)
 
         # Variable names
         self.variable_names = self.coef_set.variable_names
-
 
     def _init_fit(self):
         """Pre-fit initialization routine."""
@@ -683,11 +694,11 @@ class RiskSLIMOptimizer:
         if self.coef_set is None:
             self.coef_set = CoefficientSet(
                 self.variable_names,
-                lb=self.rho_min,
-                ub=self.rho_max,
+                lb=self.min_coef,
+                ub=self.max_coef,
                 c0=self.c0_value,
                 vtype=self.vtype,
-                print_flag=self.verbose
+                print_flag=self.verbose,
             )
             self._init_coeffs()
 
@@ -715,7 +726,7 @@ class RiskSLIMOptimizer:
         )
 
         # Bounds
-        self.bounds = Bounds(L0_min=self.L0_min, L0_max=self.L0_max)
+        self.bounds = Bounds(min_size=self.min_size, max_size=self.max_size)
         self.bounds.loss_min, self.bounds.loss_max = self._init_loss_bounds()
 
         # Solution
@@ -730,7 +741,6 @@ class RiskSLIMOptimizer:
                 self.bounds.loss_max = min(self.bounds.loss_max, trivial_objval)
                 self.bounds = chained_updates(self.bounds, self.C_0_nnz)
             self.pool.add(objvals=trivial_objval, solutions=trivial_solution)
-
 
     def _init_mip(self):
         """Initalize a CPLEX MIP solver."""
@@ -766,7 +776,6 @@ class RiskSLIMOptimizer:
             incumbent=np.full(self.X.shape[1], np.nan), bounds=self.bounds
         )
 
-
     def _init_callbacks(self):
         """Initializes callback functions"""
 
@@ -790,13 +799,13 @@ class RiskSLIMOptimizer:
         # add heuristic callback if rounding or polishing
         if self.settings["round_flag"] or self.settings["polish_flag"]:
             heuristic_cb = self.mip.register_callback(PolishAndRoundCallback)
-            active_set_flag = self.L0_max <= self.n_variables
+            active_set_flag = self.max_size <= self.n_variables
             polisher = lambda rho: discrete_descent(
                 rho,
                 self.Z,
                 self.C_0,
-                self.rho_max,
-                self.rho_min,
+                self.max_coef,
+                self.min_coef,
                 self.get_L0_penalty,
                 self.compute_loss_from_scores,
                 active_set_flag,
@@ -831,11 +840,11 @@ class RiskSLIMOptimizer:
         # max value of loss = loss(1+exp(-score)) occurs at min score for each point
 
         # get maximum number of regularized coefficients
-        num_max_reg_coefs = self.L0_max
+        num_max_reg_coefs = self.max_size
 
         # calculate the smallest and largest score that can be attained by each point
-        scores_at_lb = self.Z * self.rho_min
-        scores_at_ub = self.Z * self.rho_max
+        scores_at_lb = self.Z * self.min_coef
+        scores_at_ub = self.Z * self.max_coef
         max_scores_matrix = np.maximum(scores_at_ub, scores_at_lb)
         min_scores_matrix = np.minimum(scores_at_ub, scores_at_lb)
         assert np.all(max_scores_matrix >= min_scores_matrix)

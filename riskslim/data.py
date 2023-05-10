@@ -79,8 +79,8 @@ class Bounds:
     objval_max: float = np.inf
     loss_min: float = 0.0
     loss_max: float = np.inf
-    L0_min: float = 0.0
-    L0_max: float = np.inf
+    min_size: float = 0.0
+    max_size: float = np.inf
 
     def asdict(self):
         return self.__dict__
@@ -119,8 +119,8 @@ class Stats:
     n_bound_updates: int = 0
     n_bound_updates_loss_min: int = 0
     n_bound_updates_loss_max: int = 0
-    n_bound_updates_L0_min: int = 0
-    n_bound_updates_L0_max: int = 0
+    n_bound_updates_min_size: int = 0
+    n_bound_updates_max_size: int = 0
     n_bound_updates_objval_min: int = 0
     n_bound_updates_objval_max: int = 0
 

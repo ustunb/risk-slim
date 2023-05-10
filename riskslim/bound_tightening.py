@@ -51,8 +51,8 @@ def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_a
     while improved and cnt < max_chain_count:
 
         improved = False
-        L0_penalty_min = np.sum(np.sort(C_0_nnz)[np.arange(int(new_bounds.L0_min))])
-        L0_penalty_max = np.sum(-np.sort(-C_0_nnz)[np.arange(int(new_bounds.L0_max))])
+        L0_penalty_min = np.sum(np.sort(C_0_nnz)[np.arange(int(new_bounds.min_size))])
+        L0_penalty_max = np.sum(-np.sort(-C_0_nnz)[np.arange(int(new_bounds.max_size))])
 
         # loss_min
         if new_bounds.objval_min > L0_penalty_max:
@@ -61,11 +61,11 @@ def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_a
                 new_bounds.loss_min = proposed_loss_min
                 improved = True
 
-        # L0_min
+        # min_size
         if new_bounds.objval_min > new_bounds.loss_max:
-            proposed_L0_min = np.ceil((new_bounds.objval_min - new_bounds.loss_max) / np.min(C_0_nnz))
-            if proposed_L0_min > new_bounds.L0_min:
-                new_bounds.L0_min = proposed_L0_min
+            proposed_min_size = np.ceil((new_bounds.objval_min - new_bounds.loss_max) / np.min(C_0_nnz))
+            if proposed_min_size > new_bounds.min_size:
+                new_bounds.min_size = proposed_min_size
                 improved = True
 
         # objval_min = max(objval_min, loss_min + L0_penalty_min)
@@ -81,11 +81,11 @@ def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_a
                 new_bounds.loss_max = proposed_loss_max
                 improved = True
 
-        # L0_max
+        # max_size
         if new_bounds.objval_max > new_bounds.loss_min:
-            proposed_L0_max = np.floor((new_bounds.objval_max - new_bounds.loss_min) / np.min(C_0_nnz))
-            if proposed_L0_max < new_bounds.L0_max:
-                new_bounds.L0_max = proposed_L0_max
+            proposed_max_size = np.floor((new_bounds.objval_max - new_bounds.loss_min) / np.min(C_0_nnz))
+            if proposed_max_size < new_bounds.max_size:
+                new_bounds.max_size = proposed_max_size
                 improved = True
 
         # objval_max = min(objval_max, loss_max + penalty_max)
@@ -143,8 +143,8 @@ def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_o
     improved_bounds = True
     C_0_min = np.min(C_0_nnz)
     C_0_max = np.max(C_0_nnz)
-    L0_penalty_min = C_0_min * new_bounds.L0_min
-    L0_penalty_max = min(C_0_max * new_bounds.L0_max, new_bounds.objval_max)
+    L0_penalty_min = C_0_min * new_bounds.min_size
+    L0_penalty_max = min(C_0_max * new_bounds.max_size, new_bounds.objval_max)
 
     while improved_bounds and chain_count < max_chain_count:
 
@@ -156,12 +156,12 @@ def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_o
                 new_bounds.loss_min = proposed_loss_min
                 improved_bounds = True
 
-        # L0_min and L0_penalty_min
+        # min_size and L0_penalty_min
         if new_bounds.objval_min > new_bounds.loss_max:
-            proposed_L0_min = (new_bounds.objval_min - new_bounds.loss_max) / C_0_min
-            if proposed_L0_min > new_bounds.L0_min:
-                new_bounds.L0_min = proposed_L0_min
-                L0_penalty_min = max(L0_penalty_min, C_0_min * proposed_L0_min)
+            proposed_min_size = (new_bounds.objval_min - new_bounds.loss_max) / C_0_min
+            if proposed_min_size > new_bounds.min_size:
+                new_bounds.min_size = proposed_min_size
+                L0_penalty_min = max(L0_penalty_min, C_0_min * proposed_min_size)
                 improved_bounds = True
 
         # objval_min = max(objval_min, loss_min + L0_penalty_min)
@@ -177,12 +177,12 @@ def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_o
                 new_bounds.loss_max = proposed_loss_max
                 improved_bounds = True
 
-        # L0_max and L0_penalty_max
+        # max_size and L0_penalty_max
         if new_bounds.objval_max > new_bounds.loss_min:
-            proposed_L0_max = (new_bounds.objval_max - new_bounds.loss_min) / C_0_min
-            if proposed_L0_max < new_bounds.L0_max:
-                new_bounds.L0_max = proposed_L0_max
-                L0_penalty_max = min(L0_penalty_max, C_0_max * proposed_L0_max)
+            proposed_max_size = (new_bounds.objval_max - new_bounds.loss_min) / C_0_min
+            if proposed_max_size < new_bounds.max_size:
+                new_bounds.max_size = proposed_max_size
+                L0_penalty_max = min(L0_penalty_max, C_0_max * proposed_max_size)
                 improved_bounds = True
 
         # objval_max = min(objval_max, loss_max + penalty_max)

@@ -22,7 +22,7 @@ def run_standard_cpa(cpx,
     assert callable(compute_loss_cut)
     assert isinstance(settings, dict)
 
-    settings = validate_settings(settings, defaults = DEFAULT_CPA_SETTINGS)
+    settings = validate_settings(settings, defaults=DEFAULT_CPA_SETTINGS, raise_key_error=False)
 
     rho_idx = cpx_indices["rho"]
     loss_idx = cpx_indices["loss"]
@@ -48,8 +48,8 @@ def run_standard_cpa(cpx,
         loss_max=cpx.variables.get_upper_bounds(loss_idx),
         objval_min=cpx.variables.get_lower_bounds(objval_idx),
         objval_max=cpx.variables.get_upper_bounds(objval_idx),
-        L0_min=cpx.variables.get_lower_bounds(L0_idx),
-        L0_max=cpx.variables.get_upper_bounds(L0_idx),
+        min_size=cpx.variables.get_lower_bounds(L0_idx),
+        max_size=cpx.variables.get_upper_bounds(L0_idx),
     )
 
     if settings['update_bounds'] and settings['type'] == 'cvx':
@@ -166,9 +166,9 @@ def run_standard_cpa(cpx,
 
         # switch bounds
         if settings['update_bounds']:
-            cpx.variables.set_lower_bounds(L0_idx, bounds.L0_min
+            cpx.variables.set_lower_bounds(L0_idx, bounds.min_size
                                            )
-            cpx.variables.set_upper_bounds(L0_idx, bounds.L0_max)
+            cpx.variables.set_upper_bounds(L0_idx, bounds.max_size)
             cpx.variables.set_lower_bounds(loss_idx, bounds.loss_min)
             cpx.variables.set_upper_bounds(loss_idx, bounds.loss_max)
             cpx.variables.set_lower_bounds(objval_idx, bounds.objval_min)
@@ -242,7 +242,7 @@ def round_solution_pool(pool,
     pool = pool.distinct().sort()
     P = pool.P
     L0_reg_ind = np.isnan(constraints['coef_set'].c0)
-    L0_max = constraints['L0_max']
+    max_size = constraints['max_size']
 
 
     total_runtime = 0.0
@@ -261,7 +261,7 @@ def round_solution_pool(pool,
             j = feature_order[k]
             if not L0_reg_ind[j]:
                 rounded_solution[0, j] = np.round(rho[j], 0)
-            elif l0_norm_count < L0_max:
+            elif l0_norm_count < max_size:
                 rounded_solution[0, j] = np.round(rho[j], 0)
                 l0_norm_count += L0_reg_ind[j]
 
@@ -299,8 +299,8 @@ def sequential_round_solution_pool(pool,
     max_runtime
     max_solutions
     objval_cutoff
-    L0_min
-    L0_max
+    min_size
+    max_size
 
     Returns
     -------

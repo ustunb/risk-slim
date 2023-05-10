@@ -129,10 +129,10 @@ class LossCallback(LazyConstraintCallback):
             self.stats.bounds.objval_min = bounds.objval_min
             self.stats.n_bound_updates_objval_min += 1
 
-        if bounds.L0_max < self.stats.bounds.L0_max:
-            self.add(constraint = self.L0_cut_constraint, sense="L", rhs = bounds.L0_max, use = self.bound_cut_purge_flag)
-            self.stats.bounds.L0_max = bounds.L0_max
-            self.stats.n_bound_updates_L0_max += 1
+        if bounds.max_size < self.stats.bounds.max_size:
+            self.add(constraint = self.L0_cut_constraint, sense="L", rhs = bounds.max_size, use = self.bound_cut_purge_flag)
+            self.stats.bounds.max_size = bounds.max_size
+            self.stats.n_bound_updates_max_size += 1
 
         if bounds.loss_max < self.stats.bounds.loss_max:
             self.add(constraint = self.loss_cut_constraint, sense="L", rhs = bounds.loss_max, use = self.bound_cut_purge_flag)
@@ -362,7 +362,7 @@ class PolishAndRoundCallback(HeuristicCallback):
             cannot_round_to_zero = np.logical_not(np.logical_or(zero_idx_rho_ceil, zero_idx_rho_floor))
             min_l0_norm = np.count_nonzero(cannot_round_to_zero[self.L0_reg_ind])
             max_l0_norm = np.count_nonzero(rho_cts[self.L0_reg_ind])
-            rounded_solution_is_feasible = (min_l0_norm < self.stats.bounds.L0_max and max_l0_norm > self.stats.bounds.L0_min)
+            rounded_solution_is_feasible = (min_l0_norm < self.stats.bounds.max_size and max_l0_norm > self.stats.bounds.min_size)
 
             if rounded_solution_is_feasible:
 
