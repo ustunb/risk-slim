@@ -665,15 +665,17 @@ class RiskSLIMOptimizer:
         self.min_coef = np.array(self.coef_set.lb)
         self.max_coef = np.array(self.coef_set.ub)
 
-        # Regularization parameter
-        c0_value = self.c0_value
-        assert c0_value > 0.0, "C0 should be positive"
-        self.c0_value = c0_value
-
         # Vectorized regularization parameters
         self.L0_reg_ind = np.isnan(self.coef_set.c0) + self.coef_set.c0 != 0.0
         self.C_0 = np.array(self.coef_set.c0)
-        self.C_0[self.L0_reg_ind] = c0_value
+
+        # Regularization parameter
+        if isinstance(self.c0_value, np.ndarray):
+            assert np.all(self.c0_value[self.L0_reg_ind] > 0.0), "C0 should be positive"
+            self.C_0[self.L0_reg_ind] = self.c0_value[self.L0_reg_ind]
+        else:
+            assert self.c0_value > 0.0, "C0 should be positive"
+            self.C_0[self.L0_reg_ind] = self.c0_value
         self.C_0_nnz = self.C_0[self.L0_reg_ind]
 
         # Model size constraints
