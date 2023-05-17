@@ -14,41 +14,50 @@ from riskslim.utils import print_model
 class RiskScores:
     """Risk scores (rho), derived metrics, and reports."""
 
-    def __init__(self, estimator, X, y, cv=None):
+    def __init__(self, estimator, X=None, y=None):
+        """Initalize object
 
-        if not isinstance(estimator, list) and not estimator.fitted:
+        Parameters
+        ----------
+        estimator : riskslim.classifier.RiskSLIMClassifier
+            Fitted riskslim estimator.
+        """
+
+        #if not isinstance(estimator, list) and not estimator.fitted:
             # Ensure single model if fit
-            raise ValueError("RiskScores expects a fit RiskSLIM input.")
+        #    raise ValueError("RiskScores expects a fit RiskSLIM input.")
 
         # Unpack references to RiskSLIM arrays
-        self._X = X
-        self._y = y
         self.estimator = estimator
-        self.rho = estimator.rho
-        self._coef_set = estimator.coef_set
-        self._variable_names = estimator.coef_set.variable_names
-        self._outcome_name = estimator.outcome_name
-
-        self.cv = cv
+        self.X = self.estimator.X if X is None else X
+        self.y = self.estimator.y if y is None else y
 
         # Table
-        if not np.all(self.rho == 0.):
+        if not np.all(estimator.rho == 0.):
 
             self._table = print_model(
-                self.rho,
-                self._variable_names,
-                self._outcome_name,
+                estimator.rho,
+                estimator.coef_set.variable_names,
+                self.estimator.outcome_name,
                 show_omitted_variables=False,
                 return_only=True
             )
             self._preprare_table()
 
         # Performance measures
-        self.proba = estimator.predict_proba(self._X)
+        if self.estimator.calibrated_estimator is not None:
+            self.proba = self.estimator.calibrated_estimator.predict_proba(self.X)[:, 1]
+        else:
+            self.proba = self.estimator.predict_proba(self.X)
+
         self.proba_true = None
         self.proba_pred = None
         self.fpr = None
         self.tpr = None
+
+        # Probabilties and postive rates
+        self.prob_pred, self.prob_true, self.fpr, self.tpr = \
+            self.compute_metrics(self.y, self.proba)
 
 
     def __str__(self):
@@ -69,7 +78,7 @@ class RiskScores:
         """Computes calibration and ROC."""
 
         # Calibration curve
-        prob_true, prob_pred = calibration_curve(y, proba, pos_label=1)
+        prob_true, prob_pred = calibration_curve(y, proba, pos_label=1, n_bins=5)
         prob_pred *= 100
         prob_true *= 100
 
@@ -83,13 +92,13 @@ class RiskScores:
         """Prepare arrays for plotly table."""
 
         # Non-zero coefficients
-        inds = np.where(self.rho[1:] != 0)[0]
+        inds = np.where(self.estimator.rho[1:] != 0)[0]
 
         if len(inds) == 0:
             raise ValueError('No non-zero coefficients.')
 
-        self._table_names = np.array(self._variable_names)[inds+1].tolist()
-        self._table_scores = self.rho[inds+1]
+        self._table_names = np.array(self.estimator.coef_set.variable_names)[inds+1].tolist()
+        self._table_scores = self.estimator.rho[inds+1]
 
         self._table_names = [str(i+1) + '.    ' + n
                              for i, n in enumerate(self._table_names)]
@@ -102,8 +111,6 @@ class RiskScores:
         self._table_last_col = ['   ...', *['+ ...']*(len(self._table_scores)-2)]
         self._table_last_col.append('= ...')
 
-
-
     def report(self, file_name=None, show=False):
         """Create a RiskSLIM create_report using plotly.
 
@@ -115,9 +122,6 @@ class RiskScores:
         show : bool, optional, default: True
             Calls fig.show() if True.
         """
-
-        self.prob_pred, self.prob_true, self.fpr, self.tpr = \
-            self.compute_metrics(self._y, self.proba)
 
         # Initalize subplots
         fig = make_subplots(
@@ -179,15 +183,14 @@ class RiskScores:
         )
 
         # Folds
-        if self.cv is not None:
+        if self.estimator.cv_results is not None:
 
-            for _, test in self.cv.split(self._X):
+            for ind, (_, test) in enumerate(self.estimator.cv.split(self.X)):
 
                 # Calibration
-                proba = self.estimator.predict_proba(self._X[test])
-
                 prob_pred, prob_true, fpr, tpr = self.compute_metrics(
-                    self._y[test], proba
+                    self.y[test],
+                    self.estimator.cv_results["estimator"][ind].predict_proba(self.X[test])
                 )
 
                 fig.add_trace(
@@ -216,7 +219,6 @@ class RiskScores:
                     row=3,
                     col=2
                 )
-
 
         # Calibration
         fig.add_trace(

@@ -6,8 +6,8 @@ import numpy as np
 from scipy.special import expit
 
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.model_selection import cross_validate
-from sklearn.model_selection import check_cv
+from sklearn.model_selection import cross_validate, check_cv
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import check_scoring
 
 from .optimizer import RiskSLIMOptimizer
@@ -101,7 +101,11 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         self.settings = {} if kwargs is None else kwargs
 
         self.cv = None
-        self.best_estimator = None
+        self.cv_results = None
+        self.scores = None
+
+        self.calibrated_estimator = None
+        self.calibrated_ensemble = None
 
     def fit(self, X, y, sample_weights=None):
         """Fit RiskSLIM classifier.
@@ -117,6 +121,13 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             Sample weights with shape (n_features, 1). Must all be positive.
         """
 
+        if y.ndim == 1:
+            y = y.reshape(-1, 1)
+
+        inds = np.where(y == 0)[0]
+        if len(inds) > 0:
+            y[inds] = -1
+
         self.sample_weights = sample_weights
         self.classes_, _ = np.unique(y, return_inverse=True)
 
@@ -129,17 +140,9 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         if self.coef_set is not None:
 
             assert isinstance(self.coef_set, CoefficientSet)
-
-            # Warn if using a coef_set and potentially conflicts with other iniit kwargs
-            #   Defaults to values defined in coef_set
-            for param, pstr in zip([self.min_size, self.max_coef, self.c0_value],
-                                   ["min_size", "max_coef", "c0_value"]):
-                if param is not None:
-                    warn(f"Coefficient set overwritting {pstr}.")
-
             self.min_coef = np.min(self.coef_set.lb)
             self.max_coef = np.max(self.coef_set.ub)
-            self.c0_value = np.min(self.coef_set.c0)
+            self.c0_value = self.coef_set.c0
 
         elif self.coef_set is None:
 
@@ -177,17 +180,15 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         # Fit
         super().optimize(X, y, self.sample_weights)
 
-        self.scores = RiskScores(self, self.X, self.y)
+        self.scores = RiskScores(self)
 
     def fitcv(
         self,
         X,
         y,
-        variable_names=None,
-        outcome_name=None,
         sample_weights=None,
         k=5,
-        scoring="roc_auc",
+        scoring="roc_auc"
     ):
         """Validate RiskSLIM classifier.
 
@@ -198,13 +199,8 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             With an addtional column of 1s for the intercept.
         y : 2d-array
             Class labels (+1, -1) with shape (n_rows, 1).
-        scoring : str, callable, list, tuple, or dict, default: "roc_auc"
-            Strategy to evaluate the performance of the cross-validated model on
-            the test set.
-
-            - a single string (see sklearn `scoring_parameter`);
-            - a callable (see sklearn `scoring`) that returns a single value.
-
+        sample_weights : 2d array, optional, default: None
+            Sample weights with shape (n_features, 1). Must all be positive.
         k : int, sklearn cross-validation generator or an iterable, default: 5
             Determines the cross-validation splitting strategy.
             Possible inputs for k are:
@@ -214,38 +210,104 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             - :term:`CV splitter`,
             - An iterable yielding (train, test) splits as arrays of indices.
 
+        scoring : str, callable, list, tuple, or dict, default: "roc_auc"
+            Strategy to evaluate the performance of the cross-validated model on
+            the test set.
+
+            - a single string (see sklearn `scoring_parameter`);
+            - a callable (see sklearn `scoring`) that returns a single value.
+
         """
 
-        fit_params = {
-            "variable_names": variable_names,
-            "outcome_name": outcome_name,
-            "sample_weights": sample_weights,
-        }
-
-        # Run cross-validation
-        cv_results = cross_validate(
-            self,
-            X,
-            y,
-            k,
-            return_estimator=True,
-            scoring="roc_auc",
-            fit_params=fit_params,
-        )
         # Get scorer and cross-validator
-        scorer = check_scoring(self, scoring)
+        scoring = check_scoring(self, scoring)
         self.cv = check_cv(cv=k, y=y)
 
-        # Select the estimator that maximizes the scoring method across all folds
-        cv_scores = np.zeros((self.cv.n_splits, self.cv.n_splits, 1))
-        for i_est, estimator in enumerate(cv_results["estimator"]):
-            for i_fold, (_, test) in enumerate(self.cv.split(X)):
-                cv_scores[i_est, i_fold] = scorer(estimator, X[test], y[test])
+        # Run cross-validation
+        self.cv_results = cross_validate(
+            self,
+            X,
+            y=y,
+            cv=self.cv,
+            return_estimator=True,
+            scoring=scoring,
+            fit_params={"sample_weights": sample_weights},
+        )
 
-        self.best_estimator = cv_results["estimator"][
-            np.argmax(cv_scores.mean(axis=1)[:, 0])
-        ]
-        self.scores = RiskScores(self.best_estimator, X, y, cv=self.cv)
+        # Fit an estimator on the entire dataset and compute scores
+        if self.scores is None:
+            self.fit(X, y, sample_weights)
+
+
+    def calibrate(self, X, y, sample_weights=None, k=5, method="sigmoid"):
+        """Fit RiskSLIM classifier with calibration.
+
+        Parameters
+        ----------
+        X : 2d-array
+            Observations (rows) and features (columns).
+            With an addtional column of 1s for the intercept.
+        y : 2d-array
+            Class labels (+1, -1) with shape (n_rows, 1).
+        sample_weights : 2d array, optional, default: None
+            Sample weights with shape (n_features, 1). Must all be positive.
+        k : int, sklearn cross-validation generator or an iterable, default: 5
+            Determines the cross-validation splitting strategy.
+            Possible inputs for k are:
+
+            - None, to use the default 5-fold cross validation,
+            - int, to specify the number of folds in a `(Stratified)KFold`,
+            - :term:`CV splitter`,
+            - An iterable yielding (train, test) splits as arrays of indices.
+
+        method : {"sigmoid", "isotonic"}
+            Linear classifier used to calibrate scores.
+        """
+        self.cv = check_cv(cv=k, y=y)
+
+        # Compute single calibrated estimator on all data
+        self.calibrated_estimator = CalibratedClassifierCV(
+            self,
+            cv=self.cv,
+            ensemble=False,
+            method=method
+        )
+
+        self.calibrated_estimator.fit(
+            X,
+            y.reshape(-1),
+            sample_weight=sample_weights
+        )
+
+        # Compute estimators per fold
+        self.calibrated_ensemble = CalibratedClassifierCV(
+            self,
+            cv=self.cv,
+            ensemble=True,
+            method=method
+        )
+        self.calibrated_ensemble.fit(X, y.reshape(-1))
+
+        # Move attributes from the calibrated estimator to self
+        calibrated_riskslim = self.calibrated_estimator.calibrated_classifiers_[0].estimator
+
+        attrs = list(self.__dict__.keys())
+
+        for attr in list(calibrated_riskslim.__dict__.keys()):
+
+            reset = (
+                attr not in attrs or
+                (
+                    getattr(self, attr) is None and
+                    getattr(calibrated_riskslim, attr) is not None
+                )
+            )
+            if reset:
+                setattr(self, attr, getattr(calibrated_riskslim, attr))
+
+        # Compute scores from the calibrated estimator
+        self.scores = RiskScores(self)
+
 
     def predict(self, X):
         """Predict labels.
