@@ -104,6 +104,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         self.cv_results = None
         self.scores = None
         self.calibrated_estimator = None
+        self.calibrated_estimators_ = None
 
     def fit(self, X, y, sample_weights=None):
         """Fit RiskSLIM classifier.
@@ -261,7 +262,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
 
         if self.cv_results is not None:
             # Compute an ensemble (1 per fold) of calibrators
-            self.calibrated_estimator = []
+            self.calibrated_estimators_ = []
 
             for train, _ in self.cv.split(X, y.reshape(-1)):
 
@@ -276,17 +277,16 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
 
                 cal.fit(_X, _y, sample_weights)
 
-                self.calibrated_estimator.append(cal)
+                self.calibrated_estimators_.append(cal)
 
-        else:
-            # Compute single calibrator if fitcv was not used
-            self.calibrated_estimator = CalibratedClassifierCV(
-                self,
-                cv="prefit",
-                method=method
-            )
+        # Compute single calibrator if fitcv was not used
+        self.calibrated_estimator = CalibratedClassifierCV(
+            self,
+            cv="prefit",
+            method=method
+        )
 
-            self.calibrated_estimator.fit(X, y, sample_weights)
+        self.calibrated_estimator.fit(X, y, sample_weights)
 
         # Compute scores from the calibrated estimator
         self.scores = RiskScores(self)
@@ -311,13 +311,8 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             # Normal case
             y_pred = np.sign(X.dot(self.coefficients))
         elif isinstance(self.calibrated_estimator, CalibratedClassifierCV):
-            # Single calibrator
+            # Calibrator
             y_pred = self.calibrated_estimator.predict(X)
-        elif isinstance(self.calibrated_estimator, list):
-            # Calibrated Ensemble
-            for i in range(len(self.calibrated_estimator)):
-                y_pred[i] = self.calibrated_estimator[i].predict(X)
-            y_pred = np.sign(y_pred.mean(axis=0))
 
         return y_pred
 
@@ -341,15 +336,8 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             # Normal case
             proba = expit(X.dot(self.rho))
         elif isinstance(self.calibrated_estimator, CalibratedClassifierCV):
-            # Single calibrator
+            # Calibrator
             proba = self.calibrated_estimator.predict_proba(X)[:, 1]
-        elif isinstance(self.calibrated_estimator, list):
-            # Calibrated Ensemble
-            n_calibrators = len(self.calibrated_estimator)
-            proba = np.zeros((n_calibrators, len(self.X)))
-            for i in range(n_calibrators):
-                proba[i] = self.calibrated_estimator[i].predict_proba(X)[:, 1]
-            proba = np.mean(proba, axis=0)
 
         return proba
 

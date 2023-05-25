@@ -46,12 +46,10 @@ class RiskScores:
             self._preprare_table()
 
         # Performance measures
-        self.proba = estimator.predict_proba(self.X)
-
-        self.proba_true = None
-        self.proba_pred = None
-        self.fpr = None
-        self.tpr = None
+        if self.estimator.calibrated_estimator is None:
+            self.proba = estimator.predict_proba(self.X)
+        else:
+            self.proba = self.estimator.calibrated_estimator.predict_proba(self.X)[:, 1]
 
         # Probabilties and postive rates
         self.prob_pred, self.prob_true, self.fpr, self.tpr = \
@@ -186,7 +184,7 @@ class RiskScores:
             for ind, (_, test) in enumerate(self.estimator.cv.split(self.X)):
 
                 # Calibration
-                if self.estimator.calibrated_estimator is None:
+                if self.estimator.calibrated_estimators_ is None:
                     prob_pred, prob_true, fpr, tpr = self.compute_metrics(
                         self.y[test],
                         self.estimator.cv_results["estimator"][ind].predict_proba(self.X[test])
@@ -194,7 +192,7 @@ class RiskScores:
                 else:
                     prob_pred, prob_true, fpr, tpr = self.compute_metrics(
                         self.y[test],
-                        self.estimator.calibrated_estimator[ind].predict_proba(self.X[test])[:, 1]
+                        self.estimator.calibrated_estimators_[ind].predict_proba(self.X[test])[:, 1]
                     )
 
                 fig.add_trace(
