@@ -379,7 +379,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         """
         return X.dot(self.coefficients)
 
-    def create_report(self, file_name=None, show=False):
+    def create_report(self, file_name=None, show=False, only_table=False):
         """Create a RiskSLIM create_report using plotly.
 
         Parameters
@@ -391,6 +391,6 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             Calls fig.show() if True.
         """
         if show:
-            self.scores.report(file_name, show)
+            self.scores.report(file_name, show, only_table=only_table)
         else:
-            return self.scores.report(file_name, show)
+            return self.scores.report(file_name, show, only_table=only_table)
