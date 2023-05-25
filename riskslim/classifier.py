@@ -103,9 +103,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         self.cv = None
         self.cv_results = None
         self.scores = None
-
         self.calibrated_estimator = None
-        self.calibrated_ensemble = None
 
     def fit(self, X, y, sample_weights=None):
         """Fit RiskSLIM classifier.
@@ -188,7 +186,8 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         y,
         sample_weights=None,
         k=5,
-        scoring="roc_auc"
+        scoring="roc_auc",
+        n_jobs=1
     ):
         """Validate RiskSLIM classifier.
 
@@ -217,6 +216,8 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             - a single string (see sklearn `scoring_parameter`);
             - a callable (see sklearn `scoring`) that returns a single value.
 
+        n_jobs : int, optional, default: 1
+            Number of jobs to run in parallel. -1 defaults to max cores or threads.
         """
 
         # Get scorer and cross-validator
@@ -232,6 +233,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             return_estimator=True,
             scoring=scoring,
             fit_params={"sample_weights": sample_weights},
+            n_jobs=n_jobs
         )
 
         # Fit an estimator on the entire dataset and compute scores
@@ -239,7 +241,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             self.fit(X, y, sample_weights)
 
 
-    def calibrate(self, X, y, sample_weights=None, k=5, method="sigmoid"):
+    def calibrate(self, X, y, sample_weights=None, method="sigmoid"):
         """Fit RiskSLIM classifier with calibration.
 
         Parameters
@@ -251,59 +253,40 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             Class labels (+1, -1) with shape (n_rows, 1).
         sample_weights : 2d array, optional, default: None
             Sample weights with shape (n_features, 1). Must all be positive.
-        k : int, sklearn cross-validation generator or an iterable, default: 5
-            Determines the cross-validation splitting strategy.
-            Possible inputs for k are:
-
-            - None, to use the default 5-fold cross validation,
-            - int, to specify the number of folds in a `(Stratified)KFold`,
-            - :term:`CV splitter`,
-            - An iterable yielding (train, test) splits as arrays of indices.
-
         method : {"sigmoid", "isotonic"}
             Linear classifier used to calibrate scores.
         """
-        self.cv = check_cv(cv=k, y=y)
+        if self.fitted is False:
+            raise ValueError("Fit RiskSLIM model prior to calibration.")
 
-        # Compute single calibrated estimator on all data
-        self.calibrated_estimator = CalibratedClassifierCV(
-            self,
-            cv=self.cv,
-            ensemble=False,
-            method=method
-        )
+        if self.cv_results is not None:
+            # Compute an ensemble (1 per fold) of calibrators
+            self.calibrated_estimator = []
 
-        self.calibrated_estimator.fit(
-            X,
-            y.reshape(-1),
-            sample_weight=sample_weights
-        )
+            for train, _ in self.cv.split(X, y.reshape(-1)):
 
-        # Compute estimators per fold
-        self.calibrated_ensemble = CalibratedClassifierCV(
-            self,
-            cv=self.cv,
-            ensemble=True,
-            method=method
-        )
-        self.calibrated_ensemble.fit(X, y.reshape(-1))
+                _X = X[train]
+                _y = y[train]
 
-        # Move attributes from the calibrated estimator to self
-        calibrated_riskslim = self.calibrated_estimator.calibrated_classifiers_[0].estimator
-
-        attrs = list(self.__dict__.keys())
-
-        for attr in list(calibrated_riskslim.__dict__.keys()):
-
-            reset = (
-                attr not in attrs or
-                (
-                    getattr(self, attr) is None and
-                    getattr(calibrated_riskslim, attr) is not None
+                cal = CalibratedClassifierCV(
+                    self,
+                    cv="prefit",
+                    method=method
                 )
+
+                cal.fit(_X, _y, sample_weights)
+
+                self.calibrated_estimator.append(cal)
+
+        else:
+            # Compute single calibrator if fitcv was not used
+            self.calibrated_estimator = CalibratedClassifierCV(
+                self,
+                cv="prefit",
+                method=method
             )
-            if reset:
-                setattr(self, attr, getattr(calibrated_riskslim, attr))
+
+            self.calibrated_estimator.fit(X, y, sample_weights)
 
         # Compute scores from the calibrated estimator
         self.scores = RiskScores(self)
@@ -324,7 +307,19 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             Predicted labels of X.
         """
         assert self.fitted
-        return np.sign(X.dot(self.coefficients))
+        if self.calibrated_estimator is None:
+            # Normal case
+            y_pred = np.sign(X.dot(self.coefficients))
+        elif isinstance(self.calibrated_estimator, CalibratedClassifierCV):
+            # Single calibrator
+            y_pred = self.calibrated_estimator.predict(X)
+        elif isinstance(self.calibrated_estimator, list):
+            # Calibrated Ensemble
+            for i in range(len(self.calibrated_estimator)):
+                y_pred[i] = self.calibrated_estimator[i].predict(X)
+            y_pred = np.sign(y_pred.mean(axis=0))
+
+        return y_pred
 
     def predict_proba(self, X):
         """Probability estimates.
@@ -341,7 +336,22 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             Probability of classes.
         """
         assert self.fitted
-        return expit(X.dot(self.rho))
+
+        if self.calibrated_estimator is None:
+            # Normal case
+            proba = expit(X.dot(self.rho))
+        elif isinstance(self.calibrated_estimator, CalibratedClassifierCV):
+            # Single calibrator
+            proba = self.calibrated_estimator.predict_proba(X)[:, 1]
+        elif isinstance(self.calibrated_estimator, list):
+            # Calibrated Ensemble
+            n_calibrators = len(self.calibrated_estimator)
+            proba = np.zeros((n_calibrators, len(self.X)))
+            for i in range(n_calibrators):
+                proba[i] = self.calibrated_estimator[i].predict_proba(X)[:, 1]
+            proba = np.mean(proba, axis=0)
+
+        return proba
 
     def predict_log_proba(self, X):
         """Predict logarithm of probability estimates.

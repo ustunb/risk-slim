@@ -3,6 +3,7 @@ import numpy as np
 
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import roc_curve
+from sklearn.calibration import CalibratedClassifierCV
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -23,9 +24,9 @@ class RiskScores:
             Fitted riskslim estimator.
         """
 
-        #if not isinstance(estimator, list) and not estimator.fitted:
+        if not isinstance(estimator, list) and not estimator.fitted:
             # Ensure single model if fit
-        #    raise ValueError("RiskScores expects a fit RiskSLIM input.")
+            raise ValueError("RiskScores expects a fit RiskSLIM input.")
 
         # Unpack references to RiskSLIM arrays
         self.estimator = estimator
@@ -45,10 +46,7 @@ class RiskScores:
             self._preprare_table()
 
         # Performance measures
-        if self.estimator.calibrated_estimator is not None:
-            self.proba = self.estimator.calibrated_estimator.predict_proba(self.X)[:, 1]
-        else:
-            self.proba = self.estimator.predict_proba(self.X)
+        self.proba = estimator.predict_proba(self.X)
 
         self.proba_true = None
         self.proba_pred = None
@@ -188,10 +186,16 @@ class RiskScores:
             for ind, (_, test) in enumerate(self.estimator.cv.split(self.X)):
 
                 # Calibration
-                prob_pred, prob_true, fpr, tpr = self.compute_metrics(
-                    self.y[test],
-                    self.estimator.cv_results["estimator"][ind].predict_proba(self.X[test])
-                )
+                if self.estimator.calibrated_estimator is None:
+                    prob_pred, prob_true, fpr, tpr = self.compute_metrics(
+                        self.y[test],
+                        self.estimator.cv_results["estimator"][ind].predict_proba(self.X[test])
+                    )
+                else:
+                    prob_pred, prob_true, fpr, tpr = self.compute_metrics(
+                        self.y[test],
+                        self.estimator.calibrated_estimator[ind].predict_proba(self.X[test])[:, 1]
+                    )
 
                 fig.add_trace(
                     go.Scattergl(
