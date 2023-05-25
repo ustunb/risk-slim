@@ -18,12 +18,17 @@ Model
 
 Object for optimizing risk scores.
 
-.. currentmodule:: riskslim.fit
+.. currentmodule:: riskslim.optimizer
 
 .. autosummary::
    :toctree: generated/
 
    RiskSLIMOptimizer
+
+.. currentmodule:: riskslim.classifier
+
+.. autosummary::
+   :toctree: generated/
 
    RiskSLIMClassifier
 

@@ -7,7 +7,7 @@ A minimial example for learning risk scores.
 
 ###################################################################################################
 
-import os
+from pathlib import Path
 import numpy as np
 from riskslim import RiskSLIMClassifier, load_data_from_csv
 
@@ -19,19 +19,15 @@ from riskslim import RiskSLIMClassifier, load_data_from_csv
 # malignant.
 #
 
-# Paths
-data_name = "breastcancer"                  # name of the data
-data_dir = "../examples"                    # directory where datasets are stored
-data_csv_file = os.path.join(               # csv file for the dataset
-    data_dir, "data", data_name+"_data.csv"
-)
-sample_weights_csv_file = None              # csv file of sample weights for the dataset (optional)
+# Load Data
+data_name = "breastcancer"
+data = load_data_from_csv(dataset_csv_file = Path(f'data/{data_name}_data.csv'))
 
-
-# Load data
-data = load_data_from_csv(
-    dataset_csv_file=data_csv_file, sample_weights_csv_file=sample_weights_csv_file
-)
+# Unpack data
+X = data["X"]
+y = data["y"]
+variable_names = data["variable_names"]
+outcome_name = data["outcome_name"]
 
 ###################################################################################################
 # Settings
@@ -79,7 +75,6 @@ settings = {
     "cplex_mipemphasis": 0,
 }
 
-
 ###################################################################################################
 # Problem Parameters
 # ------------------
@@ -93,7 +88,7 @@ settings = {
 max_coefficient = 5
 
 # Maximum model size (number of non-zero coefficients; default set as float(inf))
-max_L0 = 5
+max_size = 5
 
 # Maximum value of offset (intercept) parameter (optional)
 max_offset = 50
@@ -116,22 +111,19 @@ c0_value = 1e-6
 #
 
 rs = RiskSLIMClassifier(
-    L0_min=0,
-    L0_max=max_L0,
-    rho_max=max_coefficient,
-    rho_min=-max_coefficient,
+    min_size=0,
+    max_size=max_size,
+    min_coef=-max_coefficient,
+    max_coef=max_coefficient,
     c0_value=c0_value,
     max_abs_offset=max_offset,
-    settings=settings,
-    verbose=False
+    variable_names=variable_names,
+    outcome_name=outcome_name,
+    verbose=False,
+    **settings
 )
 
-rs.fit(
-    data["X"],
-    data["y"],
-    variable_names=data["variable_names"],
-    outcome_name=data["outcome_name"]
-)
+rs.fit(X, y)
 
 ###################################################################################################
 # Results
@@ -146,9 +138,9 @@ rs.scores
 
 ###################################################################################################
 
-rs.report()
+rs.create_report()
 
 # sphinx_gallery_start_ignore
 from plotly.io import show
-show(rs.report())
+show(rs.create_report())
 # sphinx_gallery_end_ignore
