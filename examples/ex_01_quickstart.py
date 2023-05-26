@@ -10,6 +10,9 @@ A minimial example for learning risk scores.
 from pathlib import Path
 import numpy as np
 from riskslim import RiskSLIMClassifier, load_data_from_csv
+import os
+from IPython.display import IFrame
+from plotly.io import show
 
 ###################################################################################################
 # Load Data
@@ -136,14 +139,6 @@ rs.fit(X, y)
 
 rs.scores
 
-###################################################################################################
-
-rs.create_report()
-
-# sphinx_gallery_start_ignore
-from plotly.io import show
-show(rs.create_report())
-# sphinx_gallery_end_ignore
 
 ###################################################################################################
 # Interactive Reports
@@ -151,12 +146,14 @@ show(rs.create_report())
 #
 # Interactive reports may be create by passing an *.html to the file_name kwarg of
 # ``create_report``.
-#
-import os
-from IPython.display import IFrame
 
 # Create interactive html table
 rs.create_report("example_report.html", only_table=True)
 
 # Display table
 IFrame(src=f"{os.getcwd()}/example_report.html", width=1200, height=350)
+
+# sphinx_gallery_start_ignore
+show(rs.create_report())
+# sphinx_gallery_end_ignore
+
