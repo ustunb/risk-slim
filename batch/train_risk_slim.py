@@ -218,8 +218,8 @@ if __name__ == '__main__':
         print(coef_set)
 
     constraints = {
-        'L0_min': 0,
-        'L0_max': max_model_size,
+        'min_size': 0,
+        'max_size': max_model_size,
         'coef_set': coef_set,
     }
 

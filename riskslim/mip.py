@@ -90,7 +90,8 @@ def create_risk_slim(coef_set, settings):
     w_pos, w_neg = settings['w_pos'], settings['w_neg']
     C_0j = np.copy(coef_set.c0)
     L0_reg_ind = np.isnan(C_0j) + C_0j != 0.0
-    C_0j[L0_reg_ind] = settings['C_0']
+    C_0j[L0_reg_ind] = settings['C_0'][L0_reg_ind] if isinstance(settings['C_0'], np.ndarray) \
+        else settings['C_0']
     C_0j = C_0j.tolist()
     C_0_rho = np.copy(C_0j)
     trivial_min_size = 0

@@ -3,10 +3,6 @@ import numpy as np
 INTERCEPT_NAME = '(Intercept)'
 
 DEFAULT_LCPA_SETTINGS = {
-    #
-    'c0_value': 1e-6,
-    'w_pos': 1.00,
-    #
     #  MIP Formulation
     'drop_variables': True,        #drop variables
     'tight_formulation': True,     #use a slightly tighter MIP formulation

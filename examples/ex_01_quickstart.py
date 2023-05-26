@@ -7,9 +7,12 @@ A minimial example for learning risk scores.
 
 ###################################################################################################
 
-import os
+from pathlib import Path
 import numpy as np
 from riskslim import RiskSLIMClassifier, load_data_from_csv
+import os
+from IPython.display import IFrame
+from plotly.io import show
 
 ###################################################################################################
 # Load Data
@@ -19,18 +22,9 @@ from riskslim import RiskSLIMClassifier, load_data_from_csv
 # malignant.
 #
 
-# Paths
-data_name = "breastcancer"                  # name of the data
-data_dir = "../examples"                    # directory where datasets are stored
-data_csv_file = os.path.join(               # csv file for the dataset
-    data_dir, "data", data_name+"_data.csv"
-)
-sample_weights_csv_file = None              # csv file of sample weights for the dataset (optional)
-
-# Load data
-data = load_data_from_csv(
-    dataset_csv_file=data_csv_file, sample_weights_csv_file=sample_weights_csv_file
-)
+# Load Data
+data_name = "breastcancer"
+data = load_data_from_csv(dataset_csv_file = Path(f'data/{data_name}_data.csv'))
 
 # Unpack data
 X = data["X"]
@@ -145,11 +139,21 @@ rs.fit(X, y)
 
 rs.scores
 
-###################################################################################################
 
-rs.create_report()
+###################################################################################################
+# Interactive Reports
+# -------------------
+#
+# Interactive reports may be create by passing an *.html to the file_name kwarg of
+# ``create_report``.
+
+# Create interactive html table
+rs.create_report("example_report.html", only_table=True)
+
+# Display table
+IFrame(src=f"{os.getcwd()}/example_report.html", width=1200, height=350)
 
 # sphinx_gallery_start_ignore
-from plotly.io import show
 show(rs.create_report())
 # sphinx_gallery_end_ignore
+
