@@ -1,0 +1,252 @@
+<html>
+<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"/>
+<head><meta charset="utf-8" /></head>
+<div id="report_header">
+    <h3>RiskSLIM Report</h3>
+</div>
+<body>
+    <div id="main_div">
+        <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+        <script src='https://cdn.plot.ly/plotly-2.20.0.min.js'></script>
+        $ploty_html
+    </div>
+</body>
+</html>
+
+<script>
+    var variable_names = $variable_names;
+    var rho = $rho;
+    var min_values = $min_values;
+    var max_values = $max_values;
+    var _min_values = [];
+    var _max_values = [];
+    var _rho_str = [];
+    var _names = [];
+    for (i=1; i<rho.length; i++){
+        if (rho[i] > 0){
+            sign = "+";
+        } else {
+            sign = "";
+        }
+        if (rho[i] > 1 || rho[i] < -1){
+            pt = " points"
+        } else {
+            pt = " point"
+        }
+        _rho_str.push("" + sign + rho[i] + pt);
+        _max_values.push(max_values[i]);
+        _min_values.push(min_values[i]);
+        _names.push(variable_names[i]);
+    }
+    var n_rows = rho.length-1;
+    var table = document.createElement("TABLE");
+    var dot = (a, b) => a.map((x, i) => a[i] * b[i]).reduce((m, n) => m + n);
+    for(var i=0; i<n_rows; i++) {
+        var row = table.insertRow(i);
+        r0 = row.insertCell(0);
+        r0.innerHTML = i+1 + ". ";
+        r0.innerHTML += _names[i];
+        row.insertCell(1).innerHTML = _rho_str[i];
+        // Define input field
+        var val_input = document.createElement("input");
+        val_input.type = "number";
+        val_input.defaultValue = _min_values[i];
+        val_input.id = "input_" + i;
+        val_input.min = _min_values[i];
+        val_input.max = _max_values[i];
+        val_input.style.width = "70px";
+        val_input.class = "quantity";
+        // Insert input into div
+        var div = document.createElement("div");
+        div.className = "quantity";
+        div.innerHTML += "×    ";
+        div.append(val_input);
+        div.innerHTML += " + ..."
+        // Insert input into table
+        r = row.insertCell(2)
+        //r.innerHTML += "× ";
+        r.appendChild(div);
+        //r.innerHTML += " + ...";
+        if (i == n_rows-1){
+            // Score
+            var row_score = table.insertRow(i+1);
+            row_score0 = row_score.insertCell(0);
+            row_score0.innerHTML = "";
+            row_score1 = row_score.insertCell(1);
+            row_score1.innerHTML = "SCORE";
+            row_score2 = row_score.insertCell(2);
+            row_score2.innerHTML = "" + min_values.slice(1).reduce((a, b) => a + b, 0);
+            // Risk
+            var row_risk = table.insertRow(i+2);
+            row_risk0 = row_risk.insertCell(0);
+            row_risk0.innerHTML = "";
+            row_risk1 = row_risk.insertCell(1);
+            row_risk1.innerHTML = "RISK";
+            row_risk2 = row_risk.insertCell(2);
+            row_risk2.innerHTML = "" + (100 / (1+Math.exp(-dot(min_values, rho)))).toFixed(3) + "%";
+        }
+    }
+    document.getElementById("main_div").prepend(table);
+    // Jquery to update table
+    var parse_input = function(n_rows) {
+        $(':input').change(function () {
+            var scores = [1];
+            var score = 0;
+            for (i=0; i<n_rows; i++) {
+                value = $("#input_" + i);
+                value = value.val();
+                // Enfore min/max constraint
+                if (value > _max_values[i]){
+                    value = _max_values[i]
+                    $("#input_" + i).val(value)
+                } else if (value < _min_values[i]){
+                    value = _min_values[i]
+                    $("#input_" + i).val(value)
+                }
+                score += parseInt(value);
+                scores.push(value);
+            }
+            row_score2.innerHTML = "" + score;
+            row_risk2.innerHTML = "" + (100 / (1+Math.exp(-dot(scores, rho)))).toFixed(3) + "%";
+            console.log(score);
+        });
+    };
+    parse_input(n_rows);
+    // Custom increment buttons
+    $(document).ready(function () {
+    jQuery('<div class="quantity-nav"><button class="quantity-button quantity-up">&#xf106;</button><button class="quantity-button quantity-down">&#xf107</button></div>').insertAfter('.quantity input');
+    jQuery('.quantity').each(function () {
+        var spinner = jQuery(this),
+            input = spinner.find('input[type="number"]'),
+            btnUp = spinner.find('.quantity-up'),
+            btnDown = spinner.find('.quantity-down'),
+            min = input.attr('min'),
+            max = input.attr('max');
+
+        btnUp.click(function () {
+        var oldValue = parseFloat(input.val());
+        if (oldValue >= max) {
+            var newVal = oldValue;
+        } else {
+            var newVal = oldValue + 1;
+        }
+        spinner.find("input").val(newVal);
+        spinner.find("input").trigger("change");
+        });
+
+        btnDown.click(function () {
+        var oldValue = parseFloat(input.val());
+        if (oldValue <= min) {
+            var newVal = oldValue;
+        } else {
+            var newVal = oldValue - 1;
+        }
+        spinner.find("input").val(newVal);
+        spinner.find("input").trigger("change");
+        });
+
+    });
+    });
+</script>
+<style>
+    table {
+        table-layout: fixed;
+        font-family: "Open Sans", verdana, arial, sans-serif;
+        border-collapse: collapse;
+        width: 800px;
+        background-color: rgb(237, 237, 237);
+    }
+    td:hover {background-color: rgb(218, 218, 218);}
+    td, th {
+        text-align: left;
+        padding: 5px;
+    }
+    tr:nth-child(1) {
+        border-top: solid 2px black;
+    }
+    td:nth-child(1) {
+        border-left: solid 2px black;
+    }
+    td:nth-child(3){
+        border-right: solid 2px black;
+    }
+    tr:nth-last-child(3) {
+        border-bottom: solid 2px black;
+    }
+    td:nth-last-child(1) {
+        border-left: solid 2px black;
+    }
+    tr:last-child {
+        border-bottom: solid 2px black;
+    }
+    h3{
+        font-family: "Open Sans", verdana, arial, sans-serif;
+    }
+    #main_div, #report_header {
+        display: block;
+        /* margin-left: auto; centers the div, but messes up viewing in jupyter*/
+        margin-right: auto;
+        width: 50%;
+    }
+    /* Style buttons */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    input[type=number] {
+        -moz-appearance: textfield;
+    }
+    .quantity input {
+        width: 37px;
+        height: 28px;
+        padding-left: 20px;
+        border: none;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+        font-size: 1rem;
+        border-radius: 2px;
+    }
+    .quantity-nav {
+        float: right;
+        position: relative;
+        height: 28px;
+        right: 65%;
+    }
+    .quantity-button {
+        position: relative;
+        cursor: pointer;
+        border: none;
+        border-left: 1px solid rgba(0, 0, 0, 0.08);
+        width: 21px;
+        text-align: center;
+        color: #333;
+        font-size: 13px;
+        font-family: "FontAwesome" !important;
+        background: #FAFAFA;
+        -webkit-transform: translateX(-100%);
+        transform: translateX(-100%);
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -o-user-select: none;
+        user-select: none;
+    }
+    .quantity-button:active {
+        background: #EAEAEA;
+    }
+    .quantity-button.quantity-up {
+        position: absolute;
+        height: 50%;
+        top: 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        font-family: "FontAwesome";
+        border-radius: 0 4px 0 0;
+    }
+    .quantity-button.quantity-down {
+        position: absolute;
+        bottom: 0;
+        height: 50%;
+        font-family: "FontAwesome";
+        border-radius: 0 0 4px 0;
+    }
+</style>
