@@ -5,6 +5,7 @@ import numpy as np
 import warnings
 from copy import copy
 
+import cplex
 from cplex.exceptions import CplexError
 
 from riskslim.utils import check_data, validate_settings, print_log
@@ -46,10 +47,6 @@ class RiskSLIMOptimizer:
         Maximum absolute value of intercept. This may be specificed as the first value
         of min_coef and max_coef. However, if min_coef and max_coef are floats, this parameter
         provides a convenient way to set bounds on the offset.
-
-    settings, dict, optional, defaults: None
-        Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
-        None defaults to settings defined in riskslim.defaults.
     variable_names : list of str, optional, default: None
             Names of each features. Only needed if coefficients is not passed on
             initalization. None defaults to generic variable names.
@@ -85,6 +82,7 @@ class RiskSLIMOptimizer:
         variable_names=None,
         outcome_name=None,
         verbose=True,
+        constraints=None,
         **kwargs
     ):
         # Empty fields
@@ -120,6 +118,7 @@ class RiskSLIMOptimizer:
         self.rho = None
         self.c0_value = c0_value
         self.max_abs_offset = max_abs_offset
+        self.constraints = constraints if constraints is not None else []
 
         if self.coef_set is not None:
             self._init_coeffs()
@@ -135,6 +134,7 @@ class RiskSLIMOptimizer:
 
         self.variable_names = variable_names
         self.outcome_name = outcome_name
+
 
     def optimize(
         self, X, y, sample_weights=None
@@ -167,6 +167,24 @@ class RiskSLIMOptimizer:
 
         # Initalize MIP
         self._init_mip()
+
+        # Add MIP constraints
+        for (name, var_inds, values, sense, rhs) in self.constraints:
+
+            if name is None:
+                name = "con_" + str(self.mip.linear_constraints.get_num())
+
+            self.mip.linear_constraints.add(
+                names=[name],
+                lin_expr=[
+                    cplex.SparsePair(
+                        ind=var_inds,
+                        val=values
+                    )
+                ],
+                senses=[sense],
+                rhs=[rhs]
+            )
 
         # Run warmstart procedure if it has not been run yet
         if self.settings["initialization_flag"] and not self.has_warmstart:
@@ -366,6 +384,52 @@ class RiskSLIMOptimizer:
         # Update bounds
         self.bounds = copy(bounds)
         self.has_warmstart = True
+
+
+    def add_constraint(self, var_names, var_type, values, rhs, sense, name=None):
+        """Add a constraint to the MIP.
+
+        Parameters
+        ----------
+        var_names : list of string
+            Variable names to use in constraint.
+        var_type : {"rho", "alpha"}
+            Either the coefficient (rho) or use term (alpha).
+            Alpha is in {0, 1}. Rho is the coefficient being learned.
+        values : list of float
+            Coefficients to multiply the varible by.
+        rhs : float
+            Right hand side of the inequality.
+        sense : {"G", "L", "E", "R"}
+            Must be one of 'G', 'L', 'E', and 'R', indicating greater-than,
+            less-than, equality, and ranged constraints, respectively.
+        name : str, optional, default: None
+            Name of the constraint being added.
+            For accessibility from the cplex mip object.
+
+        Notes
+        -----
+        Formulated as:
+
+            values[0]*variable[0] + ... + values[i]*variable[i] (<, <=, >, >=) rhs,
+            where variable[i] is either the coefficient (rho) or use term (alpha).
+
+        """
+
+        # Checks
+        if var_type not in ["rho", "alpha"]:
+            raise ValueError("var_type must be in [\"rho\", \"alpha\"]")
+
+        if len(var_names) != len(values):
+            raise ValueError("var_name and values must be the same length.")
+
+        # Anon funcs to get name and index set in mip object (e.g. rho_i, alpha_i)
+        get_name = lambda var_name: var_type + '_' + str(self.variable_names.index(var_name))
+        get_ind = lambda var_names: [get_name(v) for v in var_names]
+
+        # Add constraint to a queue - it is added to the mip solver add fit time
+        self.constraints.append([name, get_ind(var_names), values, sense, rhs])
+
 
     #### properties ####
 

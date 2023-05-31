@@ -47,6 +47,15 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         Name of the output class.
     verbose : bool, optional, default: True
         Prints out log information if True, supresses if False.
+    constraints : list of tuples, optional, deafault: None
+        Tuples for adding constraints (name, var_inds, values, sense, rhs).
+        The recommended method for adding constraints is via the super classes
+        .add_constraint method. This kwarg is included for sklearn object cloning.
+    settings : dict, optional, default: None
+        Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
+        Use of this explicit kwarg allows cloning via sklearn (e.g. for grid search).
+        Settings are combined with **kwargs and then parsed. Parameters including in
+        in **kwargs will not be accessible or set after a clone.
     **kwargs
         May include key value pairs:
 
@@ -76,6 +85,8 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         variable_names=None,
         outcome_name=None,
         verbose=True,
+        constraints=None,
+        settings=None,
         **kwargs
     ):
 
@@ -96,15 +107,24 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         self.coef_set = kwargs.pop("coef_set", None)
         self.vtype = kwargs.pop("vtype", "I")
 
-        # Setttings: verified in super's init call to validate_settings
+        # Settings: verified in super's init call to validate_settings
         #   Must contain keys defined in defaults.py
-        self.settings = {} if kwargs is None else kwargs
+        self.settings = settings
+
+        if self.settings is None:
+            self.settings = {}
+
+        self.settings.update(kwargs)
 
         self.cv = None
         self.cv_results = None
         self.scores = None
         self.calibrated_estimator = None
         self.calibrated_estimators_ = None
+
+        # Custom constraints
+        self.constraints = constraints if constraints is not None else []
+
 
     def fit(self, X, y, sample_weights=None):
         """Fit RiskSLIM classifier.
@@ -174,6 +194,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             # Captured by **kwargs
             coef_set=self.coef_set,
             vtype=self.vtype,
+            constraints=self.constraints,
             **self.settings
         )
         # Fit

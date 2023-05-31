@@ -358,10 +358,12 @@ class RiskScores:
             height = 600
         elif replace_table and only_table:
             height = 400
+        elif only_table:
+            height = 300
 
         fig.update_layout(
             # General
-            title_text="RiskSLIM Report" if not replace_table or not only_table else "",
+            title_text="RiskSLIM Report" if not replace_table and not only_table else "",
             autosize=False,
             width=800,
             height=height,
