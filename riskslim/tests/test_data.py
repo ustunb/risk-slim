@@ -3,7 +3,9 @@
 import pytest
 import numpy as np
 import pandas as pd
-from riskslim.data import ClassificationDataset, Bounds, Stats
+from riskslim.data import ClassificationDataset
+from riskslim.utils import Stats
+from riskslim.bound_tightening import Bounds
 
 
 def test_ClassificationDataset():

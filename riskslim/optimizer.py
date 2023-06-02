@@ -2,26 +2,25 @@
 
 import time
 import numpy as np
-import warnings
+from warnings import warn
 from copy import copy
 
 import cplex
 from cplex.exceptions import CplexError
 
-from riskslim.utils import check_data, validate_settings, print_log
+from riskslim.utils import Stats, check_data, validate_settings, print_log
 from riskslim.defaults import DEFAULT_LCPA_SETTINGS
 from riskslim.coefficient_set import CoefficientSet, get_score_bounds
 from riskslim.mip import add_mip_starts, create_risk_slim, set_cplex_mip_parameters
 from riskslim.solution_pool import SolutionPool, FastSolutionPool
-from riskslim.data import Bounds, Stats
 from riskslim.heuristics import discrete_descent, sequential_rounding
-from riskslim.bound_tightening import chained_updates
+from riskslim.bound_tightening import Bounds, chained_updates
 from riskslim.warmstart import (
     run_standard_cpa,
     round_solution_pool,
     sequential_round_solution_pool,
     discrete_descent_solution_pool,
-)
+    )
 from riskslim.callbacks import LossCallback, PolishAndRoundCallback
 
 
@@ -72,19 +71,19 @@ class RiskSLIMOptimizer:
     """
 
     def __init__(
-        self,
-        min_size=None,
-        max_size=None,
-        min_coef=-5.0,
-        max_coef=5.0,
-        c0_value=1e-6,
-        max_abs_offset=None,
-        variable_names=None,
-        outcome_name=None,
-        verbose=True,
-        constraints=None,
-        **kwargs
-    ):
+            self,
+            min_size=None,
+            max_size=None,
+            min_coef=-5.0,
+            max_coef=5.0,
+            c0_value=1e-6,
+            max_abs_offset=None,
+            variable_names=None,
+            outcome_name=None,
+            verbose=True,
+            constraints=None,
+            **kwargs
+            ):
         # Empty fields
         self.fitted = False
         self.has_warmstart = False
@@ -100,12 +99,7 @@ class RiskSLIMOptimizer:
         if "display_cplex_progress" not in settings.keys():
             settings["display_cplex_progress"] = verbose
 
-        (
-            self.settings,
-            self.cplex_settings,
-            self.warmstart_settings,
-        ) = self._parse_settings(settings, defaults=DEFAULT_LCPA_SETTINGS)
-
+        self.settings, self.cplex_settings, self.warmstart_settings = self._parse_settings(settings, defaults = DEFAULT_LCPA_SETTINGS)
         self.loss_computation = self.settings["loss_computation"]
         self.verbose = verbose
         self.log = lambda msg: print_log(msg, print_flag=self.verbose)
@@ -137,8 +131,8 @@ class RiskSLIMOptimizer:
 
 
     def optimize(
-        self, X, y, sample_weights=None
-    ):
+            self, X, y, sample_weights=None
+            ):
         """Optimize RiskSLIM.
 
         Parameters
@@ -162,8 +156,8 @@ class RiskSLIMOptimizer:
         if self.max_abs_offset is not None:
             # Set offset bounds
             self.coef_set.update_intercept_bounds(
-                X=self.X, y=self.y, max_offset=self.max_abs_offset
-            )
+                    X=self.X, y=self.y, max_offset=self.max_abs_offset
+                    )
 
         # Initalize MIP
         self._init_mip()
@@ -175,16 +169,16 @@ class RiskSLIMOptimizer:
                 name = "con_" + str(self.mip.linear_constraints.get_num())
 
             self.mip.linear_constraints.add(
-                names=[name],
-                lin_expr=[
-                    cplex.SparsePair(
-                        ind=var_inds,
-                        val=values
+                    names=[name],
+                    lin_expr=[
+                        cplex.SparsePair(
+                                ind=var_inds,
+                                val=values
+                                )
+                        ],
+                    senses=[sense],
+                    rhs=[rhs]
                     )
-                ],
-                senses=[sense],
-                rhs=[rhs]
-            )
 
         # Run warmstart procedure if it has not been run yet
         if self.settings["initialization_flag"] and not self.has_warmstart:
@@ -193,10 +187,10 @@ class RiskSLIMOptimizer:
         # Set cplex parameters and runtime
         cpx = self.mip
         cpx = set_cplex_mip_parameters(
-            cpx,
-            self.cplex_settings,
-            display_cplex_progress=self.settings["display_cplex_progress"],
-        )
+                cpx,
+                self.cplex_settings,
+                display_cplex_progress=self.settings["display_cplex_progress"],
+                )
         cpx.parameters.timelimit.set(self.settings["max_runtime"])
 
         # Initialize solution queues
@@ -214,11 +208,11 @@ class RiskSLIMOptimizer:
                 self.polish_queue.add(self.pool.objvals[0], self.pool.solutions[0])
             else:
                 cpx = add_mip_starts(
-                    cpx,
-                    self.mip_indices,
-                    self.pool,
-                    mip_start_effort_level=cpx.MIP_starts.effort_level.repair,
-                )
+                        cpx,
+                        self.mip_indices,
+                        self.pool,
+                        mip_start_effort_level=cpx.MIP_starts.effort_level.repair,
+                        )
 
             if self.settings["add_cuts_at_heuristic_solutions"] and len(self.pool) > 1:
                 self.cut_queue.add(self.pool.objvals[1:], self.pool.solutions[1:])
@@ -242,8 +236,8 @@ class RiskSLIMOptimizer:
             settings = self.warmstart_settings
         else:
             settings = validate_settings(
-                warmstart_settings, defaults=self.warmstart_settings
-            )
+                    warmstart_settings, defaults=self.warmstart_settings
+                    )
 
         settings["type"] = "cvx"
 
@@ -251,23 +245,23 @@ class RiskSLIMOptimizer:
         lp_settings = dict(self.mip_settings)
         lp_settings["relax_integer_variables"] = True
         cpx, cpx_indices = create_risk_slim(
-            coef_set=self.coef_set, settings=lp_settings
-        )
+                coef_set=self.coef_set, settings=lp_settings
+                )
         cpx = set_cplex_mip_parameters(
-            cpx,
-            self.cplex_settings,
-            display_cplex_progress=settings["display_cplex_progress"],
-        )
+                cpx,
+                self.cplex_settings,
+                display_cplex_progress=settings["display_cplex_progress"],
+                )
 
         # Solve RiskSLIM LP using standard CPA
         stats, cuts, pool = run_standard_cpa(
-            cpx=cpx,
-            cpx_indices=cpx_indices,
-            compute_loss=self.compute_loss_real,
-            compute_loss_cut=self.compute_loss_cut_real,
-            settings=settings,
-            print_flag=self.verbose,
-        )
+                cpx=cpx,
+                cpx_indices=cpx_indices,
+                compute_loss=self.compute_loss_real,
+                compute_loss_cut=self.compute_loss_cut_real,
+                settings=settings,
+                print_flag=self.verbose,
+                )
 
         # Update cuts
         self.log("warmstart CPA produced {} cuts".format(len(cuts["coefs"])))
@@ -275,26 +269,26 @@ class RiskSLIMOptimizer:
 
         # Update bounds
         bounds = chained_updates(
-            self.bounds, self.C_0_nnz, new_objval_at_relaxation=stats["lowerbound"]
-        )
+                self.bounds, self.C_0_nnz, new_objval_at_relaxation=stats["lowerbound"]
+                )
 
         constraints = {
             "min_size": self.min_size,
             "max_size": self.max_size,
             "coef_set": self.coef_set,
-        }
+            }
 
         def rounded_model_size_is_ok(rho):
             zero_idx_rho_ceil = np.equal(np.ceil(rho), 0)
             zero_idx_rho_floor = np.equal(np.floor(rho), 0)
             cannot_round_to_zero = np.logical_not(
-                np.logical_or(zero_idx_rho_ceil, zero_idx_rho_floor)
-            )
+                    np.logical_or(zero_idx_rho_ceil, zero_idx_rho_floor)
+                    )
             rounded_min_coef_size = np.count_nonzero(cannot_round_to_zero[self.L0_reg_ind])
             rounded_max_coef_size = np.count_nonzero(rho[self.L0_reg_ind])
             return (
-                rounded_min_coef_size >= self.min_size >= 0
-                and rounded_max_coef_size <= self.max_size
+                    rounded_min_coef_size >= self.min_size >= 0
+                    and rounded_max_coef_size <= self.max_size
             )
 
         pool = pool.remove_infeasible(rounded_model_size_is_ok).distinct().sort()
@@ -307,14 +301,14 @@ class RiskSLIMOptimizer:
             self.log(f"running naive rounding on {len(pool)} solutions")
             self.log("best objective value: %1.4f" % np.min(pool.objvals))
             rnd_pool, _, _ = round_solution_pool(
-                pool,
-                constraints,
-                max_runtime=settings["rounding_max_runtime"],
-                max_solutions=settings["rounding_max_solutions"],
-            )
+                    pool,
+                    constraints,
+                    max_runtime=settings["rounding_max_runtime"],
+                    max_solutions=settings["rounding_max_solutions"],
+                    )
             rnd_pool = rnd_pool.compute_objvals(self.get_objval).remove_infeasible(
-                self.is_feasible
-            )
+                    self.is_feasible
+                    )
             self.log(f"rounding produced {len(rnd_pool)} integer solutions")
 
             if len(rnd_pool) > 0:
@@ -327,20 +321,20 @@ class RiskSLIMOptimizer:
             self.log("best objective value: %1.4f" % np.min(pool.objvals))
 
             sqrnd_pool, _, _ = sequential_round_solution_pool(
-                pool=pool,
-                Z=self.Z,
-                C_0=self.C_0,
-                compute_loss_from_scores_real=self.compute_loss_from_scores_real,
-                get_L0_penalty=self.get_L0_penalty,
-                max_runtime=settings["sequential_rounding_max_runtime"],
-                max_solutions=settings["sequential_rounding_max_solutions"],
-                objval_cutoff=self.bounds.objval_max,
-            )
+                    pool=pool,
+                    Z=self.Z,
+                    C_0=self.C_0,
+                    compute_loss_from_scores_real=self.compute_loss_from_scores_real,
+                    get_L0_penalty=self.get_L0_penalty,
+                    max_runtime=settings["sequential_rounding_max_runtime"],
+                    max_solutions=settings["sequential_rounding_max_solutions"],
+                    objval_cutoff=self.bounds.objval_max,
+                    )
 
             sqrnd_pool = sqrnd_pool.remove_infeasible(self.is_feasible)
             self.log(
-                f"sequential rounding produced {len(sqrnd_pool)} integer solutions"
-            )
+                    f"sequential rounding produced {len(sqrnd_pool)} integer solutions"
+                    )
 
             if len(sqrnd_pool) > 0:
                 pool = pool.append(sqrnd_pool)
@@ -351,15 +345,15 @@ class RiskSLIMOptimizer:
             self.log("polishing %d solutions" % len(pool))
             self.log("best objective value: %1.4f" % np.min(pool.objvals))
             dcd_pool, _, _ = discrete_descent_solution_pool(
-                pool=pool,
-                Z=self.Z,
-                C_0=self.C_0,
-                constraints=constraints,
-                compute_loss_from_scores=self.compute_loss_from_scores,
-                get_L0_penalty=self.get_L0_penalty,
-                max_runtime=settings["polishing_max_runtime"],
-                max_solutions=settings["polishing_max_solutions"],
-            )
+                    pool=pool,
+                    Z=self.Z,
+                    C_0=self.C_0,
+                    constraints=constraints,
+                    compute_loss_from_scores=self.compute_loss_from_scores,
+                    get_L0_penalty=self.get_L0_penalty,
+                    max_runtime=settings["polishing_max_runtime"],
+                    max_solutions=settings["polishing_max_solutions"],
+                    )
 
             dcd_pool = dcd_pool.remove_infeasible(self.is_feasible)
             if len(dcd_pool) > 0:
@@ -375,8 +369,8 @@ class RiskSLIMOptimizer:
 
         if len(pool) > 0:
             bounds = chained_updates(
-                bounds, self.C_0_nnz, new_objval_at_feasible=np.min(pool.objvals)
-            )
+                    bounds, self.C_0_nnz, new_objval_at_feasible=np.min(pool.objvals)
+                    )
             self.log("best objective value: %1.4f" % np.min(pool.objvals))
 
         self.pool.append(pool)
@@ -458,8 +452,8 @@ class RiskSLIMOptimizer:
 
         try:
             self.stats.incumbent = np.array(
-                solution.get_values(self.mip_indices["rho"])
-            )
+                    solution.get_values(self.mip_indices["rho"])
+                    )
             self.stats.upperbound = solution.get_objective_value()
             self.stats.lowerbound = solution.MIP.get_best_objective()
             self.stats.relative_gap = solution.MIP.get_mip_relative_gap()
@@ -469,17 +463,17 @@ class RiskSLIMOptimizer:
 
         self.stats.cplex_status = solution.get_status_string()
         self.stats.total_callback_time = (
-            self.stats.total_cut_callback_time
-            + self.stats.total_heuristic_callback_time
+                self.stats.total_cut_callback_time
+                + self.stats.total_heuristic_callback_time
         )
         self.stats.total_solver_time = (
-            self.stats.total_run_time - self.stats.total_callback_time
+                self.stats.total_run_time - self.stats.total_callback_time
         )
         self.stats.total_data_time = (
-            self.stats.total_cut_time
-            + self.stats.total_polish_time
-            + self.stats.total_round_time
-            + self.stats.total_round_then_polish_time
+                self.stats.total_cut_time
+                + self.stats.total_polish_time
+                + self.stats.total_round_time
+                + self.stats.total_round_then_polish_time
         )
 
         # Output for Model
@@ -502,7 +496,7 @@ class RiskSLIMOptimizer:
             "callback_time": self.stats.total_callback_time,
             "data_time": self.stats.total_data_time,
             "nodes_processed": self.stats.nodes_processed,
-        }
+            }
 
         return info
 
@@ -530,9 +524,9 @@ class RiskSLIMOptimizer:
         ---------
         """
         return (
-            np.all(self.max_coef >= rho)
-            and np.all(self.min_coef <= rho)
-            and (self.min_size <= np.count_nonzero(rho[self.L0_reg_ind]) <= self.max_size)
+                np.all(self.max_coef >= rho)
+                and np.all(self.min_coef <= rho)
+                and (self.min_size <= np.count_nonzero(rho[self.L0_reg_ind]) <= self.max_size)
         )
 
     ### initialization ####
@@ -542,26 +536,26 @@ class RiskSLIMOptimizer:
         settings = validate_settings(settings, defaults)
         warmstart_settings = {
             k[5:]: settings[k] for k in settings if k.startswith("init_")
-        }
+            }
         cplex_settings = {
             k[6:]: settings[k] for k in settings if k.startswith("cplex_")
-        }
+            }
         lcpa_settings = {
             k: settings[k]
             for k in settings
             if settings
             if not k.startswith(("init_", "cplex_"))
-        }
+            }
         return lcpa_settings, cplex_settings, warmstart_settings
 
     def _init_loss_computation(self, w_pos=1.0):
         """Initalize loss functions."""
         # todo check if fast/lookup loss is installed
-        assert self.loss_computation in ["normal", "weighted", "fast", "lookup"]
+        assert self.loss_computation in ("normal", "weighted", "fast", "lookup")
 
         use_weighted = False
         use_lookup_table = (
-            isinstance(self.coef_set, CoefficientSet) and self._integer_data
+                isinstance(self.coef_set, CoefficientSet) and self._integer_data
         )
 
         if self.sample_weights is not None:
@@ -578,10 +572,7 @@ class RiskSLIMOptimizer:
             final_loss_computation = "fast"
 
         if final_loss_computation != self.loss_computation:
-            warnings.warn(
-                "switching loss computation from %s to %s"
-                % (self.loss_computation, final_loss_computation)
-            )
+            warn(f"switching loss computation from {self.loss_computation} to {final_loss_computation}")
 
         self.loss_computation = final_loss_computation
 
@@ -600,11 +591,11 @@ class RiskSLIMOptimizer:
 
             self.Z = np.require(self.Z, requirements=["F"])
             self.compute_loss = lambda rho: lf.log_loss_value(
-                self.Z, np.asfortranarray(rho)
-            )
+                    self.Z, np.asfortranarray(rho)
+                    )
             self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(
-                self.Z, np.asfortranarray(rho)
-            )
+                    self.Z, np.asfortranarray(rho)
+                    )
             self.compute_loss_from_scores = (
                 lambda scores: lf.log_loss_value_from_scores(scores)
             )
@@ -615,15 +606,15 @@ class RiskSLIMOptimizer:
             self.Z = np.require(self.Z, requirements=["C"])
             total_sample_weights = np.sum(sample_weights)
             self.compute_loss = lambda rho: lf.log_loss_value(
-                self.Z, sample_weights, total_sample_weights, rho
-            )
+                    self.Z, sample_weights, total_sample_weights, rho
+                    )
             self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(
-                self.Z, sample_weights, total_sample_weights, rho
-            )
+                    self.Z, sample_weights, total_sample_weights, rho
+                    )
             self.compute_loss_from_scores = (
                 lambda scores: lf.log_loss_value_from_scores(
-                    sample_weights, total_sample_weights, scores
-                )
+                        sample_weights, total_sample_weights, scores
+                        )
             )
 
         elif final_loss_computation == "lookup":
@@ -632,30 +623,30 @@ class RiskSLIMOptimizer:
             self.Z = np.require(self.Z, requirements=["F"], dtype=np.float64)
 
             s_min, s_max = get_score_bounds(
-                Z_min=np.min(self.Z, axis=0),
-                Z_max=np.max(self.Z, axis=0),
-                rho_lb=self.coef_set.lb,
-                rho_ub=self.coef_set.ub,
-                L0_reg_ind=np.array(self.coef_set.c0) == 0.0,
-                max_size=self.max_size,
-            )
+                    Z_min=np.min(self.Z, axis=0),
+                    Z_max=np.max(self.Z, axis=0),
+                    rho_lb=self.coef_set.lb,
+                    rho_ub=self.coef_set.ub,
+                    L0_reg_ind=np.array(self.coef_set.c0) == 0.0,
+                    max_size=self.max_size,
+                    )
 
             self.log("%d rows in lookup table" % (s_max - s_min + 1))
             (
                 loss_value_tbl,
                 prob_value_tbl,
                 tbl_offset,
-            ) = lf.get_loss_value_and_prob_tables(s_min, s_max)
+                ) = lf.get_loss_value_and_prob_tables(s_min, s_max)
             self.compute_loss = lambda rho: lf.log_loss_value(
-                self.Z, rho, loss_value_tbl, tbl_offset
-            )
+                    self.Z, rho, loss_value_tbl, tbl_offset
+                    )
             self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(
-                self.Z, rho, loss_value_tbl, prob_value_tbl, tbl_offset
-            )
+                    self.Z, rho, loss_value_tbl, prob_value_tbl, tbl_offset
+                    )
             self.compute_loss_from_scores = (
                 lambda scores: lf.log_loss_value_from_scores(
-                    scores, loss_value_tbl, tbl_offset
-                )
+                        scores, loss_value_tbl, tbl_offset
+                        )
             )
 
         # real loss functions
@@ -664,8 +655,8 @@ class RiskSLIMOptimizer:
 
             self.compute_loss_real = lambda rho: lfr.log_loss_value(self.Z, rho)
             self.compute_loss_cut_real = lambda rho: lfr.log_loss_value_and_slope(
-                self.Z, rho
-            )
+                    self.Z, rho
+                    )
             self.compute_loss_from_scores_real = (
                 lambda scores: lfr.log_loss_value_from_scores(scores)
             )
@@ -702,16 +693,16 @@ class RiskSLIMOptimizer:
 
         # Process case weights
         y = self.y.flatten()
-        N = len(y)
+        n = len(y)
         pos_ind = y == 1
 
         if self.sample_weights is None:
-            training_weights = np.ones(N)
+            training_weights = np.ones(n)
         else:
             training_weights = self.sample_weights.flatten()
 
         # Normalization
-        training_weights = N * (training_weights / sum(training_weights))
+        training_weights = n * (training_weights / sum(training_weights))
         training_weights[pos_ind] *= w_pos
         training_weights[~pos_ind] *= w_neg
 
@@ -757,25 +748,25 @@ class RiskSLIMOptimizer:
         if self.variable_names is None:
             self.variable_names = [
                 f"Variable_{str(i).zfill(3)}" for i in range(len(self.X[0]) - 1)
-            ]
+                ]
             self.variable_names.insert(0, "(Intercept)")
 
         # Initialize coefficients if not given on initialization
         if self.coef_set is None:
             self.coef_set = CoefficientSet(
-                self.variable_names,
-                lb=self.min_coef,
-                ub=self.max_coef,
-                c0=self.c0_value,
-                vtype=self.vtype,
-                print_flag=self.verbose,
-            )
+                    self.variable_names,
+                    lb=self.min_coef,
+                    ub=self.max_coef,
+                    c0=self.c0_value,
+                    vtype=self.vtype,
+                    print_flag=self.verbose,
+                    )
             self._init_coeffs()
 
         # Check data types and shapes
         check_data(
-            self.X, self.y, self.variable_names, self.outcome_name, self.sample_weights
-        )
+                self.X, self.y, self.variable_names, self.outcome_name, self.sample_weights
+                )
 
         self.Z = (self.X * self.y).astype(np.float64)
         self._integer_data = np.all(self.Z == np.require(self.Z, dtype=np.int_))
@@ -785,15 +776,15 @@ class RiskSLIMOptimizer:
         self._init_loss_computation()
         self.get_L0_norm = lambda rho: np.count_nonzero(rho[self.L0_reg_ind])
         self.get_L0_penalty = lambda rho: np.sum(
-            self.C_0_nnz * (rho[self.L0_reg_ind] != 0.0)
-        )
+                self.C_0_nnz * (rho[self.L0_reg_ind] != 0.0)
+                )
         self.get_alpha = lambda rho: np.array(
-            abs(rho[self.L0_reg_ind]) > 0.0, dtype=np.float_
-        )
+                abs(rho[self.L0_reg_ind]) > 0.0, dtype=np.float_
+                )
         self.get_L0_penalty_from_alpha = lambda alpha: np.sum(self.C_0_nnz * alpha)
         self.get_objval = lambda rho: self.compute_loss(rho) + np.sum(
-            self.C_0_nnz * (rho[self.L0_reg_ind] != 0.0)
-        )
+                self.C_0_nnz * (rho[self.L0_reg_ind] != 0.0)
+                )
 
         # Bounds
         self.bounds = Bounds(min_size=self.min_size, max_size=self.max_size)
@@ -826,25 +817,25 @@ class RiskSLIMOptimizer:
             "include_auxillary_variable_for_objval": self.settings[
                 "include_auxillary_variable_for_objval"
             ],
-        }
+            }
 
         mip_settings.update(self.bounds.asdict())
         self.mip_settings = mip_settings
 
         # Setup risk slim mip
         self.mip, self.mip_indices = create_risk_slim(
-            coef_set=self.coef_set, settings=self.mip_settings
-        )
+                coef_set=self.coef_set, settings=self.mip_settings
+                )
         self.mip_indices.update(
-            {
-                "C_0_nnz": self.C_0_nnz,
-                "L0_reg_ind": self.L0_reg_ind,
-            }
-        )
+                {
+                    "C_0_nnz": self.C_0_nnz,
+                    "L0_reg_ind": self.L0_reg_ind,
+                    }
+                )
 
         self.stats = Stats(
-            incumbent=np.full(self.X.shape[1], np.nan), bounds=self.bounds
-        )
+                incumbent=np.full(self.X.shape[1], np.nan), bounds=self.bounds
+                )
 
     def _init_callbacks(self):
         """Initializes callback functions"""
@@ -852,17 +843,17 @@ class RiskSLIMOptimizer:
         loss_cb = self.mip.register_callback(LossCallback)
 
         loss_cb.initialize(
-            indices=self.mip_indices,
-            stats=self.stats,
-            settings=self.settings,
-            compute_loss_cut=self.compute_loss_cut,
-            get_alpha=self.get_alpha,
-            get_L0_penalty_from_alpha=self.get_L0_penalty_from_alpha,
-            initial_cuts=self.initial_cuts,
-            cut_queue=self.cut_queue,
-            polish_queue=self.polish_queue,
-            verbose=self.verbose,
-        )
+                indices=self.mip_indices,
+                stats=self.stats,
+                settings=self.settings,
+                compute_loss_cut=self.compute_loss_cut,
+                get_alpha=self.get_alpha,
+                get_L0_penalty_from_alpha=self.get_L0_penalty_from_alpha,
+                initial_cuts=self.initial_cuts,
+                cut_queue=self.cut_queue,
+                polish_queue=self.polish_queue,
+                verbose=self.verbose,
+                )
 
         self.loss_callback = loss_cb
 
@@ -871,37 +862,37 @@ class RiskSLIMOptimizer:
             heuristic_cb = self.mip.register_callback(PolishAndRoundCallback)
             active_set_flag = self.max_size <= self.n_variables
             polisher = lambda rho: discrete_descent(
-                rho,
-                self.Z,
-                self.C_0,
-                self.max_coef,
-                self.min_coef,
-                self.get_L0_penalty,
-                self.compute_loss_from_scores,
-                active_set_flag,
-            )
+                    rho,
+                    self.Z,
+                    self.C_0,
+                    self.max_coef,
+                    self.min_coef,
+                    self.get_L0_penalty,
+                    self.compute_loss_from_scores,
+                    active_set_flag,
+                    )
 
             rounder = lambda rho, cutoff: sequential_rounding(
-                rho,
-                self.Z,
-                self.C_0,
-                self.compute_loss_from_scores_real,
-                self.get_L0_penalty,
-                cutoff,
-            )
+                    rho,
+                    self.Z,
+                    self.C_0,
+                    self.compute_loss_from_scores_real,
+                    self.get_L0_penalty,
+                    cutoff,
+                    )
 
             heuristic_cb.initialize(
-                indices=self.mip_indices,
-                control=self.stats,
-                settings=self.settings,
-                cut_queue=self.cut_queue,
-                polish_queue=self.polish_queue,
-                get_objval=self.get_objval,
-                get_L0_norm=self.get_L0_norm,
-                is_feasible=self.is_feasible,
-                polishing_handle=polisher,
-                rounding_handle=rounder,
-            )
+                    indices=self.mip_indices,
+                    control=self.stats,
+                    settings=self.settings,
+                    cut_queue=self.cut_queue,
+                    polish_queue=self.polish_queue,
+                    get_objval=self.get_objval,
+                    get_L0_norm=self.get_L0_norm,
+                    is_feasible=self.is_feasible,
+                    polishing_handle=polisher,
+                    rounding_handle=rounder,
+                    )
 
             self.heuristic_callback = heuristic_cb
 

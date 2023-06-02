@@ -350,7 +350,7 @@ def set_mip_parameters(cpx, param = CPX_MIP_PARAMETERS):
     # cpx.parameters.record.set(True)
 
     if param['display_cplex_progress'] is (None or False):
-        cpx = set_cpx_display_options(cpx, display_mip = False, display_lp =  False, display_parameters = False)
+        cpx = set_cpx_display_options(cpx, display_mip = False, display_lp = False, display_parameters = False)
 
     # major parameters
     p.randomseed.set(param['randomseed'])
@@ -554,7 +554,6 @@ def toggle_mip_preprocessing(cpx, toggle = True):
 
 
 # Branch and Bound Statistics
-
 class StatsCallback(MIPInfoCallback):
 
 

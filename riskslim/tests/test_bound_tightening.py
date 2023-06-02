@@ -2,8 +2,8 @@
 
 import pytest
 import numpy as np
-from riskslim.data import Bounds
-from riskslim.bound_tightening import chained_updates, chained_updates_for_lp
+from riskslim.bound_tightening import Bounds, chained_updates, \
+    chained_updates_for_lp
 
 
 @pytest.mark.parametrize('update', [chained_updates, chained_updates_for_lp])

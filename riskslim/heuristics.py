@@ -26,7 +26,7 @@ def sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penal
     assert callable(compute_loss_from_scores_real)
     assert callable(get_L0_penalty)
 
-    P = rho.shape[0]
+    d = rho.shape[0]
 
     rho_floor = np.floor(rho)
     floor_is_zero = np.equal(rho_floor, 0)
@@ -42,8 +42,8 @@ def sequential_rounding(rho, Z, C_0, compute_loss_from_scores_real, get_L0_penal
     best_objval = compute_loss_from_scores_real(scores) + get_L0_penalty(rho)
     while len(dimensions_to_round) > 0 and best_objval < objval_cutoff:
 
-        objvals_at_floor = np.repeat(np.nan, P)
-        objvals_at_ceil = np.repeat(np.nan, P)
+        objvals_at_floor = np.repeat(np.nan, d)
+        objvals_at_ceil = np.repeat(np.nan, d)
         current_penalty = get_L0_penalty(rho)
 
         for idx in dimensions_to_round:
@@ -117,14 +117,14 @@ def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_f
     # initialize key variables
     MAX_ITERATIONS = 500
     MIN_IMPROVEMENT_PER_STEP = float(1e-8)
-    P = len(rho)
+    d = len(rho)
 
     # convert solution to integer
     rho = np.require(np.require(rho, dtype = np.int_), dtype = np.float_)
 
     # convert descent dimensions to integer values
     if descent_dimensions is None:
-        descent_dimensions = np.arange(P)
+        descent_dimensions = np.arange(d)
     else:
         descent_dimensions = np.require(descent_dimensions, dtype = np.int_)
 
@@ -143,8 +143,8 @@ def discrete_descent(rho, Z, C_0, rho_ub, rho_lb, get_L0_penalty, compute_loss_f
     while n_iterations < MAX_ITERATIONS and len(search_dimensions) > 0:
 
         # compute the best objective value / step size in each dimension
-        best_objval_by_dim = np.repeat(np.nan, P)
-        best_coef_by_dim = np.repeat(np.nan, P)
+        best_objval_by_dim = np.repeat(np.nan, d)
+        best_coef_by_dim = np.repeat(np.nan, d)
 
         for k in search_dimensions:
 

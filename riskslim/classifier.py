@@ -311,7 +311,6 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         # Compute scores from the calibrated estimator
         self.scores = RiskScores(self)
 
-
     def predict(self, X):
         """Predict labels.
 

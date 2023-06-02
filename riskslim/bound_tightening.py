@@ -1,15 +1,27 @@
 """Tighten loss bounds."""
+from dataclasses import dataclass
 
 import numpy as np
-from riskslim.data import Bounds
 
+@dataclass
+class Bounds:
+    """Data class for tracking bounds."""
+    objval_min: float = 0.0
+    objval_max: float = np.inf
+    loss_min: float = 0.0
+    loss_max: float = np.inf
+    min_size: float = 0.0
+    max_size: float = np.inf
+
+    def asdict(self):
+        return self.__dict__
 
 def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_at_relaxation = None, max_chain_count = 20):
     """Update bounds using chained updates.
 
     Parameters
     ----------
-    bounds : riskslim.data.Bounds
+    bounds : riskslim.bound_tightening.Bounds
         Parameters bounds.
     C_0_nnz : 1d array
         Regularized coefficients.
@@ -22,7 +34,7 @@ def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_a
 
     Returns
     -------
-    new_bounds : riskslim.data.Bounds
+    new_bounds : riskslim.bound_tightening.Bounds
         Updated parameter bounds.
     """
     new_bounds = Bounds(**bounds.asdict().copy())
@@ -104,7 +116,7 @@ def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_o
 
     Parameters
     ----------
-    bounds : riskslim.data.Bounds
+    bounds : riskslim.bound_tightening.Bounds
         Parameters bounds.
     C_0_nnz : 1d array
         Regularized coefficients.
@@ -117,7 +129,7 @@ def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_o
 
     Returns
     -------
-    new_bounds : riskslim.data.Bounds
+    new_bounds : riskslim.bound_tightening.Bounds
         Updated parameter bounds.
     """
     new_bounds = Bounds(**bounds.asdict().copy())
@@ -195,3 +207,5 @@ def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_o
         chain_count += 1
 
     return new_bounds
+
+
