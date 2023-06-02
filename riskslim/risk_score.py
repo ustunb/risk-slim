@@ -14,7 +14,7 @@ from plotly.io import write_image
 from riskslim.utils import print_model
 
 
-class RiskScores:
+class RiskScore:
     """Risk scores (rho), derived metrics, and reports."""
 
     def __init__(self, estimator, X=None, y=None):
@@ -28,7 +28,7 @@ class RiskScores:
 
         if not isinstance(estimator, list) and not estimator.fitted:
             # Ensure single model if fit
-            raise ValueError("RiskScores expects a fit RiskSLIM input.")
+            raise ValueError("RiskScore expects a fit RiskSLIM input.")
 
         # Unpack references to RiskSLIM arrays
         self.estimator = estimator

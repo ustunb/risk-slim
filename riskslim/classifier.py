@@ -11,7 +11,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import check_scoring
 
 from .optimizer import RiskSLIMOptimizer
-from .risk_scores import RiskScores
+from .risk_scores import RiskScore
 from .coefficient_set import CoefficientSet
 
 class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
@@ -199,7 +199,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         # Fit
         super().optimize(X, y, self.sample_weights)
 
-        self.scores = RiskScores(self)
+        self.scores = RiskScore(self)
 
     def fitcv(
         self,
@@ -309,7 +309,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         self.calibrated_estimator.fit(X, y, sample_weights)
 
         # Compute scores from the calibrated estimator
-        self.scores = RiskScores(self)
+        self.scores = RiskScore(self)
 
     def predict(self, X):
         """Predict labels.
