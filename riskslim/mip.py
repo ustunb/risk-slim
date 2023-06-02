@@ -48,10 +48,10 @@ def create_risk_slim(coef_set, settings):
 
     x = [loss_pos, loss_neg, rho_j, alpha_j]
 
-    optional constraints:
+    Optional constraints:
+
     objval = w_pos * loss_pos + w_neg * loss_min + sum(C_0j * alpha_j) (required for callback)
     L0_norm = sum(alpha_j) (required for callback)
-
 
     Changes for Tight Formulation (included when settings['tight_formulation'] = True):
 

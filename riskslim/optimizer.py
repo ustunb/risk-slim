@@ -28,47 +28,28 @@ from riskslim.callbacks import LossCallback, PolishAndRoundCallback
 class RiskSLIMOptimizer:
     """RiskSLIM optimizer object.
 
-    Parameters
+    Attributes
     ----------
-    min_size : int, optional, default: None
-        Minimum number of regularized coefficients.
-        None defaults to zero.
-    max_size : int, optional, default: None
-        Maximum number of regularized coefficients.
-        None defaults to length of input variables.
-    min_coef : float or 1d array, optional, default: -5.
-        Minimum coefficient.
-    max_coef : float or 1d array, optional, default: 5.
-        Maximum coefficient.
-    c0_value : 1d array or float, optional, default: 1e-6
-        L0-penalty for all parameters when an integer or for each parameter
-        separately when an array.
-    max_abs_offset : float, optional, default: None
-        Maximum absolute value of intercept. This may be specificed as the first value
-        of min_coef and max_coef. However, if min_coef and max_coef are floats, this parameter
-        provides a convenient way to set bounds on the offset.
-    variable_names : list of str, optional, default: None
-            Names of each features. Only needed if coefficients is not passed on
-            initalization. None defaults to generic variable names.
-    outcome_name : str, optional, default: None
-        Name of the output class.
-    verbose : bool, optional, default: True
-        Prints out log information if True, supresses if False.
-    **kwargs
-        May include key value pairs:
-
-            "coef_set" : riskslim.coefficient_set.CoefficientSet
-                Contraints (bounds) on coefficients of input variables.
-                If None, this is constructed based on values passed to other initalization kwargs.
-                If not None, other kwargs may be overwritten.
-
-            "vtype" : str or list of str
-                Variable types for coefficients.
-                Must be either "I" for integers or "C" for floats.
-
-            **settings : unpacked dict
-                Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
-                Defaults are defined in defaults.DEFAULT_LCPA_SETTINGS.
+    X : 2d array
+        Observations (rows) and features (columns).
+    y : 1d or 2d array
+        Class labels.
+    coef_set : riskslim.coefficient_set.CoefficientSet
+        Constraints on coefficients of input variables
+    bounds : riskslim.data.Bounds
+        Lower and upper bounds on objective value, loss, and model size.
+    stats : riskslim.data.Stats
+        Cplex solution statistics.
+    solution : cplex SolutionInterface
+        Solved cplex solution.
+    solution_info : dict
+        Additional solution information.
+    pool : riskslim.solution_pool.SolutionPool
+        Pool of solutions and associated objective values.
+    coefficients, rho : 1d array
+        Solved cofficients.
+    fitted : bool
+        Whether model has be fit.
     """
 
     def __init__(
@@ -85,6 +66,50 @@ class RiskSLIMOptimizer:
         constraints=None,
         **kwargs
     ):
+        """
+        Parameters
+        ----------
+        min_size : int, optional, default: None
+            Minimum number of regularized coefficients.
+            None defaults to zero.
+        max_size : int, optional, default: None
+            Maximum number of regularized coefficients.
+            None defaults to length of input variables.
+        min_coef : float or 1d array, optional, default: -5.
+            Minimum coefficient.
+        max_coef : float or 1d array, optional, default: 5.
+            Maximum coefficient.
+        c0_value : 1d array or float, optional, default: 1e-6
+            L0-penalty for all parameters when an integer or for each parameter
+            separately when an array.
+        max_abs_offset : float, optional, default: None
+            Maximum absolute value of intercept. This may be specificed as the first value
+            of min_coef and max_coef. However, if min_coef and max_coef are floats, this parameter
+            provides a convenient way to set bounds on the offset.
+        variable_names : list of str, optional, default: None
+                Names of each features. Only needed if coefficients is not passed on
+                initalization. None defaults to generic variable names.
+        outcome_name : str, optional, default: None
+            Name of the output class.
+        verbose : bool, optional, default: True
+            Prints out log information if True, supresses if False.
+        **kwargs
+            May include key value pairs:
+
+            - "coef_set" : riskslim.coefficient_set.CoefficientSet
+                Contraints (bounds) on coefficients of input variables.
+                If None, this is constructed based on values passed to other initalization kwargs.
+                If not None, other kwargs may be overwritten.
+
+            - "vtype" : str or list of str
+                Variable types for coefficients.
+                Must be either "I" for integers or "C" for floats.
+
+            - \*\*settings : unpacked dict
+                Settings for warmstart (keys: \'init\_\'), cplex (keys: \'cplex\_\'), and lattice CPA.
+                Defaults are defined in ``defaults.DEFAULT_LCPA_SETTINGS``.
+
+        """
         # Empty fields
         self.fitted = False
         self.has_warmstart = False
@@ -92,7 +117,7 @@ class RiskSLIMOptimizer:
         self.initial_cuts = None
 
         # Handle kwargs
-        self.vtype = kwargs.pop("vtype", None)
+        self.vtype = kwargs.pop("vtype", "I")
         self.coef_set = kwargs.pop("coef_set", None)
         settings = kwargs
 
@@ -527,7 +552,7 @@ class RiskSLIMOptimizer:
         """Ensure constraints are obeyed.
 
         Parameters
-        ---------
+        ----------
         """
         return (
             np.all(self.max_coef >= rho)
