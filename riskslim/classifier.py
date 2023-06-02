@@ -1,7 +1,7 @@
 """RiskSLIM Classifier."""
 
 from warnings import warn
-
+from pathlib import Path
 import numpy as np
 from scipy.special import expit
 
@@ -13,7 +13,6 @@ from sklearn.metrics import check_scoring
 from .optimizer import RiskSLIMOptimizer
 from .risk_scores import RiskScores
 from .coefficient_set import CoefficientSet
-
 
 class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
     """RiskSLIM classifier object.
@@ -400,8 +399,8 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         """
         return X.dot(self.coefficients)
 
-    def create_report(self, file_name=None, show=False, only_table=False):
-        """Create a RiskSLIM create_report using plotly.
+    def create_report(self, file_name = None, show = True, only_table = False, overwrite = True):
+        """Create a RiskSLIM report using plotly.
 
         Parameters
         ----------
@@ -411,7 +410,14 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         show : bool, optional, default: True
             Calls fig.show() if True.
         """
-        if show:
-            self.scores.report(file_name, show, only_table=only_table)
+        # overwrite
+
+        if file_name is None:
+            f = None
         else:
-            return self.scores.report(file_name, show, only_table=only_table)
+            f = Path(file_name)
+            if not overwrite:
+                assert f.exists(), f'file {file_name} exists'
+
+        self.scores.report(file_name = f, show = show, only_table=only_table)
+        return f

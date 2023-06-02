@@ -45,7 +45,7 @@ class RiskScores:
                 show_omitted_variables=False,
                 return_only=True
             )
-            self._preprare_table()
+            self._prepare_table()
 
         # Performance measures
         if self.estimator.calibrated_estimator is None:
@@ -86,7 +86,7 @@ class RiskScores:
         return prob_pred, prob_true, fpr, tpr
 
 
-    def _preprare_table(self):
+    def _prepare_table(self):
         """Prepare arrays for plotly table."""
 
         # Non-zero coefficients
@@ -109,6 +109,7 @@ class RiskScores:
         self._table_last_col = ['   ...', *['+ ...']*(len(self._table_scores)-2)]
         self._table_last_col.append('= ...')
 
+
     def report(self, file_name=None, show=False, replace_table=False, only_table=False):
         """Create a RiskSLIM create_report using plotly.
 
@@ -124,7 +125,7 @@ class RiskScores:
         only_table : bool, optional, default: False
             Plots only the risk table when True.
         """
-        if file_name is not None and file_name.endswith(".html"):
+        if file_name is not None and file_name.suffix in (".html"):
             # Generate figure html string
             fig = self.report(replace_table=True)
             fig_str = fig.to_html(include_plotlyjs=False, full_html=False)
@@ -396,18 +397,14 @@ class RiskScores:
             ) if not only_table else None
         )
 
-        if file_name is not None and file_name.endswith('pdf'):
-            # Save as pdf
-            write_image(fig, file_name, format='pdf')
-        elif file_name is not None and file_name.endswith('png'):
-            # Save as pdf
-            write_image(fig, file_name, format='png')
-        elif file_name is not None and file_name.endswith('html'):
-            # Save as html
-            with open(file_name, 'w') as f:
-                f.write(fig.to_html())
-        elif file_name is not None:
-            raise ValueError("Unsupported file extension. Use \".pdf\" or \".html\".")
+        if file_name is not None:
+            if file_name.suffix in ('.pdf', '.png'):
+                write_image(fig, file_name, format=file_name.suffix[1:])
+            elif file_name.suffix in ('.html'):
+                with open(file_name, 'w') as f:
+                    f.write(fig.to_html())
+            else:
+                raise ValueError("Unsupported file extension. Use '.pdf', '.png', '.html'.")
 
         if show:
             fig.show()
