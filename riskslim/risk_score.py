@@ -29,7 +29,7 @@ class RiskScore:
 
         if not isinstance(estimator, list) and not estimator.fitted:
             # Ensure single model if fit
-            raise ValueError("RiskScore expects a fit RiskSLIM input.")
+            raise ValueError("RiskScore expects a fitted RiskSLIM input.")
 
         # Unpack references to RiskSLIM arrays
         self.estimator = estimator
@@ -71,6 +71,7 @@ class RiskScore:
         """Print coefficient info."""
         print(self.estimator.coef_set)
 
+
     def compute_metrics(self, y, proba):
         """Computes calibration and ROC."""
 
@@ -86,13 +87,13 @@ class RiskScore:
 
 
     def _prepare_table(self):
+        # todo: plop into dictionary?
         """Prepare arrays for plotly table."""
 
         # Non-zero coefficients
-        inds = np.where(self.estimator.rho[1:] != 0)[0]
-
+        inds = np.flatnonzero(self.estimator.rho[1:])
         if len(inds) == 0:
-            raise ValueError('No non-zero coefficients.')
+            raise ValueError('all zero coefficients')
 
         self._table_names = np.array(self.estimator.coef_set.variable_names)[inds+1].tolist()
         self._table_scores = self.estimator.rho[inds+1]
@@ -126,9 +127,8 @@ class RiskScore:
         """
         report_template = Path(__file__).parent / 'template.html'
         #todo: check that this exists/allow for custom templates?
-
         write_file = file_name is not None
-        assert show or write_file, ''
+
         if write_file:
             assert file_name.suffix in REPORT_FILE_TYPES
 

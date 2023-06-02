@@ -14,7 +14,7 @@ class CoefficientSet:
     _initialized = False
     _variable_names = None
 
-    def __init__(self, variable_names, lb=-5., ub=5., c0=np.nan, vtype='I', print_flag=True):
+    def __init__(self, variable_names, lb=-5., ub=5., c0=float('nan'), vtype='I', print_flag=True):
 
         # Set variables using setter methods
         self.variable_names = list(variable_names)

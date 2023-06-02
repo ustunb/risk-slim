@@ -29,6 +29,7 @@ class ClassificationDataset:
         self._variable_names = variable_names
         self._outcome_name = outcome_name
         self._sample_weights = sample_weights
+        assert self.__check_rep__()
 
     @property
     def X(self):
@@ -55,6 +56,9 @@ class ClassificationDataset:
         """Pandas dataframe."""
         return pd.DataFrame(self._X, columns=self._variable_names)
 
+    def __check_rep__(self):
+        return check_data(self._X, self._y, self._variable_names, self._outcome_name, self._sample_weights)
+
     def __str__(self):
         return str(self.df)
 
@@ -63,9 +67,5 @@ class ClassificationDataset:
         with pd.option_context('display.max_rows', 6):
             with pd.option_context('display.max_columns', 6):
                 return str(self.df)
-
-    def __check_rep__(self):
-        check_data(self._X, self._y, self._variable_names,
-                   self._outcome_name, self._sample_weights)
 
 

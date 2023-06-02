@@ -1,6 +1,5 @@
 """RiskSLIM Classifier."""
 
-from warnings import warn
 from pathlib import Path
 import numpy as np
 from scipy.special import expit
@@ -13,22 +12,23 @@ from sklearn.metrics import check_scoring
 from .optimizer import RiskSLIMOptimizer
 from .risk_score import RiskScore
 from .coefficient_set import CoefficientSet
+from .utils import default_variable_names
 
 class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
-    """RiskSLIM classifier object.
+    """RiskSLIM classifier
 
     Parameters
     ----------
     min_size : int, optional, default: None
-        Minimum number of regularized coefficients.
+        Minimum model size
         None defaults to zero.
     max_size : int, optional, default: None
-        Maximum number of regularized coefficients.
+        Maximum model size.
         None defaults to length of input variables.
-    min_coef : float or 1d array, optional, default: None
+    min_coef : numeric or 1d array, optional, default: None
         Minimum coefficient.
         None default to -5
-    max_coef : float or 1d array, optional, default: None
+    max_coef : numeric or 1d array, optional, default: None
         Maximum coefficient.
         None defaults to 5.
     c0_value : 1d array or float, optional, default: None
@@ -91,12 +91,12 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
 
         # Pull min_coef/max_coef
         #   Note: max offset is set in coef_set during super().optimize
-        self.max_abs_offset = max_abs_offset
         self.min_coef = min_coef
         self.max_coef = max_coef
         self.c0_value = c0_value
         self.min_size = min_size
         self.max_size = max_size
+        self.max_abs_offset = max_abs_offset
 
         self.variable_names = variable_names
         self.outcome_name = outcome_name
@@ -115,11 +115,13 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
 
         self.settings.update(kwargs)
 
-        self.cv = None
-        self.cv_results = None
         self.scores = None
         self.calibrated_estimator = None
-        self.calibrated_estimators_ = None
+
+        # cv
+        self.cv = None
+        self.cv_results = None
+        self.cv_calibrated_estimators_ = None
 
         # Custom constraints
         self.constraints = constraints if constraints is not None else []
@@ -139,13 +141,14 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             Sample weights with shape (n_features, 1). Must all be positive.
         """
 
+        #todo: move data checking into a standalone function that we call in __init__ and here
         if y.ndim == 1:
             y = y.reshape(-1, 1)
 
-        inds = np.where(y == 0)[0]
+        inds = np.less_equal(y, 0)
         if len(inds) > 0:
             y[inds] = -1
-
+        n, d = X.shape
         self.sample_weights = sample_weights
         self.classes_, _ = np.unique(y, return_inverse=True)
 
@@ -153,25 +156,23 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         #   This must be done here rather than init, since variable_names is optional
         #   it's length can only be inferred from X.
         if self.variable_names is None:
-            self.variable_names = ["var_"+str(i) for i in range(len(X[0]))]
+            self.variable_names = default_variable_names(n_variables = d, include_intercept = True)
 
-        if self.coef_set is not None:
-
-            assert isinstance(self.coef_set, CoefficientSet)
-            self.min_coef = np.min(self.coef_set.lb)
-            self.max_coef = np.max(self.coef_set.ub)
-            self.c0_value = self.coef_set.c0
-
-        elif self.coef_set is None:
-
+        if self.coef_set is None:
             self.coef_set = CoefficientSet(
-                self.variable_names,
-                lb=self.min_coef,
-                ub=self.max_coef,
-                c0=self.c0_value,
-                vtype=self.vtype,
-                print_flag=self.verbose
-            )
+                    variable_names = self.variable_names,
+                    lb=self.min_coef,
+                    ub=self.max_coef,
+                    c0=self.c0_value,
+                    vtype=self.vtype,
+                    print_flag=self.verbose
+                    )
+
+        assert isinstance(self.coef_set, CoefficientSet)
+        self.min_coef = np.min(self.coef_set.lb)
+        self.max_coef = np.max(self.coef_set.ub)
+        self.c0_value = self.coef_set.c0
+
 
         # Default max size is unknown until coefficient set is constructed,
         #   assuming variable_names is not passed during initalization
@@ -210,7 +211,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         scoring="roc_auc",
         n_jobs=1
     ):
-        """Validate RiskSLIM classifier.
+        """Train RiskSLIM classifier.
 
         Parameters
         ----------
@@ -220,7 +221,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         y : 2d-array
             Class labels (+1, -1) with shape (n_rows, 1).
         sample_weights : 2d array, optional, default: None
-            Sample weights with shape (n_features, 1). Must all be positive.
+            Sample weights with shape (n_samples, 1). Must all be positive.
         k : int, sklearn cross-validation generator or an iterable, default: 5
             Determines the cross-validation splitting strategy.
             Possible inputs for k are:
@@ -248,7 +249,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         # Run cross-validation
         self.cv_results = cross_validate(
             self,
-            X,
+            X=X,
             y=y,
             cv=self.cv,
             return_estimator=True,
@@ -262,8 +263,8 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             self.fit(X, y, sample_weights)
 
 
-    def calibrate(self, X, y, sample_weights=None, method="sigmoid"):
-        """Fit RiskSLIM classifier with calibration.
+    def recalibrate(self, X, y, sample_weights=None, method= "sigmoid"):
+        """Fit RiskSLIM classifier via Platt Scaling.
 
         Parameters
         ----------
@@ -275,29 +276,31 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         sample_weights : 2d array, optional, default: None
             Sample weights with shape (n_features, 1). Must all be positive.
         method : {"sigmoid", "isotonic"}
-            Linear classifier used to calibrate scores.
+            Linear classifier used to recalibrate scores.
         """
-        if self.fitted is False:
-            raise ValueError("Fit RiskSLIM model prior to calibration.")
+        # todo: call check_data
+        # todo: add support for kwargs (method = 'sigmoid') should be
+
+        if not self.fitted:
+            raise ValueError("fit RiskSLIM before calling recalibrate")
 
         if self.cv_results is not None:
             # Compute an ensemble (1 per fold) of calibrators
-            self.calibrated_estimators_ = []
+            self.cv_calibrated_estimators_ = []
 
             for train, _ in self.cv.split(X, y.reshape(-1)):
 
                 _X = X[train]
                 _y = y[train]
 
-                cal = CalibratedClassifierCV(
+                clf = CalibratedClassifierCV(
                     self,
                     cv="prefit",
                     method=method
                 )
 
-                cal.fit(_X, _y, sample_weights)
-
-                self.calibrated_estimators_.append(cal)
+                clf.fit(_X, _y, sample_weights)
+                self.cv_calibrated_estimators_.append(clf)
 
         # Compute single calibrator if fit_cv was not used
         self.calibrated_estimator = CalibratedClassifierCV(
@@ -410,13 +413,11 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             Calls fig.show() if True.
         """
         # overwrite
-
         if file_name is None:
             f = None
         else:
             f = Path(file_name)
             if not overwrite:
                 assert f.exists(), f'file {file_name} exists'
-
         self.scores.report(file_name = f, show = show, only_table=only_table)
         return f

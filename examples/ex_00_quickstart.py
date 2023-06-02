@@ -22,9 +22,6 @@ rs = RiskSLIMClassifier(
 # Fit
 rs.fit(X = data["X"], y = data["y"])
 
-# Show Scores
-rs.scores
-
 # Create Report
 report_file = rs.create_report(file_name = 'report.html', show = True)
 open_file(report_file)
