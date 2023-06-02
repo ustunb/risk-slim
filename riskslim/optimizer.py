@@ -299,7 +299,7 @@ class RiskSLIMOptimizer:
         # Round CPA solutions
         if settings["use_rounding"] and len(pool) > 0:
             self.log(f"running naive rounding on {len(pool)} solutions")
-            self.log("best objective value: %1.4f" % np.min(pool.objvals))
+            self.log("best objective value: {:04f}", format(np.min(pool.objvals)))
             rnd_pool, _, _ = round_solution_pool(
                     pool,
                     constraints,
@@ -310,15 +310,14 @@ class RiskSLIMOptimizer:
                     self.is_feasible
                     )
             self.log(f"rounding produced {len(rnd_pool)} integer solutions")
-
             if len(rnd_pool) > 0:
                 pool.append(rnd_pool)
-                self.log("best objective value is %1.4f" % np.min(rnd_pool.objvals))
+            self.log("best objective value: {:04f}", format(np.min(pool.objvals)))
 
         # Sequentially round CPA solutions
         if settings["use_sequential_rounding"] and len(pool) > 0:
             self.log(f"running sequential rounding on {len(pool)} solutions")
-            self.log("best objective value: %1.4f" % np.min(pool.objvals))
+            self.log("best objective value: {:04f}".format(pool.objvals))
 
             sqrnd_pool, _, _ = sequential_round_solution_pool(
                     pool=pool,
@@ -338,7 +337,7 @@ class RiskSLIMOptimizer:
 
             if len(sqrnd_pool) > 0:
                 pool = pool.append(sqrnd_pool)
-                self.log("best objective value: %1.4f" % np.min(pool.objvals))
+                self.log("best objective value: {:04f}".format(np.min(pool.objvals)))
 
         # Polish rounded solutions
         if settings["polishing_after"] and len(pool) > 0:
@@ -357,7 +356,7 @@ class RiskSLIMOptimizer:
 
             dcd_pool = dcd_pool.remove_infeasible(self.is_feasible)
             if len(dcd_pool) > 0:
-                self.log("polishing produced %d integer solutions" % len(dcd_pool))
+                self.log(f"polishing produced {len(dcd_pool)} integer solutions")
                 pool.append(dcd_pool)
 
         # Remove solutions that are not feasible, not integer
@@ -365,20 +364,19 @@ class RiskSLIMOptimizer:
             pool = pool.remove_nonintegral().distinct().sort()
 
         # Update upper and lower bounds
-        self.log("initialization produced %1.0f feasible solutions" % len(pool))
+        self.log(f"initialization produced {len(pool)} feasible solutions")
 
         if len(pool) > 0:
             bounds = chained_updates(
                     bounds, self.C_0_nnz, new_objval_at_feasible=np.min(pool.objvals)
                     )
-            self.log("best objective value: %1.4f" % np.min(pool.objvals))
+            self.log("best objective value: {:04f}".format(np.min(pool.objvals)))
 
         self.pool.append(pool)
 
         # Update bounds
         self.bounds = copy(bounds)
         self.has_warmstart = True
-
 
     def add_constraint(self, var_names, var_type, values, rhs, sense, name=None):
         """Add a constraint to the MIP.
@@ -411,7 +409,7 @@ class RiskSLIMOptimizer:
         """
 
         # Checks
-        if var_type not in ["rho", "alpha"]:
+        if var_type not in ("rho", "alpha"):
             raise ValueError("var_type must be in [\"rho\", \"alpha\"]")
 
         if len(var_names) != len(values):
@@ -424,9 +422,7 @@ class RiskSLIMOptimizer:
         # Add constraint to a queue - it is added to the mip solver add fit time
         self.constraints.append([name, get_ind(var_names), values, sense, rhs])
 
-
     #### properties ####
-
     @property
     def solution(self):
         """Returns CPLEX solution.
@@ -437,6 +433,35 @@ class RiskSLIMOptimizer:
         """
         # todo add wrapper if solution does not exist
         return self.mip.solution
+
+    @property
+    def coefficients(self):
+        """
+        Returns
+        -------
+        coefs : np.ndarray
+            C
+            oefficients of the linear classifier
+        """
+        s = self.solution
+        if s.is_primal_feasible():
+            coefs = np.array(s.get_values(self.mip_indices["rho"]))
+        else:
+            coefs = np.repeat(np.nan, self.n_variables)
+        return coefs
+
+    # helper functions
+    def is_feasible(self, rho):
+        """Ensure constraints are obeyed.
+
+        Parameters
+        ---------
+        """
+        return (
+                np.all(self.max_coef >= rho)
+                and np.all(self.min_coef <= rho)
+                and (self.min_size <= np.count_nonzero(rho[self.L0_reg_ind]) <= self.max_size)
+        )
 
     @property
     def solution_info(self):
@@ -479,18 +504,10 @@ class RiskSLIMOptimizer:
         # Output for Model
         info = {
             "c0_value": self.c0_value,
-            #
             "solution": self.stats.incumbent,
-            "objective_value": self.get_objval(self.stats.incumbent)
-            if self.stats.found_solution
-            else float("inf"),
-            "loss_value": self.compute_loss(self.stats.incumbent)
-            if self.stats.found_solution
-            else float("inf"),
-            "optimality_gap": self.stats.relative_gap
-            if self.stats.found_solution
-            else float("inf"),
-            #
+            "objective_value": float("inf"),
+            "loss_value":  float("inf"),
+            "optimality_gap": float("inf"),
             "run_time": self.stats.total_run_time,
             "solver_time": self.stats.total_solver_time,
             "callback_time": self.stats.total_callback_time,
@@ -498,36 +515,15 @@ class RiskSLIMOptimizer:
             "nodes_processed": self.stats.nodes_processed,
             }
 
+        if self.stats.found_solution:
+            info.update({
+                "objective_value": self.get_objval(self.stats.incumbent),
+                "loss_value": self.compute_loss(self.stats.incumbent),
+                "optimality_gap": self.stats.relative_gap
+                })
+
         return info
 
-    @property
-    def coefficients(self):
-        """
-        Returns
-        -------
-        coefs : np.ndarray
-            C
-            oefficients of the linear classifier
-        """
-        s = self.solution
-        if s.is_primal_feasible():
-            coefs = np.array(s.get_values(self.mip_indices["rho"]))
-        else:
-            coefs = np.repeat(np.nan, self.n_variables)
-        return coefs
-
-    # helper functions
-    def is_feasible(self, rho):
-        """Ensure constraints are obeyed.
-
-        Parameters
-        ---------
-        """
-        return (
-                np.all(self.max_coef >= rho)
-                and np.all(self.min_coef <= rho)
-                and (self.min_size <= np.count_nonzero(rho[self.L0_reg_ind]) <= self.max_size)
-        )
 
     ### initialization ####
     def _parse_settings(self, settings, defaults):
@@ -578,7 +574,6 @@ class RiskSLIMOptimizer:
 
         if final_loss_computation == "normal":
             import riskslim.loss_functions.log_loss as lf
-
             self.Z = np.require(self.Z, requirements=["C"])
             self.compute_loss = lambda rho: lf.log_loss_value(self.Z, rho)
             self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(self.Z, rho)
