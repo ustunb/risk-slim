@@ -148,7 +148,9 @@ class RiskSLIMOptimizer:
         # Set data attributes
         self.X = X
         self.y = y
-        self.sample_weights = sample_weights
+        self.sample_weights = np.ones(X.shape[0]) if sample_weights is None else sample_weights
+
+        #todo: check data attributes
 
         # Initalize fitting procedure
         self._init_fit()
@@ -163,7 +165,7 @@ class RiskSLIMOptimizer:
         self._init_mip()
 
         # Add MIP constraints
-        for (name, var_inds, values, sense, rhs) in self.constraints:
+        for name, var_inds, values, sense, rhs in self.constraints:
 
             if name is None:
                 name = "con_" + str(self.mip.linear_constraints.get_num())
@@ -278,6 +280,7 @@ class RiskSLIMOptimizer:
             "coef_set": self.coef_set,
             }
 
+        # todo move into factory function
         def rounded_model_size_is_ok(rho):
             zero_idx_rho_ceil = np.equal(np.ceil(rho), 0)
             zero_idx_rho_floor = np.equal(np.floor(rho), 0)
@@ -544,19 +547,18 @@ class RiskSLIMOptimizer:
             }
         return lcpa_settings, cplex_settings, warmstart_settings
 
-    def _init_loss_computation(self, w_pos=1.0):
+    def _init_loss_computation(self):
         """Initalize loss functions."""
-        # todo check if fast/lookup loss is installed
+        # todo: check if fast/lookup loss is installed
+        # todo: refactor loss computation logic to factory functions below
         assert self.loss_computation in ("normal", "weighted", "fast", "lookup")
 
-        use_weighted = False
         use_lookup_table = (
                 isinstance(self.coef_set, CoefficientSet) and self._integer_data
         )
 
-        if self.sample_weights is not None:
-            sample_weights = self._init_training_weights(w_pos=w_pos)
-            use_weighted = not np.all(np.equal(sample_weights, 1.0))
+        sample_weights = self.sample_weights
+        use_weighted = not np.equal(sample_weights, 1.0).all()
 
         if use_weighted:
             final_loss_computation = "weighted"
@@ -577,32 +579,20 @@ class RiskSLIMOptimizer:
             self.Z = np.require(self.Z, requirements=["C"])
             self.compute_loss = lambda rho: lf.log_loss_value(self.Z, rho)
             self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(self.Z, rho)
-            self.compute_loss_from_scores = (
-                lambda scores: lf.log_loss_value_from_scores(scores)
-            )
+            self.compute_loss_from_scores = (lambda scores: lf.log_loss_value_from_scores(scores))
 
         elif final_loss_computation == "fast":
             import riskslim.loss_functions.fast_log_loss as lf
-
             self.Z = np.require(self.Z, requirements=["F"])
-            self.compute_loss = lambda rho: lf.log_loss_value(
-                    self.Z, np.asfortranarray(rho)
-                    )
-            self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(
-                    self.Z, np.asfortranarray(rho)
-                    )
-            self.compute_loss_from_scores = (
-                lambda scores: lf.log_loss_value_from_scores(scores)
-            )
+            self.compute_loss = lambda rho: lf.log_loss_value(self.Z, np.asfortranarray(rho))
+            self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(self.Z, np.asfortranarray(rho))
+            self.compute_loss_from_scores = (lambda scores: lf.log_loss_value_from_scores(scores))
 
         elif final_loss_computation == "weighted":
             import riskslim.loss_functions.log_loss_weighted as lf
-
             self.Z = np.require(self.Z, requirements=["C"])
             total_sample_weights = np.sum(sample_weights)
-            self.compute_loss = lambda rho: lf.log_loss_value(
-                    self.Z, sample_weights, total_sample_weights, rho
-                    )
+            self.compute_loss = lambda rho: lf.log_loss_value(self.Z, sample_weights, total_sample_weights, rho)
             self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(
                     self.Z, sample_weights, total_sample_weights, rho
                     )
@@ -611,7 +601,6 @@ class RiskSLIMOptimizer:
                         sample_weights, total_sample_weights, scores
                         )
             )
-
         elif final_loss_computation == "lookup":
             import riskslim.loss_functions.lookup_log_loss as lf
 
@@ -660,48 +649,6 @@ class RiskSLIMOptimizer:
             self.compute_loss_real = self.compute_loss
             self.compute_loss_cut_real = self.compute_loss_cut
             self.compute_loss_from_scores_real = self.compute_loss_from_scores
-
-    def _init_training_weights(self, w_pos=1.0, w_neg=1.0, w_total_target=2.0):
-        """Initialize weights.
-
-        Parameters
-        ----------
-        w_pos : float
-            Positive scalar showing relative weight on examples where Y = +1
-        w_neg : float
-            Positive scalar showing relative weight on examples where Y = -1
-
-        Returns
-        -------
-        training_weights : 1d-array
-            A vector of N normalized training weights for all points in the training data.
-        """
-
-        # Process class weights
-        assert np.isfinite(w_pos), "w_pos must be finite"
-        assert np.isfinite(w_neg), "w_neg must be finite"
-        assert w_pos > 0.0, "w_pos must be strictly positive"
-        assert w_neg > 0.0, "w_neg must be strictly positive"
-        w_total = w_pos + w_neg
-        w_pos = w_total_target * (w_pos / w_total)
-        w_neg = w_total_target * (w_neg / w_total)
-
-        # Process case weights
-        y = self.y.flatten()
-        n = len(y)
-        pos_ind = y == 1
-
-        if self.sample_weights is None:
-            training_weights = np.ones(n)
-        else:
-            training_weights = self.sample_weights.flatten()
-
-        # Normalization
-        training_weights = n * (training_weights / sum(training_weights))
-        training_weights[pos_ind] *= w_pos
-        training_weights[~pos_ind] *= w_neg
-
-        return training_weights
 
     def _init_coeffs(self):
         """Initialize coefficient constraints.
