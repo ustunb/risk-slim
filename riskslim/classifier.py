@@ -11,7 +11,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import check_scoring
 
 from .optimizer import RiskSLIMOptimizer
-from .risk_scores import RiskScore
+from .risk_score import RiskScore
 from .coefficient_set import CoefficientSet
 
 class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
@@ -201,7 +201,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
 
         self.scores = RiskScore(self)
 
-    def fitcv(
+    def fit_cv(
         self,
         X,
         y,
@@ -299,7 +299,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
 
                 self.calibrated_estimators_.append(cal)
 
-        # Compute single calibrator if fitcv was not used
+        # Compute single calibrator if fit_cv was not used
         self.calibrated_estimator = CalibratedClassifierCV(
             self,
             cv="prefit",

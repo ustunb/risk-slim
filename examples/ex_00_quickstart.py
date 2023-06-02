@@ -4,12 +4,12 @@
 # pip install -e .
 
 from riskslim import RiskSLIMClassifier, load_data_from_csv
-from plotly.io import show
+from riskslim.utils import open_file
 from pathlib import Path
 
 # Load Data
 data_name = "breastcancer"
-data = load_data_from_csv(dataset_csv_file = Path('examples/data/{}_data.csv'.format(data_name)))
+data = load_data_from_csv(dataset_csv_file = Path(f'examples/data/{data_name}_data.csv'))
 
 # Initialize Model
 rs = RiskSLIMClassifier(
@@ -25,11 +25,9 @@ rs.fit(X = data["X"], y = data["y"])
 # Show Scores
 rs.scores
 
-
 # Create Report
-fig = rs.create_report('/Users/berk/Dropbox (Harvard University)/repos/risk-slim/examples/test_report.html')
-fig.show()
-show(rs.create_report())
+report_file = rs.create_report(file_name = 'report.html', show = True)
+open_file(report_file)
 
 
 

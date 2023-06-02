@@ -86,9 +86,9 @@ rs_base = RiskSLIMClassifier(
 # Fit
 # ---
 #
-# After ``.fit`` of ``.fitcv`` is called, ``.calibrate`` may be used to fit a post-hoc calibrator.
+# After ``.fit`` of ``.fit_cv`` is called, ``.calibrate`` may be used to fit a post-hoc calibrator.
 # After calibrating, the ``.predict`` and ``.predict_proba`` use the output from the calibrator
-# (``.calibrated_estimator``) trained on all of the data passed. If ``.fitcv`` is used, calibrator
+# (``.calibrated_estimator``) trained on all of the data passed. If ``.fit_cv`` is used, calibrator
 # estimators (``.calibrated_estimators_``) are trained on the train sets and the plots will show
 # performance on the test set.the plots will contain on the test sets. Plots will show performance
 # on each fold in light gray, while the calibrator trained on all of the data will be shown in

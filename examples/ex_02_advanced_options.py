@@ -181,7 +181,7 @@ rs = RiskSLIMClassifier(
     **settings
 )
 
-rs.fitcv(
+rs.fit_cv(
     X,
     y,
     k=5,
