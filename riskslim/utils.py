@@ -8,11 +8,33 @@ import warnings
 import numpy as np
 import pandas as pd
 import prettytable as pt
+from dev.debug import ipsh
 
 from .bound_tightening import Bounds
 from .defaults import INTERCEPT_NAME
 
 # DATA
+def default_variable_names(n_variables, prefix = 'x', include_intercept = True):
+    """
+    Parameters
+    ----------
+    n_features: # of columns in X matrix
+    include_intercept = set to True to set the first variable name to INTERCEPT_NAME
+    Returns
+    list of unique variable names
+    -------
+    """
+    assert is_integer(n_variables) and n_variables > 0
+    assert isinstance(prefix, str) and len(prefix) > 0
+    n_padding = np.floor(np.log10(n_variables + 1)).astype(int) + 1
+    fmt = ':0{}d'.format(n_padding)
+    namer = prefix + '{' + fmt + '}'
+    names = [namer.format(j) for j in range(n_variables)]
+    if include_intercept:
+        names[0] = INTERCEPT_NAME
+    return names
+
+
 def load_data_from_csv(dataset_csv_file, sample_weights_csv_file=None, fold_csv_file=None, fold_num=0):
     """Load data from a csv.
 
@@ -155,7 +177,10 @@ def check_data(X, y, variable_names, outcome_name=None, sample_weights=None):
     assert P > 0, 'X matrix must have at least 1 column'
     assert len(y) == N, 'dimension mismatch. Y must contain as many entries as X. Need len(Y) = N.'
     assert len(list(set(variable_names))) == len(variable_names), 'variable_names is not unique'
-    assert len(variable_names) == P, 'len(variable_names) should be same as # of cols in X'
+    try:
+        assert len(variable_names) == P, 'len(variable_names) should be same as # of cols in X'
+    except:
+        ipsh()
 
     # feature matrix
     assert np.all(~np.isnan(X)), 'X has nan entries'
