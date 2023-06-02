@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 from pathlib import Path
 import time
 import warnings
@@ -353,3 +354,15 @@ def cast_to_integer(x):
     """
     original_type = x.dtype
     return np.require(np.require(x, dtype=np.int_), dtype=original_type)
+
+
+def open_file(file_name):
+    """
+    open a file using the System viewer
+    :param file_name: path of the file
+    :return: None
+    """
+    f = Path(file_name)
+    assert f.exists(), 'file not found: %s' % str(f)
+    cmd = 'open "%s"' % str(f)
+    os.system(cmd)
