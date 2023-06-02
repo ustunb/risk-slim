@@ -13,6 +13,7 @@ from plotly.io import write_image
 
 from riskslim.utils import print_model
 
+REPORT_FILE_TYPES = ('.pdf', '.png', '.html')
 
 class RiskScore:
     """Risk scores (rho), derived metrics, and reports."""
@@ -36,8 +37,7 @@ class RiskScore:
         self.y = self.estimator.y if y is None else y
 
         # Table
-        if not np.all(estimator.rho == 0.):
-
+        if np.not_equal(estimator.rho, 0.0).any():
             self._table = print_model(
                 estimator.rho,
                 estimator.coef_set.variable_names,
@@ -70,7 +70,6 @@ class RiskScore:
     def print_coefs(self):
         """Print coefficient info."""
         print(self.estimator.coef_set)
-
 
     def compute_metrics(self, y, proba):
         """Computes calibration and ROC."""
@@ -125,12 +124,20 @@ class RiskScore:
         only_table : bool, optional, default: False
             Plots only the risk table when True.
         """
-        if file_name is not None and file_name.suffix in (".html"):
+        report_template = Path(__file__).parent / 'template.html'
+        #todo: check that this exists/allow for custom templates?
+
+        write_file = file_name is not None
+        assert show or write_file, ''
+        if write_file:
+            assert file_name.suffix in REPORT_FILE_TYPES
+
+        if write_file and file_name.suffix in (".html"):
             # Generate figure html string
             fig = self.report(replace_table=True)
             fig_str = fig.to_html(include_plotlyjs=False, full_html=False)
 
-            inds = np.where(self.estimator.rho != 0)[0]
+            inds = np.flatnonzero(self.estimator.rho)
             _vars = np.array(self.estimator.variable_names)[inds]
             _rho = self.estimator.rho[inds]
 
@@ -138,8 +145,8 @@ class RiskScore:
             max_values = self.X.max(axis=0)[inds]
 
             # Read html
-            with open(str(Path(__file__).parent) + "/template.html", "r") as f:
-                text=f.read()
+            with open(report_template, "r") as f:
+                text = f.read()
             text_list = text.split("\n")
 
             # Inject variable names & rho into js
@@ -299,7 +306,7 @@ class RiskScore:
                         col=2
                     )
 
-            # Calibration
+            # Reliability Diagram
             fig.add_trace(
                 go.Scattergl(
                     x=self.prob_pred,
@@ -326,7 +333,7 @@ class RiskScore:
             )
 
 
-            # ROC curve
+            # ROC Curve
             fig.add_trace(
                 go.Scattergl(
                     x=self.fpr,
@@ -352,9 +359,10 @@ class RiskScore:
                 col=2
             )
 
-        # Update attributes
+        # Update Attributes
+        # todo: bring to top
         height = 800
-
+        width = 800
         if replace_table and not only_table:
             height = 600
         elif replace_table and only_table:
@@ -366,7 +374,7 @@ class RiskScore:
             # General
             title_text="RiskSLIM Report" if not replace_table and not only_table else "",
             autosize=False,
-            width=800,
+            width=width,
             height=height,
             showlegend=False,
             template='simple_white',
@@ -397,16 +405,14 @@ class RiskScore:
             ) if not only_table else None
         )
 
-        if file_name is not None:
+        if write_file:
             if file_name.suffix in ('.pdf', '.png'):
                 write_image(fig, file_name, format=file_name.suffix[1:])
             elif file_name.suffix in ('.html'):
                 with open(file_name, 'w') as f:
                     f.write(fig.to_html())
-            else:
-                raise ValueError("Unsupported file extension. Use '.pdf', '.png', '.html'.")
 
         if show:
             fig.show()
-        else:
-            return fig
+
+        return fig
