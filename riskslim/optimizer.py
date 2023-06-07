@@ -130,9 +130,7 @@ class RiskSLIMOptimizer:
         self.outcome_name = outcome_name
 
 
-    def optimize(
-            self, X, y, sample_weights=None
-            ):
+    def optimize(self, X, y, sample_weights=None):
         """Optimize RiskSLIM.
 
         Parameters
@@ -302,7 +300,7 @@ class RiskSLIMOptimizer:
         # Round CPA solutions
         if settings["use_rounding"] and len(pool) > 0:
             self.log(f"running naive rounding on {len(pool)} solutions")
-            self.log("best objective value: {:04f}", format(np.min(pool.objvals)))
+            self.log("best objective value: {:04f}".format(np.min(pool.objvals)))
             rnd_pool, _, _ = round_solution_pool(
                     pool,
                     constraints,
@@ -315,12 +313,12 @@ class RiskSLIMOptimizer:
             self.log(f"rounding produced {len(rnd_pool)} integer solutions")
             if len(rnd_pool) > 0:
                 pool.append(rnd_pool)
-            self.log("best objective value: {:04f}", format(np.min(pool.objvals)))
+            self.log("best objective value: {:04f}".format(np.min(pool.objvals)))
 
         # Sequentially round CPA solutions
         if settings["use_sequential_rounding"] and len(pool) > 0:
             self.log(f"running sequential rounding on {len(pool)} solutions")
-            self.log("best objective value: {:04f}".format(pool.objvals))
+            self.log("best objective value: {:04f}".format(np.min(pool.objvals)))
 
             sqrnd_pool, _, _ = sequential_round_solution_pool(
                     pool=pool,

@@ -14,7 +14,7 @@ from .risk_score import RiskScore
 from .coefficient_set import CoefficientSet
 from .utils import default_variable_names
 
-class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
+class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
     """RiskSLIM classifier
 
     Parameters
@@ -90,7 +90,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
     ):
 
         # Pull min_coef/max_coef
-        #   Note: max offset is set in coef_set during super().optimize
+        #   Note: max offset is set in coef_set during .optimize
         self.min_coef = min_coef
         self.max_coef = max_coef
         self.c0_value = c0_value
@@ -118,14 +118,22 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
         self.scores = None
         self.calibrated_estimator = None
 
-        # cv
+        # Cross-validation
         self.cv = None
         self.cv_results = None
         self.cv_calibrated_estimators_ = None
 
         # Custom constraints
         self.constraints = constraints if constraints is not None else []
+        self.fitted = False
 
+        self.optimizer = None
+
+    def __repr__(self):
+        if self.fitted:
+            return self.scores.__repr__()
+        else:
+            return super().__repr__()
 
     def fit(self, X, y, sample_weights=None):
         """Fit RiskSLIM classifier.
@@ -181,7 +189,7 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
 
         # Sci-kit learns requires only attributes directly passed in init signature
         #   to be set in init. Other variables are initalized at fit time
-        super().__init__(
+        self.mip = RiskSLIMOptimizer(
             min_size=self.min_size,
             max_size=self.max_size,
             min_coef=self.min_coef,
@@ -197,8 +205,15 @@ class RiskSLIMClassifier(RiskSLIMOptimizer, BaseEstimator, ClassifierMixin):
             constraints=self.constraints,
             **self.settings
         )
+
         # Fit
-        super().optimize(X, y, self.sample_weights)
+        self.mip.optimize(X, y, self.sample_weights)
+
+        # Attributes
+        self.X = X
+        self.y = y
+        self.rho = self.mip.rho
+        self.fitted = True
 
         self.scores = RiskScore(self)
 
