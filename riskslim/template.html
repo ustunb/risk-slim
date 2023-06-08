@@ -54,10 +54,7 @@
         cell0 = row.insertCell(0);
         cell0.innerHTML = i+1 + ". ";
         cell0.innerHTML += _names[i];
-        // Second cell
-        cell1 = row.insertCell(1)
-        cell1.innerHTML = "";
-        cell1.width = "25%";
+        cell0.width = "60%";
         // Define input field
         if (_var_types[i] == "I" || _var_types == "C"){
             div = document.createElement("div");
@@ -101,16 +98,14 @@
         }
         last_divs.push(div);
         // Insert input into table
-        cell2 = row.insertCell(2)
-        cell2.appendChild(div);
+        cell1 = row.insertCell(1)
+        cell1.appendChild(div);
         if (i == n_rows-1){
             // Intercept row
             var row = table.insertRow(i+1);
             cell0 = row.insertCell(0);
             cell0.innerHTML = "Intercept";
-            cell1 = row.insertCell(1)
-            cell1.innerHTML = "";
-            cell2 = row.insertCell(2);
+            cell1 = row.insertCell(1);
             div = document.createElement("div");
             div.className = "quantity";
             var val_input = document.createElement("input");
@@ -120,24 +115,20 @@
             val_input.style.width = "70px";
             val_input.class = "quantity";
             div.append(val_input);
-            cell2.appendChild(div);
+            cell1.appendChild(div);
             // Score
             var row_score = table.insertRow(i+2);
             row_score0 = row_score.insertCell(0);
-            row_score0.innerHTML = "";
+            row_score0.innerHTML = "SCORE";
             row_score1 = row_score.insertCell(1);
-            row_score1.innerHTML = "SCORE";
-            row_score2 = row_score.insertCell(2);
             inital_score = min_values.slice(1).reduce((a, b) => a + b, 0) + rho[0];
-            row_score2.innerHTML = "" + inital_score
+            row_score1.innerHTML = "" + inital_score
             ;
             // Risk
             var row_risk = table.insertRow(i+3);
             row_risk0 = row_risk.insertCell(0);
-            row_risk0.innerHTML = "";
+            row_risk0.innerHTML = "RISK";
             row_risk1 = row_risk.insertCell(1);
-            row_risk1.innerHTML = "RISK";
-            row_risk2 = row_risk.insertCell(2);
             score = -dot(min_values, rho)
             if (score > 0){
                 risk = (1 / (1 + Math.exp(-score))).toFixed(1)
@@ -145,7 +136,7 @@
                 // Prevent overflow
                 risk = (1 - (1 / (1 + Math.exp(score)))).toFixed(1)
             }
-            row_risk2.innerHTML = "" + risk + "%";
+            row_risk1.innerHTML = "" + risk + "%";
         }
     }
     document.getElementById("main_div").prepend(table);
@@ -186,7 +177,7 @@
             }
             rho[0] = val_input.value;
             score = dot(input_values, rho)
-            row_score2.innerHTML = "" + score;
+            row_score1.innerHTML = "" + score;
             if (score > 0){
                 risk = (1 / (1 + Math.exp(-score)));
             } else {
@@ -194,7 +185,7 @@
                 risk = (1 - (1 / (1 + Math.exp(score))));
             }
             risk = (risk * 100).toFixed(1);
-            row_risk2.innerHTML = "" + risk + "%";
+            row_risk1.innerHTML = "" + risk + "%";
         });
     };
     parse_input(n_rows);
@@ -258,20 +249,28 @@
     tr:nth-child(1) {
         border-top: solid 2px black;
     }
-    td:nth-child(1) {
-        border-left: solid 2px black;
-    }
-    td:nth-child(3){
-        border-right: solid 2px black;
+    tr:last-child {
+        border-bottom: solid 2px black;
     }
     tr:nth-last-child(3) {
         border-bottom: solid 2px black;
     }
+    td:nth-child(1) {
+        border-left: solid 2px black;
+    }
     td:nth-last-child(1) {
         border-left: solid 2px black;
     }
-    tr:last-child {
-        border-bottom: solid 2px black;
+    td:nth-child(2){
+        border-right: solid 2px black;
+    }
+    tr:nth-last-child(1) td:nth-child(1){
+        text-align: right;
+        padding: 10px;
+    }
+    tr:nth-last-child(2) td:nth-child(1){
+        text-align: right;
+        padding: 10px;
     }
     h3{
         font-family: "Source Code Pro", "Open Sans", verdana, arial, sans-serif;
