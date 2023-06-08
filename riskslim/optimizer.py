@@ -709,7 +709,13 @@ class RiskSLIMOptimizer:
                 )
 
         self.Z = (self.X * self.y).astype(np.float64)
-        self._integer_data = np.all(self.Z == np.require(self.Z, dtype=np.int_))
+
+        self._variable_types = np.zeros(self.X.shape[1], dtype="str")
+        self._variable_types[:] = "C"
+        self._variable_types[np.all(self.X == np.require(self.X, dtype=np.int_), axis=0)] = "I"
+        self._variable_types[np.all(self.X == np.require(self.X, dtype=np.bool_), axis=0)] = "B"
+
+        self._integer_data = not np.any(self._variable_types == "C")
         self.n_variables = self.Z.shape[1]
 
         # Function handles

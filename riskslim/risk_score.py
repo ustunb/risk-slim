@@ -102,7 +102,7 @@ class RiskScore:
                              for i, n in enumerate(self._table_names)]
         self._table_names.append('')
 
-        self._table_scores = [str(int(s)) + ' point' if s == 1 else str(int(s)) + ' points'
+        self._table_scores = ['(' + str(int(s)) + ' point)' if s == 1 else str(int(s)) + ' points)'
                               for s in self._table_scores]
         self._table_scores.append('SCORE')
 
@@ -110,13 +110,13 @@ class RiskScore:
         self._table_last_col.append('= ...')
 
 
-    def report(self, file_name=None, show=False, replace_table=False, only_table=False):
-        """Create a RiskSLIM create_report using plotly.
+    def create_report(self, file_name=None, show=False, replace_table=False, only_table=False, template=None):
+        """Create a RiskSLIM report using plotly.
 
         Parameters
         ----------
         file_name : str
-            Name of file and extension to save create_report to.
+            Name of file and extension to save report to.
             Supported extensions include ".pdf" and ".html".
         show : bool, optional, default: True
             Calls fig.show() if True.
@@ -124,9 +124,15 @@ class RiskScore:
             Removes risk score table if True.
         only_table : bool, optional, default: False
             Plots only the risk table when True.
+        template : str
+            Path to html file template that will overwrite default.
         """
-        report_template = Path(__file__).parent / 'template.html'
-        #todo: check that this exists/allow for custom templates?
+        if template is None:
+            report_template = Path(__file__).parent / 'template.html'
+
+        if not report_template.is_file():
+            raise ValueError("Report template file does not exist.")
+
         write_file = file_name is not None
 
         if write_file:
@@ -134,7 +140,8 @@ class RiskScore:
 
         if write_file and file_name.suffix in (".html"):
             # Generate figure html string
-            fig = self.report(replace_table=True)
+            fig = self.create_report(replace_table=True, show=False)
+            fig.update_layout(font_family="Source Code Pro")
             fig_str = fig.to_html(include_plotlyjs=False, full_html=False)
 
             inds = np.flatnonzero(self.estimator.rho)
@@ -170,6 +177,11 @@ class RiskScore:
                     text_list[ind] = "    var max_values = ["
                     for v in max_values:
                         text_list[ind] += f"{v},"
+                    text_list[ind] += "];"
+                elif line.startswith("    var variable_types ="):
+                    text_list[ind] = "    var variable_types = ["
+                    for v in self.estimator.optimizer._variable_types:
+                        text_list[ind] += f"\"{v}\","
                     text_list[ind] += "];"
                 elif line.startswith("        $ploty_html") and not only_table:
                     text_list[ind] = "    " + fig_str

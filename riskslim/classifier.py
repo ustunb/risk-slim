@@ -175,6 +175,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
                     vtype=self.vtype,
                     print_flag=self.verbose
                     )
+            self.vtype = self.coef_set.vtype
 
         assert isinstance(self.coef_set, CoefficientSet)
         self.min_coef = np.min(self.coef_set.lb)
@@ -189,7 +190,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
 
         # Sci-kit learns requires only attributes directly passed in init signature
         #   to be set in init. Other variables are initalized at fit time
-        self.mip = RiskSLIMOptimizer(
+        self.optimizer = RiskSLIMOptimizer(
             min_size=self.min_size,
             max_size=self.max_size,
             min_coef=self.min_coef,
@@ -207,12 +208,12 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         )
 
         # Fit
-        self.mip.optimize(X, y, self.sample_weights)
+        self.optimizer.optimize(X, y, self.sample_weights)
 
         # Attributes
         self.X = X
         self.y = y
-        self.rho = self.mip.rho
+        self.rho = self.optimizer.rho
         self.fitted = True
 
         self.scores = RiskScore(self)
@@ -422,7 +423,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         Parameters
         ----------
         file_name : str
-            Name of file and extension to save create_report to.
+            Name of file and extension to save report to.
             Supported extensions include ".pdf" and ".html".
         show : bool, optional, default: True
             Calls fig.show() if True.
@@ -434,5 +435,5 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
             f = Path(file_name)
             if not overwrite:
                 assert f.exists(), f'file {file_name} exists'
-        self.scores.report(file_name = f, show = show, only_table=only_table)
+        self.scores.create_report(file_name = f, show = show, only_table=only_table)
         return f
