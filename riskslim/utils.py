@@ -75,9 +75,10 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file=None, fold_csv_
         - 'sample_weights' N x 1 vector of sample weights, must all be positive
 
     """
-    dataset_csv_file = Path(dataset_csv_file)
-    if not dataset_csv_file.exists():
-        raise IOError('could not find dataset_csv_file: %s' % dataset_csv_file)
+    if not dataset_csv_file.startswith("https://"):
+        dataset_csv_file = Path(dataset_csv_file)
+        if not dataset_csv_file.exists():
+            raise IOError('could not find dataset_csv_file: %s' % dataset_csv_file)
 
     df = pd.read_csv(dataset_csv_file, sep = ',')
 
