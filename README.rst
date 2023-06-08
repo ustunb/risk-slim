@@ -53,30 +53,30 @@ Quickstart
 
 .. code-block:: python
 
-  from pathlib import Path
   from riskslim import RiskSLIMClassifier, load_data_from_csv
+  from riskslim.utils import open_file
 
   # Load Data
-  data_name = "breastcancer"
-  data = load_data_from_csv(dataset_csv_file=Path('examples/data/{}_data.csv'.format(data_name)))
+  url = "https://raw.githubusercontent.com/ustunb/risk-slim/master/examples/data/"
+  url += "breastcancer_data.csv"
+
+  data = load_data_from_csv(url)
 
   # Initialize Model
   rs = RiskSLIMClassifier(
-      max_size=5, # max model size (number of non-zero coefficients; default set as float(inf))
-      max_coef=5, # value of largest/smallest coefficient
-      variable_names=data["variable_names"],
-      outcome_name=data["outcome_name"],
-      verbose=False
+      max_size = 5, # max model size (number of non-zero coefficients)
+      max_coef = 5, # value of largest/smallest coefficient
+      variable_names = data["variable_names"],
+      outcome_name = "poisonous",
+      verbose = False
   )
-  # Fit
-  rs.fit(X=data["X"], y=data["y"])
 
-  # Show Scores
-  rs.scores
+  # Fit
+  rs.fit(data["X"], data["y"])
 
   # Create Report
-  fig = rs.create_report('report.html')
-  fig.show()
+  report_file = rs.create_report(file_name = 'report.html')
+  open_file(report_file)
 
 
 Requirements
