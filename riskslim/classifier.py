@@ -347,7 +347,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         assert self.fitted
         if self.calibrated_estimator is None:
             # Normal case
-            y_pred = np.sign(X.dot(self.coefficients))
+            y_pred = np.sign(X.dot(self.rho))
         elif isinstance(self.calibrated_estimator, CalibratedClassifierCV):
             # Calibrator
             y_pred = self.calibrated_estimator.predict(X)
@@ -415,9 +415,10 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
             binary case, confidence score for `self.classes_[1]` where >0 means
             this class would be predicted.
         """
-        return X.dot(self.coefficients)
+        return X.dot(self.rho)
 
-    def create_report(self, file_name = None, show = True, only_table = False, overwrite = True):
+    def create_report(self, file_name = None, show = True, only_table = False,
+                      overwrite = True, n_bins = 5):
         """Create a RiskSLIM report using plotly.
 
         Parameters
@@ -427,6 +428,14 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
             Supported extensions include ".pdf" and ".html".
         show : bool, optional, default: True
             Calls fig.show() if True.
+        replace_table : bool, optional, default: False
+            Removes risk score table if True.
+        only_table : bool, optional, default: False
+            Plots only the risk table when True.
+        template : str
+            Path to html file template that will overwrite default.
+        n_bins : int
+            Number of to use when creating calibration plot.
         """
         # overwrite
         if file_name is None:
@@ -435,5 +444,6 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
             f = Path(file_name)
             if not overwrite:
                 assert f.exists(), f'file {file_name} exists'
-        self.scores.create_report(file_name = f, show = show, only_table=only_table)
+        self.scores.create_report(file_name = f, show = show, only_table = only_table,
+                                  n_bins = n_bins)
         return f

@@ -53,10 +53,6 @@ class RiskScore:
         else:
             self.proba = self.estimator.calibrated_estimator.predict_proba(self.X)[:, 1]
 
-        # Probabilties and postive rates
-        self.prob_pred, self.prob_true, self.fpr, self.tpr = \
-            self.compute_metrics(self.y, self.proba)
-
 
     def __str__(self):
         """Scores string."""
@@ -72,11 +68,11 @@ class RiskScore:
         print(self.estimator.coef_set)
 
 
-    def compute_metrics(self, y, proba):
+    def compute_metrics(self, y, proba, n_bins=5):
         """Computes calibration and ROC."""
 
         # Calibration curve
-        prob_true, prob_pred = calibration_curve(y, proba, pos_label=1, n_bins=5)
+        prob_true, prob_pred = calibration_curve(y, proba, pos_label=1, n_bins=n_bins)
         prob_pred *= 100
         prob_true *= 100
 
@@ -110,7 +106,8 @@ class RiskScore:
         self._table_last_col.append('= ...')
 
 
-    def create_report(self, file_name=None, show=False, replace_table=False, only_table=False, template=None):
+    def create_report(self, file_name=None, show=False, replace_table=False,
+                      only_table=False, template=None, n_bins=5):
         """Create a RiskSLIM report using plotly.
 
         Parameters
@@ -126,7 +123,10 @@ class RiskScore:
             Plots only the risk table when True.
         template : str
             Path to html file template that will overwrite default.
+        n_bins : int
+            Number of to use when creating calibration plot.
         """
+
         if template is None:
             report_template = Path(__file__).parent / 'template.html'
 
@@ -140,7 +140,7 @@ class RiskScore:
 
         if write_file and file_name.suffix in (".html"):
             # Generate figure html string
-            fig = self.create_report(replace_table=True, show=False)
+            fig = self.create_report(replace_table=True, show=False, n_bins=n_bins)
             fig.update_layout(font_family="Source Code Pro")
             fig_str = fig.to_html(include_plotlyjs=False, full_html=False)
 
@@ -195,6 +195,10 @@ class RiskScore:
                 f.write(text)
 
             return
+
+        # Probabilties and postive rates
+        self.prob_pred, self.prob_true, self.fpr, self.tpr = \
+            self.compute_metrics(self.y, self.proba, n_bins=n_bins)
 
         # Initalize subplots
         row = 1
@@ -280,15 +284,17 @@ class RiskScore:
                 for ind, (_, test) in enumerate(self.estimator.cv.split(self.X)):
 
                     # Calibration
-                    if self.estimator.calibrated_estimators_ is None:
+                    if self.estimator.cv_calibrated_estimators_ is None:
                         prob_pred, prob_true, fpr, tpr = self.compute_metrics(
                             self.y[test],
-                            self.estimator.cv_results["estimator"][ind].predict_proba(self.X[test])
+                            self.estimator.cv_results["estimator"][ind].predict_proba(self.X[test]),
+                            n_bins=n_bins
                         )
                     else:
                         prob_pred, prob_true, fpr, tpr = self.compute_metrics(
                             self.y[test],
-                            self.estimator.calibrated_estimators_[ind].predict_proba(self.X[test])[:, 1]
+                            self.estimator.cv_calibrated_estimators_[ind].predict_proba(self.X[test])[:, 1],
+                            n_bins=n_bins
                         )
 
                     fig.add_trace(
@@ -309,7 +315,7 @@ class RiskScore:
                         go.Scattergl(
                             x=fpr,
                             y=tpr,
-                            mode='lines',
+                            mode='markers+lines',
                             line=dict(color='black', width=2),
                             name="",
                             opacity=.2
@@ -350,7 +356,7 @@ class RiskScore:
                 go.Scattergl(
                     x=self.fpr,
                     y=self.tpr,
-                    mode='lines',
+                    mode='markers+lines',
                     line=dict(color='black', width=2),
                     name="ROC"
                 ),
@@ -365,7 +371,7 @@ class RiskScore:
                     mode='lines',
                     line=dict(color='black', dash='dash', width=2),
                     opacity=.5,
-                    name="Ideal"
+                    name="Chance"
                 ),
                 row=row+1,
                 col=2
