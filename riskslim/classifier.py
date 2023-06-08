@@ -17,60 +17,38 @@ from .utils import default_variable_names
 class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
     """RiskSLIM classifier
 
-    Parameters
+    Attributes
     ----------
-    min_size : int, optional, default: None
-        Minimum model size
-        None defaults to zero.
-    max_size : int, optional, default: None
-        Maximum model size.
-        None defaults to length of input variables.
-    min_coef : numeric or 1d array, optional, default: None
-        Minimum coefficient.
-        None default to -5
-    max_coef : numeric or 1d array, optional, default: None
-        Maximum coefficient.
-        None defaults to 5.
-    c0_value : 1d array or float, optional, default: None
-        L0-penalty for all parameters when an integer or for each parameter
-        separately when an array.
-        None defaults to 1e-6.
-    max_abs_offset : float, optional, default: None
-        Maximum absolute value of intercept. This may be specificed as the first value
-        of min_coef and max_coef. However, if min_coef and max_coef are floats, this parameter
-        provides a convenient way to set bounds on the offset.
-    variable_names : list of str, optional, default: None
-        Names of each features. Only needed if coefficients is not passed on initalization.
-        None defaults to generic variable names.
-    outcome_name : str, optional, default: None
-        Name of the output class.
-    verbose : bool, optional, default: True
-        Prints out log information if True, supresses if False.
-    constraints : list of tuples, optional, deafault: None
-        Tuples for adding constraints (name, var_inds, values, sense, rhs).
-        The recommended method for adding constraints is via the super classes
-        .add_constraint method. This kwarg is included for sklearn object cloning.
-    settings : dict, optional, default: None
-        Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
-        Use of this explicit kwarg allows cloning via sklearn (e.g. for grid search).
-        Settings are combined with **kwargs and then parsed. Parameters including in
-        in **kwargs will not be accessible or set after a clone.
-    **kwargs
-        May include key value pairs:
-
-            "coef_set" : riskslim.coefficient_set.CoefficientSet
-                Contraints (bounds) on coefficients of input variables.
-                If None, this is constructed based on values passed to other initalization kwargs.
-                If not None, other kwargs may be overwritten.
-
-            "vtype" : str or list of str
-                Variable types for coefficients.
-                Must be either "I" for integers or "C" for floats.
-
-            **settings : unpacked dict
-                Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
-                Defaults are defined in defaults.DEFAULT_LCPA_SETTINGS.
-
+    X : 2d array
+        Observations (rows) and features (columns).
+    y : 1d or 2d array
+        Class labels.
+    coef_set : riskslim.coefficient_set.CoefficientSet
+        Constraints on coefficients of input variables
+    bounds : riskslim.data.Bounds
+        Lower and upper bounds on objective value, loss, and model size.
+    stats : riskslim.data.Stats
+        Cplex solution statistics.
+    solution : cplex SolutionInterface
+        Solved cplex solution.
+    solution_info : dict
+        Additional solution information.
+    pool : riskslim.solution_pool.SolutionPool
+        Pool of solutions and associated objective values.
+    coefficients, rho : 1d array
+        Solved cofficients.
+    fitted : bool
+        Whether model has be fit.
+    scores : riskslim.risk_scores.RiskScores
+        Risk scores, derived metrics, and reports.
+    cv : sklearn.model_selection._split.KFold
+        Cross-validation.
+    cv_results : dict
+        Cross-validation results.
+    calibrated_estimator : sklearn.calibration.CalibratedClassifierCV
+        Single calibrator trained on all data.
+    calibrated_estimators_ : list of sklearn.calibration.CalibratedClassifierCV
+        Calibrators trained per fold. Must use the fitcv method.
     """
 
     def __init__(
@@ -88,7 +66,61 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         settings=None,
         **kwargs
     ):
+        """
+        Parameters
+        ----------
+        min_size : int, optional, default: None
+            Minimum number of regularized coefficients.
+            None defaults to zero.
+        max_size : int, optional, default: None
+            Maximum number of regularized coefficients.
+            None defaults to length of input variables.
+        min_coef : float or 1d array, optional, default: None
+            Minimum coefficient.
+            None default to -5
+        max_coef : float or 1d array, optional, default: None
+            Maximum coefficient.
+            None defaults to 5.
+        c0_value : 1d array or float, optional, default: None
+            L0-penalty for all parameters when an integer or for each parameter
+            separately when an array.
+            None defaults to 1e-6.
+        max_abs_offset : float, optional, default: None
+            Maximum absolute value of intercept. This may be specificed as the first value
+            of min_coef and max_coef. However, if min_coef and max_coef are floats, this parameter
+            provides a convenient way to set bounds on the offset.
+        variable_names : list of str, optional, default: None
+            Names of each features. Only needed if coefficients is not passed on initalization.
+            None defaults to generic variable names.
+        outcome_name : str, optional, default: None
+            Name of the output class.
+        verbose : bool, optional, default: True
+            Prints out log information if True, supresses if False.
+        constraints : list of tuples, optional, deafault: None
+            Tuples for adding constraints (name, var_inds, values, sense, rhs).
+            The recommended method for adding constraints is via the super classes
+            .add_constraint method. This kwarg is included for sklearn object cloning.
+        settings : dict, optional, default: None
+            Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
+            Use of this explicit kwarg allows cloning via sklearn (e.g. for grid search).
+            Settings are combined with kwargs and then parsed. Parameters including in
+            in kwargs will not be accessible or set after a clone.
+        **kwargs
+            May include key value pairs:
 
+            - "coef_set" : riskslim.coefficient_set.CoefficientSet
+                Contraints (bounds) on coefficients of input variables.
+                If None, this is constructed based on values passed to other initalization kwargs.
+                If not None, other kwargs may be overwritten.
+
+            - "vtype" : str or list of str
+                Variable types for coefficients.
+                Must be either "I" for integers or "C" for floats.
+
+            - \*\*settings : unpacked dict
+                Settings for warmstart (keys: \'init\_\'), cplex (keys: \'cplex\_\'), and lattice CPA.
+                Defaults are defined in ``defaults.DEFAULT_LCPA_SETTINGS``.
+        """
         # Pull min_coef/max_coef
         #   Note: max offset is set in coef_set during .optimize
         self.min_coef = min_coef
@@ -236,16 +268,16 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
             Possible inputs for k are:
 
             - None, to use the default 5-fold cross validation,
-            - int, to specify the number of folds in a `(Stratified)KFold`,
-            - :term:`CV splitter`,
+            - int, to specify the number of folds in a ``(Stratified)KFold``,
+            - ``CV splitter``,
             - An iterable yielding (train, test) splits as arrays of indices.
 
         scoring : str, callable, list, tuple, or dict, default: "roc_auc"
             Strategy to evaluate the performance of the cross-validated model on
             the test set.
 
-            - a single string (see sklearn `scoring_parameter`);
-            - a callable (see sklearn `scoring`) that returns a single value.
+            - a single string (see sklearn ``scoring_parameter``);
+            - a callable (see sklearn ``scoring``) that returns a single value.
 
         n_jobs : int, optional, default: 1
             Number of jobs to run in parallel. -1 defaults to max cores or threads.
@@ -381,8 +413,8 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Vector to be scored, where `n_samples` is the number of samples and
-            `n_features` is the number of features.
+            Vector to be scored, where ``n_samples`` is the number of samples and
+            ``n_features`` is the number of features.
 
         Returns
         -------
@@ -398,14 +430,14 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Vector to be scored, where `n_samples` is the number of samples and
-            `n_features` is the number of features.
+            Vector to be scored, where ``n_samples`` is the number of samples and
+            ``n_features`` is the number of features.
 
         Returns
         -------
         scores : ndarray of shape (n_samples,) or (n_samples, n_classes)
-            Confidence scores per `(n_samples, n_classes)` combination. In the
-            binary case, confidence score for `self.classes_[1]` where >0 means
+            Confidence scores per ``(n_samples, n_classes)`` combination. In the
+            binary case, confidence score for ``self.classes_[1]`` where >0 means
             this class would be predicted.
         """
         return X.dot(self.rho)
