@@ -149,14 +149,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
             Sample weights with shape (n_features, 1). Must all be positive.
         """
 
-        #todo: move data checking into a standalone function that we call in __init__ and here
-        if y.ndim == 1:
-            y = y.reshape(-1, 1)
-
-        inds = np.less_equal(y, 0)
-        if len(inds) > 0:
-            y[inds] = -1
-        n, d = X.shape
+        _, d = X.shape
         self.sample_weights = sample_weights
         self.classes_, _ = np.unique(y, return_inverse=True)
 

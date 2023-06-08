@@ -148,7 +148,8 @@ class RiskSLIMOptimizer:
         self.y = y
         self.sample_weights = np.ones(X.shape[0]) if sample_weights is None else sample_weights
 
-        #todo: check data attributes
+        # Check data attributes
+        self._check_data()
 
         # Initalize fitting procedure
         self._init_fit()
@@ -682,6 +683,42 @@ class RiskSLIMOptimizer:
         # Variable names
         self.variable_names = self.coef_set.variable_names
 
+
+    def _check_data(self):
+        """Check data types and shapes."""
+
+        if self.y.ndim == 1:
+            self.y = self.y.reshape(-1, 1)
+
+        inds = np.less_equal(self.y, 0)
+        if len(inds) > 0:
+            self.y[inds] = -1
+
+        check_data(
+            self.X, self.y, self.variable_names, self.outcome_name, self.sample_weights
+        )
+
+        self._variable_types = np.zeros(self.X.shape[1], dtype="str")
+        self._variable_types[:] = "C"
+        self._variable_types[np.all(self.X == np.require(self.X, dtype=np.int_), axis=0)] = "I"
+        self._variable_types[np.all(self.X == np.require(self.X, dtype=np.bool_), axis=0)] = "B"
+        self._integer_data = not np.any(self._variable_types == "C")
+
+        # Extra warnings
+        if self.verbose:
+
+            # Binary warning
+            if np.all(self._variable_types[1:] == "B"):
+                warn("X is recommended to be all binary.")
+
+            # Constant warning
+            constant_variables = np.array(self.variable_names)[np.all(self.X == self.X[0], axis=0)]
+            if (len(constant_variables) > 1) or not (
+                len(constant_variables) == 1 and constant_variables[0] == "(Intercept)"
+            ):
+                warn("Constant variable other than intercept found in X.")
+
+
     def _init_fit(self):
         """Pre-fit initialization routine."""
         # Initialize data dict
@@ -703,19 +740,7 @@ class RiskSLIMOptimizer:
                     )
             self._init_coeffs()
 
-        # Check data types and shapes
-        check_data(
-                self.X, self.y, self.variable_names, self.outcome_name, self.sample_weights
-                )
-
         self.Z = (self.X * self.y).astype(np.float64)
-
-        self._variable_types = np.zeros(self.X.shape[1], dtype="str")
-        self._variable_types[:] = "C"
-        self._variable_types[np.all(self.X == np.require(self.X, dtype=np.int_), axis=0)] = "I"
-        self._variable_types[np.all(self.X == np.require(self.X, dtype=np.bool_), axis=0)] = "B"
-
-        self._integer_data = not np.any(self._variable_types == "C")
         self.n_variables = self.Z.shape[1]
 
         # Function handles
