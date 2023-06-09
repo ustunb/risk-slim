@@ -457,7 +457,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         """
         return X.dot(self.coef_)
 
-    def create_report(self, file_name = None, show = True, only_table = False,
+    def create_report(self, file_name = None, show = False, only_table = False,
                       overwrite = True, n_bins = 5):
         """Create a RiskSLIM report using plotly.
 
@@ -466,7 +466,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         file_name : str
             Name of file and extension to save report to.
             Supported extensions include ".pdf" and ".html".
-        show : bool, optional, default: True
+        show : bool, optional, default: False
             Calls fig.show() if True.
         replace_table : bool, optional, default: False
             Removes risk score table if True.
@@ -489,7 +489,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
             file_name = f,
             show = show,
             only_table = only_table,
-             n_bins = n_bins
+            n_bins = n_bins
         )
 
         return f
