@@ -144,8 +144,9 @@ rs.scores
 # Interactive Reports
 # -------------------
 #
-# Interactive reports may be create by passing an *.html to the file_name kwarg of
+# Interactive reports may be create by passing an html extension to the file_name kwarg of
 # ``create_report``.
+#
 
 # Create interactive html table
 rs.create_report("example_report.html", only_table=True)

@@ -8,7 +8,7 @@ from copy import copy
 import cplex
 from cplex.exceptions import CplexError
 
-from riskslim.utils import Stats, check_data, validate_settings, print_log
+from riskslim.utils import Stats, check_data, validate_settings, print_log, default_variable_names
 from riskslim.defaults import DEFAULT_LCPA_SETTINGS
 from riskslim.coefficient_set import CoefficientSet, get_score_bounds
 from riskslim.mip import add_mip_starts, create_risk_slim, set_cplex_mip_parameters
@@ -27,63 +27,88 @@ from riskslim.callbacks import LossCallback, PolishAndRoundCallback
 class RiskSLIMOptimizer:
     """RiskSLIM optimizer object.
 
-    Parameters
+    Attributes
     ----------
-    min_size : int, optional, default: None
-        Minimum number of regularized coefficients.
-        None defaults to zero.
-    max_size : int, optional, default: None
-        Maximum number of regularized coefficients.
-        None defaults to length of input variables.
-    min_coef : float or 1d array, optional, default: -5.
-        Minimum coefficient.
-    max_coef : float or 1d array, optional, default: 5.
-        Maximum coefficient.
-    c0_value : 1d array or float, optional, default: 1e-6
-        L0-penalty for all parameters when an integer or for each parameter
-        separately when an array.
-    max_abs_offset : float, optional, default: None
-        Maximum absolute value of intercept. This may be specificed as the first value
-        of min_coef and max_coef. However, if min_coef and max_coef are floats, this parameter
-        provides a convenient way to set bounds on the offset.
-    variable_names : list of str, optional, default: None
-            Names of each features. Only needed if coefficients is not passed on
-            initalization. None defaults to generic variable names.
-    outcome_name : str, optional, default: None
-        Name of the output class.
-    verbose : bool, optional, default: True
-        Prints out log information if True, supresses if False.
-    **kwargs
-        May include key value pairs:
+    X : 2d array
+        Observations (rows) and features (columns).
+    y : 1d or 2d array
+        Class labels.
+    coef_set : riskslim.coefficient_set.CoefficientSet
+        Constraints on coefficients of input variables
+    bounds : riskslim.data.Bounds
+        Lower and upper bounds on objective value, loss, and model size.
+    stats : riskslim.data.Stats
+        Cplex solution statistics.
+    solution : cplex SolutionInterface
+        Solved cplex solution.
+    solution_info : dict
+        Additional solution information.
+    pool : riskslim.solution_pool.SolutionPool
+        Pool of solutions and associated objective values.
+    coefficients, rho : 1d array
+        Solved cofficients.
+    fitted : bool
+        Whether model has be fit.
+    """
 
-            "coef_set" : riskslim.coefficient_set.CoefficientSet
+    def __init__(
+        self,
+        min_size=None,
+        max_size=None,
+        min_coef=-5.0,
+        max_coef=5.0,
+        c0_value=1e-6,
+        max_abs_offset=None,
+        variable_names=None,
+        outcome_name=None,
+        verbose=True,
+        constraints=None,
+        **kwargs
+    ):
+        """
+        Parameters
+        ----------
+        min_size : int, optional, default: None
+            Minimum number of regularized coefficients.
+            None defaults to zero.
+        max_size : int, optional, default: None
+            Maximum number of regularized coefficients.
+            None defaults to length of input variables.
+        min_coef : float or 1d array, optional, default: -5.
+            Minimum coefficient.
+        max_coef : float or 1d array, optional, default: 5.
+            Maximum coefficient.
+        c0_value : 1d array or float, optional, default: 1e-6
+            L0-penalty for all parameters when an integer or for each parameter
+            separately when an array.
+        max_abs_offset : float, optional, default: None
+            Maximum absolute value of intercept. This may be specificed as the first value
+            of min_coef and max_coef. However, if min_coef and max_coef are floats, this parameter
+            provides a convenient way to set bounds on the offset.
+        variable_names : list of str, optional, default: None
+                Names of each features. Only needed if coefficients is not passed on
+                initalization. None defaults to generic variable names.
+        outcome_name : str, optional, default: None
+            Name of the output class.
+        verbose : bool, optional, default: True
+            Prints out log information if True, supresses if False.
+        **kwargs
+            May include key value pairs:
+
+            - "coef_set" : riskslim.coefficient_set.CoefficientSet
                 Contraints (bounds) on coefficients of input variables.
                 If None, this is constructed based on values passed to other initalization kwargs.
                 If not None, other kwargs may be overwritten.
 
-            "vtype" : str or list of str
+            - "vtype" : str or list of str
                 Variable types for coefficients.
                 Must be either "I" for integers or "C" for floats.
 
-            **settings : unpacked dict
-                Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
-                Defaults are defined in defaults.DEFAULT_LCPA_SETTINGS.
-    """
+            - \*\*settings : unpacked dict
+                Settings for warmstart (keys: \'init\_\'), cplex (keys: \'cplex\_\'), and lattice CPA.
+                Defaults are defined in ``defaults.DEFAULT_LCPA_SETTINGS``.
 
-    def __init__(
-            self,
-            min_size=None,
-            max_size=None,
-            min_coef=-5.0,
-            max_coef=5.0,
-            c0_value=1e-6,
-            max_abs_offset=None,
-            variable_names=None,
-            outcome_name=None,
-            verbose=True,
-            constraints=None,
-            **kwargs
-            ):
+        """
         # Empty fields
         self.fitted = False
         self.has_warmstart = False
@@ -91,7 +116,7 @@ class RiskSLIMOptimizer:
         self.initial_cuts = None
 
         # Handle kwargs
-        self.vtype = kwargs.pop("vtype", None)
+        self.vtype = kwargs.pop("vtype", "I")
         self.coef_set = kwargs.pop("coef_set", None)
         settings = kwargs
 
@@ -130,9 +155,7 @@ class RiskSLIMOptimizer:
         self.outcome_name = outcome_name
 
 
-    def optimize(
-            self, X, y, sample_weights=None
-            ):
+    def optimize(self, X, y, sample_weights=None):
         """Optimize RiskSLIM.
 
         Parameters
@@ -150,7 +173,8 @@ class RiskSLIMOptimizer:
         self.y = y
         self.sample_weights = np.ones(X.shape[0]) if sample_weights is None else sample_weights
 
-        #todo: check data attributes
+        # Check data attributes
+        self._check_data()
 
         # Initalize fitting procedure
         self._init_fit()
@@ -302,7 +326,7 @@ class RiskSLIMOptimizer:
         # Round CPA solutions
         if settings["use_rounding"] and len(pool) > 0:
             self.log(f"running naive rounding on {len(pool)} solutions")
-            self.log("best objective value: {:04f}", format(np.min(pool.objvals)))
+            self.log("best objective value: {:04f}".format(np.min(pool.objvals)))
             rnd_pool, _, _ = round_solution_pool(
                     pool,
                     constraints,
@@ -315,12 +339,12 @@ class RiskSLIMOptimizer:
             self.log(f"rounding produced {len(rnd_pool)} integer solutions")
             if len(rnd_pool) > 0:
                 pool.append(rnd_pool)
-            self.log("best objective value: {:04f}", format(np.min(pool.objvals)))
+            self.log("best objective value: {:04f}".format(np.min(pool.objvals)))
 
         # Sequentially round CPA solutions
         if settings["use_sequential_rounding"] and len(pool) > 0:
             self.log(f"running sequential rounding on {len(pool)} solutions")
-            self.log("best objective value: {:04f}".format(pool.objvals))
+            self.log("best objective value: {:04f}".format(np.min(pool.objvals)))
 
             sqrnd_pool, _, _ = sequential_round_solution_pool(
                     pool=pool,
@@ -458,7 +482,7 @@ class RiskSLIMOptimizer:
         """Ensure constraints are obeyed.
 
         Parameters
-        ---------
+        ----------
         """
         return (
                 np.all(self.max_coef >= rho)
@@ -684,34 +708,82 @@ class RiskSLIMOptimizer:
         # Variable names
         self.variable_names = self.coef_set.variable_names
 
+
+    def _check_data(self):
+        """Check data types and shapes."""
+        # Check shape and normalize values of y to {-1, 1}
+        if self.y.ndim == 1:
+            self.y = self.y.reshape(-1, 1)
+
+        inds = np.less_equal(self.y, 0)
+        if len(inds) > 0:
+            self.y[inds] = -1
+
+        # Default variable names
+        if self.variable_names is None:
+
+            include_intercept = False
+            if np.all(self.X[:, 0] == 1):
+                include_intercept = True
+
+            self.variable_names = default_variable_names(
+                n_variables = self.X.shape[1],
+                include_intercept = include_intercept
+            )
+
+        # Add intercept column to X
+        if self.variable_names[0] != "(Intercept)":
+            self.X = np.insert(self.X, 0, np.ones(self.X.shape[0]), axis=1)
+            self.variable_names.insert(0, "(Intercept)")
+
+        # Check shape compatibility between arrays
+        check_data(
+            self.X, self.y, self.variable_names, self.outcome_name, self.sample_weights
+        )
+
+        # Infer variable types
+        self._variable_types = np.zeros(self.X.shape[1], dtype="str")
+        self._variable_types[:] = "C"
+        self._variable_types[np.all(self.X == np.require(self.X, dtype=np.int_), axis=0)] = "I"
+        self._variable_types[np.all(self.X == np.require(self.X, dtype=np.bool_), axis=0)] = "B"
+        self._integer_data = not np.any(self._variable_types == "C")
+
+        # Extra warnings
+        if self.verbose:
+
+            # Binary warning
+            if np.all(self._variable_types[1:] == "B"):
+                warn("X is recommended to be all binary.")
+
+            # Constant warning
+            constant_variables = np.array(self.variable_names)[np.all(self.X == self.X[0], axis=0)]
+            if (len(constant_variables) > 1) or not (
+                len(constant_variables) == 1 and constant_variables[0] == "(Intercept)"
+            ):
+                warn("Constant variable other than intercept found in X.")
+
+
     def _init_fit(self):
         """Pre-fit initialization routine."""
         # Initialize data dict
         if self.variable_names is None:
             self.variable_names = [
-                f"Variable_{str(i).zfill(3)}" for i in range(len(self.X[0]) - 1)
+                f"Variable_{str(i).zfill(3)}" for i in range(len(self.X[0]))
                 ]
-            self.variable_names.insert(0, "(Intercept)")
 
         # Initialize coefficients if not given on initialization
         if self.coef_set is None:
             self.coef_set = CoefficientSet(
-                    self.variable_names,
-                    lb=self.min_coef,
-                    ub=self.max_coef,
-                    c0=self.c0_value,
-                    vtype=self.vtype,
-                    print_flag=self.verbose,
-                    )
+                self.variable_names,
+                lb=self.min_coef,
+                ub=self.max_coef,
+                c0=self.c0_value,
+                vtype=self.vtype,
+                print_flag=self.verbose,
+            )
             self._init_coeffs()
 
-        # Check data types and shapes
-        check_data(
-                self.X, self.y, self.variable_names, self.outcome_name, self.sample_weights
-                )
-
         self.Z = (self.X * self.y).astype(np.float64)
-        self._integer_data = np.all(self.Z == np.require(self.Z, dtype=np.int_))
         self.n_variables = self.Z.shape[1]
 
         # Function handles

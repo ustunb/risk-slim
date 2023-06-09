@@ -15,68 +15,87 @@ from riskslim.utils import print_model
 
 REPORT_FILE_TYPES = ('.pdf', '.png', '.html')
 
-class RiskScore:
+class RiskScoreReporter:
     """Risk scores (rho), derived metrics, and reports."""
 
-    def __init__(self, estimator, X=None, y=None):
+    def __init__(self, dataset, estimator):
         """Initalize object
 
         Parameters
         ----------
+        dataset : risklim.data.ClassificationDataset
+            Binary classification dataset.
         estimator : riskslim.classifier.RiskSLIMClassifier
-            Fitted riskslim estimator.
+            Fitted riskslim estimator. Also accepts scikit-learn estimators.
         """
 
-        if not isinstance(estimator, list) and not estimator.fitted:
+        if not isinstance(estimator, list) and estimator.coef_ is None:
             # Ensure single model if fit
-            raise ValueError("RiskScore expects a fitted RiskSLIM input.")
+            raise ValueError("RiskScore expects a fit RiskSLIM or linear model input.")
 
-        # Unpack references to RiskSLIM arrays
         self.estimator = estimator
-        self.X = self.estimator.X if X is None else X
-        self.y = self.estimator.y if y is None else y
+        self.X = dataset.X
+        self.y = dataset.y
+        self.variable_names = dataset.variable_names
+        self.outcome_name = dataset.outcome_name
+
+        if hasattr(estimator, "rho"):
+            self.rho = estimator.rho
+        else:
+            # For scikit-learn estimators
+            self.rho = np.insert(np.squeeze(self.estimator.coef_), 0, self.estimator.intercept_)
+            self.variable_names.insert(0, "(Intercept)")
+
+        if hasattr(estimator, "_variable_types"):
+            self._variable_types = estimator._variable_types
+        else:
+            # For scikit-learn estimators
+            self._variable_types = np.zeros(self.X.shape[1], dtype="str")
+            self._variable_types[:] = "C"
+            self._variable_types[np.all(self.X == np.require(self.X, dtype=np.int_), axis=0)] = "I"
+            self._variable_types[np.all(self.X == np.require(self.X, dtype=np.bool_), axis=0)] = "B"
 
         # Table
-        if np.not_equal(estimator.rho, 0.0).any():
-            self._table = print_model(
-                estimator.rho,
-                estimator.coef_set.variable_names,
-                self.estimator.outcome_name,
+        if np.not_equal(estimator.coef_, 0.0).any():
+            self.table_str = print_model(
+                self.rho,
+                self.variable_names,
+                self.outcome_name,
                 show_omitted_variables=False,
                 return_only=True
             )
+            self.table = {}
             self._prepare_table()
 
-        # Performance measures
-        if self.estimator.calibrated_estimator is None:
+        # Probability estimates
+        if not hasattr(self.estimator, "calibrated_estimator") or self.estimator.calibrated_estimator is None:
             self.proba = estimator.predict_proba(self.X)
         else:
             self.proba = self.estimator.calibrated_estimator.predict_proba(self.X)[:, 1]
 
-        # Probabilties and postive rates
-        self.prob_pred, self.prob_true, self.fpr, self.tpr = \
-            self.compute_metrics(self.y, self.proba)
-
 
     def __str__(self):
         """Scores string."""
-        return str(self._table)
+        return str(self.table_str)
 
 
     def __repr__(self):
-        return str(self._table)
+        return str(self.table_str)
 
 
     def print_coefs(self):
         """Print coefficient info."""
-        print(self.estimator.coef_set)
+        if hasattr(self.estimator.coef_set):
+            print(self.estimator.coef_set)
+        else:
+            print(self.estimator.coef_)
 
 
-    def compute_metrics(self, y, proba):
+    def compute_metrics(self, y, proba, n_bins=5):
         """Computes calibration and ROC."""
 
         # Calibration curve
-        prob_true, prob_pred = calibration_curve(y, proba, pos_label=1, n_bins=5)
+        prob_true, prob_pred = calibration_curve(y, proba, pos_label=1, n_bins=n_bins)
         prob_pred *= 100
         prob_true *= 100
 
@@ -87,36 +106,36 @@ class RiskScore:
 
 
     def _prepare_table(self):
-        # todo: plop into dictionary?
         """Prepare arrays for plotly table."""
 
         # Non-zero coefficients
-        inds = np.flatnonzero(self.estimator.rho[1:])
+        inds = np.flatnonzero(self.rho[1:])
         if len(inds) == 0:
             raise ValueError('all zero coefficients')
 
-        self._table_names = np.array(self.estimator.coef_set.variable_names)[inds+1].tolist()
-        self._table_scores = self.estimator.rho[inds+1]
+        self.table["names"] = np.array(self.variable_names)[inds+1].tolist()
+        self.table["scores"] = self.rho[inds+1]
 
-        self._table_names = [str(i+1) + '.    ' + n
-                             for i, n in enumerate(self._table_names)]
-        self._table_names.append('')
+        self.table["names"] = [str(i+1) + '.    ' + n
+                             for i, n in enumerate(self.table["names"])]
+        self.table["names"].append('')
 
-        self._table_scores = [str(int(s)) + ' point' if s == 1 else str(int(s)) + ' points'
-                              for s in self._table_scores]
-        self._table_scores.append('SCORE')
+        self.table["scores"] = ['(' + str(int(s)) + ' point)' if s == 1 else str(int(s)) + ' points)'
+                              for s in self.table["scores"]]
+        self.table["scores"].append('SCORE')
 
-        self._table_last_col = ['   ...', *['+ ...']*(len(self._table_scores)-2)]
-        self._table_last_col.append('= ...')
+        self.table["last_col"] = ['   ...', *['+ ...']*(len(self.table["scores"])-2)]
+        self.table["last_col"].append('= ...')
 
 
-    def report(self, file_name=None, show=False, replace_table=False, only_table=False):
-        """Create a RiskSLIM create_report using plotly.
+    def create_report(self, file_name=None, show=False, replace_table=False,
+                      only_table=False, template=None, n_bins=5):
+        """Create a RiskSLIM report using plotly.
 
         Parameters
         ----------
         file_name : str
-            Name of file and extension to save create_report to.
+            Name of file and extension to save report to.
             Supported extensions include ".pdf" and ".html".
         show : bool, optional, default: True
             Calls fig.show() if True.
@@ -124,9 +143,30 @@ class RiskScore:
             Removes risk score table if True.
         only_table : bool, optional, default: False
             Plots only the risk table when True.
+        template : str
+            Path to html file template that will overwrite default.
+        n_bins : int
+            Number of to use when creating calibration plot.
         """
-        report_template = Path(__file__).parent / 'template.html'
-        #todo: check that this exists/allow for custom templates?
+
+        # Determine size of plots and tables
+        height = 800
+        width = 800
+
+        if replace_table and not only_table:
+            height = 600
+        elif replace_table and only_table:
+            height = 400
+        elif only_table:
+            height = 300
+
+        # Paths
+        if template is None:
+            report_template = Path(__file__).parent / 'template.html'
+
+        if not report_template.is_file():
+            raise ValueError("Report template file does not exist.")
+
         write_file = file_name is not None
 
         if write_file:
@@ -134,12 +174,13 @@ class RiskScore:
 
         if write_file and file_name.suffix in (".html"):
             # Generate figure html string
-            fig = self.report(replace_table=True)
+            fig = self.create_report(replace_table=True, show=False, n_bins=n_bins)
+            fig.update_layout(font_family="Source Code Pro")
             fig_str = fig.to_html(include_plotlyjs=False, full_html=False)
 
-            inds = np.flatnonzero(self.estimator.rho)
-            _vars = np.array(self.estimator.variable_names)[inds]
-            _rho = self.estimator.rho[inds]
+            inds = np.flatnonzero(self.rho)
+            _vars = np.array(self.variable_names)[inds]
+            _rho = self.rho[inds]
 
             min_values = self.X.min(axis=0)[inds]
             max_values = self.X.max(axis=0)[inds]
@@ -171,6 +212,11 @@ class RiskScore:
                     for v in max_values:
                         text_list[ind] += f"{v},"
                     text_list[ind] += "];"
+                elif line.startswith("    var variable_types ="):
+                    text_list[ind] = "    var variable_types = ["
+                    for v in self._variable_types:
+                        text_list[ind] += f"\"{v}\","
+                    text_list[ind] += "];"
                 elif line.startswith("        $ploty_html") and not only_table:
                     text_list[ind] = "    " + fig_str
                 elif line.startswith("        $ploty_html") and only_table:
@@ -183,6 +229,10 @@ class RiskScore:
                 f.write(text)
 
             return
+
+        # Probabilties and postive rates
+        self.prob_pred, self.prob_true, self.fpr, self.tpr = \
+            self.compute_metrics(self.y, self.proba, n_bins=n_bins)
 
         # Initalize subplots
         row = 1
@@ -213,7 +263,6 @@ class RiskScore:
                 subplot_titles=("Predicted Risk", "Calibration", "ROC Curve")
             )
 
-
         # Table: risk scores
         if not replace_table:
             fig.add_trace(
@@ -224,9 +273,9 @@ class RiskScore:
                     ),
                     cells=dict(
                         values=[
-                            [*self._table_names],
-                            [*self._table_scores],
-                            [*self._table_last_col]
+                            [*self.table["names"]],
+                            [*self.table["scores"]],
+                            [*self.table["last_col"]]
                         ],
                         align='left',
                     ),
@@ -263,20 +312,22 @@ class RiskScore:
             )
 
             # Folds
-            if self.estimator.cv_results is not None:
+            if hasattr(self.estimator, "cv_results") and self.estimator.cv_results is not None:
 
                 for ind, (_, test) in enumerate(self.estimator.cv.split(self.X)):
 
                     # Calibration
-                    if self.estimator.calibrated_estimators_ is None:
+                    if self.estimator.cv_calibrated_estimators_ is None:
                         prob_pred, prob_true, fpr, tpr = self.compute_metrics(
                             self.y[test],
-                            self.estimator.cv_results["estimator"][ind].predict_proba(self.X[test])
+                            self.estimator.cv_results["estimator"][ind].predict_proba(self.X[test]),
+                            n_bins=n_bins
                         )
                     else:
                         prob_pred, prob_true, fpr, tpr = self.compute_metrics(
                             self.y[test],
-                            self.estimator.calibrated_estimators_[ind].predict_proba(self.X[test])[:, 1]
+                            self.estimator.cv_calibrated_estimators_[ind].predict_proba(self.X[test])[:, 1],
+                            n_bins=n_bins
                         )
 
                     fig.add_trace(
@@ -297,7 +348,7 @@ class RiskScore:
                         go.Scattergl(
                             x=fpr,
                             y=tpr,
-                            mode='lines',
+                            mode='markers+lines',
                             line=dict(color='black', width=2),
                             name="",
                             opacity=.2
@@ -338,7 +389,7 @@ class RiskScore:
                 go.Scattergl(
                     x=self.fpr,
                     y=self.tpr,
-                    mode='lines',
+                    mode='markers+lines',
                     line=dict(color='black', width=2),
                     name="ROC"
                 ),
@@ -353,23 +404,13 @@ class RiskScore:
                     mode='lines',
                     line=dict(color='black', dash='dash', width=2),
                     opacity=.5,
-                    name="Ideal"
+                    name="Chance"
                 ),
                 row=row+1,
                 col=2
             )
 
         # Update Attributes
-        # todo: bring to top
-        height = 800
-        width = 800
-        if replace_table and not only_table:
-            height = 600
-        elif replace_table and only_table:
-            height = 400
-        elif only_table:
-            height = 300
-
         fig.update_layout(
             # General
             title_text="RiskSLIM Report" if not replace_table and not only_table else "",

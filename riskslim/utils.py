@@ -8,7 +8,6 @@ import warnings
 import numpy as np
 import pandas as pd
 import prettytable as pt
-from dev.debug import ipsh
 
 from .bound_tightening import Bounds
 from .defaults import INTERCEPT_NAME
@@ -76,9 +75,10 @@ def load_data_from_csv(dataset_csv_file, sample_weights_csv_file=None, fold_csv_
         - 'sample_weights' N x 1 vector of sample weights, must all be positive
 
     """
-    dataset_csv_file = Path(dataset_csv_file)
-    if not dataset_csv_file.exists():
-        raise IOError('could not find dataset_csv_file: %s' % dataset_csv_file)
+    if not dataset_csv_file.startswith("https://"):
+        dataset_csv_file = Path(dataset_csv_file)
+        if not dataset_csv_file.exists():
+            raise IOError('could not find dataset_csv_file: %s' % dataset_csv_file)
 
     df = pd.read_csv(dataset_csv_file, sep = ',')
 
@@ -177,10 +177,8 @@ def check_data(X, y, variable_names, outcome_name=None, sample_weights=None):
     assert P > 0, 'X matrix must have at least 1 column'
     assert len(y) == N, 'dimension mismatch. Y must contain as many entries as X. Need len(Y) = N.'
     assert len(list(set(variable_names))) == len(variable_names), 'variable_names is not unique'
-    try:
-        assert len(variable_names) == P, 'len(variable_names) should be same as # of cols in X'
-    except:
-        ipsh()
+    assert len(variable_names) == P, 'len(variable_names) should be same as # of cols in X'
+
 
     # feature matrix
     assert np.all(~np.isnan(X)), 'X has nan entries'

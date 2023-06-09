@@ -23,13 +23,14 @@ class ClassificationDataset:
     sample_weights : 2d array, optional, default: None
         Sample weights with shape (n_features, 1). Must all be positive.
     """
-    def __init__(self, X, y, variable_names, outcome_name=None, sample_weights=None):
+    def __init__(self, X, y, variable_names, outcome_name=None, sample_weights=None, check=False):
         self._X = X
         self._y = y
         self._variable_names = variable_names
         self._outcome_name = outcome_name
         self._sample_weights = sample_weights
-        assert self.__check_rep__()
+        if check:
+            assert self.__check_rep__()
 
     @property
     def X(self):

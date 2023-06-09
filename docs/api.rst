@@ -25,12 +25,42 @@ Object for optimizing risk scores.
 
    RiskSLIMOptimizer
 
+Scikit-learn compatible interface for the optimizer.
+
 .. currentmodule:: riskslim.classifier
 
 .. autosummary::
    :toctree: generated/
 
    RiskSLIMClassifier
+
+Scores
+------
+
+Risk scores, derived metrics, and reporting.
+
+.. currentmodule:: riskslim.risk_scores
+
+.. autosummary::
+   :toctree: generated/
+
+   RiskScores
+
+
+Coefficients
+------------
+
+Class to represent and specify constraints on coefficients of input variables.
+
+.. currentmodule:: riskslim.coefficient_set
+
+.. autosummary::
+   :toctree: generated/
+
+   CoefficientSet
+
+
+
 
 MIP
 ---
@@ -61,3 +91,18 @@ Loss Functions
    log_loss.log_loss_value_and_slope
    log_loss.log_loss_value_from_scores
    log_loss.log_probs
+
+
+Callbacks
+---------
+
+Calls when CPLEX finds an integer feasible solution.
+
+.. currentmodule:: riskslim.callbacks
+
+.. autosummary::
+   :toctree: generated/
+
+   LossCallback
+   PolishAndRoundCallback
+
