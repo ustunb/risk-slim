@@ -10,9 +10,11 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import check_scoring
 
 from .optimizer import RiskSLIMOptimizer
-from .risk_score import RiskScore
+from .risk_score import RiskScoreReporter
 from .coefficient_set import CoefficientSet
 from .utils import default_variable_names
+from .data import ClassificationDataset
+
 
 class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
     """RiskSLIM classifier
@@ -35,11 +37,15 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         Additional solution information.
     pool : riskslim.solution_pool.SolutionPool
         Pool of solutions and associated objective values.
-    coefficients, rho : 1d array
-        Solved cofficients.
+    rho : 1d array
+        Solved cofficients, includes intercept.
+    coefs_ : 1d array
+        Solved cofficients, excludes intercept. For compatibility with sci-kit learn.
+    intercept_ : 1d array
+        Intercept coefficient. For compatibility with sci-kit learn.
     fitted : bool
         Whether model has be fit.
-    scores : riskslim.risk_scores.RiskScores
+    report : riskslim.risk_scores.RiskScoreReporter
         Risk scores, derived metrics, and reports.
     cv : sklearn.model_selection._split.KFold
         Cross-validation.
@@ -147,23 +153,31 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
 
         self.settings.update(kwargs)
 
-        self.scores = None
+        self.reporter = None
         self.calibrated_estimator = None
 
         # Cross-validation
         self.cv = None
         self.cv_results = None
-        self.cv_calibrated_estimators_ = None
+        self.cv_calibrated_estimators = None
 
         # Custom constraints
         self.constraints = constraints if constraints is not None else []
         self.fitted = False
 
+        self.dataset = None
+        self.classes_ = None
+
         self.optimizer = None
+
+        self.rho = None
+
+        self.coef_ = None
+        self.intercept_ = None
 
     def __repr__(self):
         if self.fitted:
-            return self.scores.__repr__()
+            return self.reporter.__repr__()
         else:
             return super().__repr__()
 
@@ -185,36 +199,20 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         self.sample_weights = sample_weights
         self.classes_, _ = np.unique(y, return_inverse=True)
 
-        # Create or pop coefficient set from kwargs
-        #   This must be done here rather than init, since variable_names is optional
-        #   it's length can only be inferred from X.
+        # Determine variable names
         if self.variable_names is None:
-            self.variable_names = default_variable_names(n_variables = d, include_intercept = True)
 
-        if self.coef_set is None:
-            self.coef_set = CoefficientSet(
-                    variable_names = self.variable_names,
-                    lb=self.min_coef,
-                    ub=self.max_coef,
-                    c0=self.c0_value,
-                    vtype=self.vtype,
-                    print_flag=self.verbose
-                    )
-            self.vtype = self.coef_set.vtype
+            # Add a column to X if it doesn't contain intercept
+            if not np.all(X[:, 0] == 1):
+                d += 1
+                X = np.insert(X, 0, np.ones(X.shape[0]), axis=1)
 
-        assert isinstance(self.coef_set, CoefficientSet)
-        self.min_coef = np.min(self.coef_set.lb)
-        self.max_coef = np.max(self.coef_set.ub)
-        self.c0_value = self.coef_set.c0
+            self.variable_names = default_variable_names(
+                n_variables = d,
+                include_intercept = True
+            )
 
-
-        # Default max size is unknown until coefficient set is constructed,
-        #   assuming variable_names is not passed during initalization
-        self.min_size = 0 if self.min_size is None else self.min_size
-        self.max_size = len(self.coef_set) - 1 if self.max_size  is None else self.max_size
-
-        # Sci-kit learns requires only attributes directly passed in init signature
-        #   to be set in init. Other variables are initalized at fit time
+        # Initialize optimizer
         self.optimizer = RiskSLIMOptimizer(
             min_size=self.min_size,
             max_size=self.max_size,
@@ -235,13 +233,28 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         # Fit
         self.optimizer.optimize(X, y, self.sample_weights)
 
+        # Pass initalize attributes from optimzier to self
+        self.coef_set = self.optimizer.coef_set
+        self.min_coef = self.optimizer.min_coef
+        self.max_coef = self.optimizer.c0_value
+        self.min_size = self.optimizer.min_size
+        self.max_size = self.optimizer.max_size
+        self._variable_types = self.optimizer._variable_types
+
         # Attributes
         self.X = X
         self.y = y
+
         self.rho = self.optimizer.rho
+        self.coef_ = self.optimizer.rho[1:]
+        self.intercept_ = self.optimizer.rho[0]
+        self.classes_ = np.unique(self.y)
+
         self.fitted = True
 
-        self.scores = RiskScore(self)
+        # Create a dataset and report
+        self.dataset = ClassificationDataset(X, y, self.variable_names, self.outcome_name, self.sample_weights)
+        self.reporter = RiskScoreReporter(dataset=self.dataset, estimator=self)
 
     def fit_cv(
         self,
@@ -300,7 +313,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         )
 
         # Fit an estimator on the entire dataset and compute scores
-        if self.scores is None:
+        if self.reporter is None:
             self.fit(X, y, sample_weights)
 
 
@@ -319,15 +332,17 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         method : {"sigmoid", "isotonic"}
             Linear classifier used to recalibrate scores.
         """
-        # todo: call check_data
+        # todo: call check_data <- rh: check_data has to be called in .fit() prior to this call
         # todo: add support for kwargs (method = 'sigmoid') should be
+        #     <- rh: i don't think kwargs should be user facing; it leads to issues like unclear signatures
+        #            or passing bad args in (e.g. methdo="sigmoid" typo wouldn't raise an error)
 
         if not self.fitted:
             raise ValueError("fit RiskSLIM before calling recalibrate")
 
         if self.cv_results is not None:
             # Compute an ensemble (1 per fold) of calibrators
-            self.cv_calibrated_estimators_ = []
+            self.cv_calibrated_estimators = []
 
             for train, _ in self.cv.split(X, y.reshape(-1)):
 
@@ -341,7 +356,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
                 )
 
                 clf.fit(_X, _y, sample_weights)
-                self.cv_calibrated_estimators_.append(clf)
+                self.cv_calibrated_estimators.append(clf)
 
         # Compute single calibrator if fit_cv was not used
         self.calibrated_estimator = CalibratedClassifierCV(
@@ -352,8 +367,8 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
 
         self.calibrated_estimator.fit(X, y, sample_weights)
 
-        # Compute scores from the calibrated estimator
-        self.scores = RiskScore(self)
+        # Create reporter from the calibrated estimator
+        self.reporter = RiskScoreReporter(dataset=self.dataset, estimator=self)
 
     def predict(self, X):
         """Predict labels.
@@ -372,7 +387,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         assert self.fitted
         if self.calibrated_estimator is None:
             # Normal case
-            y_pred = np.sign(X.dot(self.rho))
+            y_pred = np.sign(X.dot(self.coef_))
         elif isinstance(self.calibrated_estimator, CalibratedClassifierCV):
             # Calibrator
             y_pred = self.calibrated_estimator.predict(X)
@@ -440,7 +455,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
             binary case, confidence score for ``self.classes_[1]`` where >0 means
             this class would be predicted.
         """
-        return X.dot(self.rho)
+        return X.dot(self.coef_)
 
     def create_report(self, file_name = None, show = True, only_table = False,
                       overwrite = True, n_bins = 5):
@@ -469,6 +484,12 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
             f = Path(file_name)
             if not overwrite:
                 assert f.exists(), f'file {file_name} exists'
-        self.scores.create_report(file_name = f, show = show, only_table = only_table,
-                                  n_bins = n_bins)
+
+        self.reporter.create_report(
+            file_name = f,
+            show = show,
+            only_table = only_table,
+             n_bins = n_bins
+        )
+
         return f

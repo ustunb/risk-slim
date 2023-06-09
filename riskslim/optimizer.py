@@ -8,7 +8,7 @@ from copy import copy
 import cplex
 from cplex.exceptions import CplexError
 
-from riskslim.utils import Stats, check_data, validate_settings, print_log
+from riskslim.utils import Stats, check_data, validate_settings, print_log, default_variable_names
 from riskslim.defaults import DEFAULT_LCPA_SETTINGS
 from riskslim.coefficient_set import CoefficientSet, get_score_bounds
 from riskslim.mip import add_mip_starts, create_risk_slim, set_cplex_mip_parameters
@@ -711,7 +711,7 @@ class RiskSLIMOptimizer:
 
     def _check_data(self):
         """Check data types and shapes."""
-
+        # Check shape and normalize values of y to {-1, 1}
         if self.y.ndim == 1:
             self.y = self.y.reshape(-1, 1)
 
@@ -719,10 +719,29 @@ class RiskSLIMOptimizer:
         if len(inds) > 0:
             self.y[inds] = -1
 
+        # Default variable names
+        if self.variable_names is None:
+
+            include_intercept = False
+            if np.all(self.X[:, 0] == 1):
+                include_intercept = True
+
+            self.variable_names = default_variable_names(
+                n_variables = self.X.shape[1],
+                include_intercept = include_intercept
+            )
+
+        # Add intercept column to X
+        if self.variable_names[0] != "(Intercept)":
+            self.X = np.insert(self.X, 0, np.ones(self.X.shape[0]), axis=1)
+            self.variable_names.insert(0, "(Intercept)")
+
+        # Check shape compatibility between arrays
         check_data(
             self.X, self.y, self.variable_names, self.outcome_name, self.sample_weights
         )
 
+        # Infer variable types
         self._variable_types = np.zeros(self.X.shape[1], dtype="str")
         self._variable_types[:] = "C"
         self._variable_types[np.all(self.X == np.require(self.X, dtype=np.int_), axis=0)] = "I"
@@ -749,20 +768,19 @@ class RiskSLIMOptimizer:
         # Initialize data dict
         if self.variable_names is None:
             self.variable_names = [
-                f"Variable_{str(i).zfill(3)}" for i in range(len(self.X[0]) - 1)
+                f"Variable_{str(i).zfill(3)}" for i in range(len(self.X[0]))
                 ]
-            self.variable_names.insert(0, "(Intercept)")
 
         # Initialize coefficients if not given on initialization
         if self.coef_set is None:
             self.coef_set = CoefficientSet(
-                    self.variable_names,
-                    lb=self.min_coef,
-                    ub=self.max_coef,
-                    c0=self.c0_value,
-                    vtype=self.vtype,
-                    print_flag=self.verbose,
-                    )
+                self.variable_names,
+                lb=self.min_coef,
+                ub=self.max_coef,
+                c0=self.c0_value,
+                vtype=self.vtype,
+                print_flag=self.verbose,
+            )
             self._init_coeffs()
 
         self.Z = (self.X * self.y).astype(np.float64)
