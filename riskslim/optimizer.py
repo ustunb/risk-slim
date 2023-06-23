@@ -7,8 +7,7 @@ from copy import copy
 
 import cplex
 from cplex.exceptions import CplexError
-
-from riskslim.utils import Stats, check_data, validate_settings, print_log, default_variable_names
+from riskslim.utils import Stats, validate_settings, print_log
 from riskslim.defaults import DEFAULT_LCPA_SETTINGS
 from riskslim.coefficient_set import CoefficientSet, get_score_bounds
 from riskslim.mip import add_mip_starts, create_risk_slim, set_cplex_mip_parameters
@@ -116,8 +115,10 @@ class RiskSLIMOptimizer:
         self.initial_cuts = None
 
         # Handle kwargs
-        self.vtype = kwargs.pop("vtype", "I")
         self.coef_set = kwargs.pop("coef_set", None)
+
+        # initialize coef_set
+        self.vtype = self.coef_set.vtype
         settings = kwargs
 
         # Parse settings

@@ -10,9 +10,8 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import check_scoring
 
 from .optimizer import RiskSLIMOptimizer
-from .risk_score import RiskScoreReporter
+from .reporter import RiskScoreReporter
 from .coefficient_set import CoefficientSet
-from .utils import default_variable_names
 from .data import ClassificationDataset
 
 
@@ -56,124 +55,73 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
     calibrated_estimators_ : list of sklearn.calibration.CalibratedClassifierCV
         Calibrators trained per fold. Must use the fitcv method.
     """
-
-    def __init__(
-        self,
-        min_size=None,
-        max_size=None,
-        min_coef=-5,
-        max_coef=5,
-        c0_value=1e-6,
-        max_abs_offset=None,
-        variable_names=None,
-        outcome_name=None,
-        verbose=True,
-        constraints=None,
-        settings=None,
-        **kwargs
-    ):
+    def __init__(self, max_coef = 5, max_size = None, coef_set = None,
+                 variable_names = None, outcome_name = None, c0_value = 1e-6,
+                 verbose = True,  **kwargs):
         """
         Parameters
         ----------
-        min_size : int, optional, default: None
-            Minimum number of regularized coefficients.
-            None defaults to zero.
-        max_size : int, optional, default: None
-            Maximum number of regularized coefficients.
-            None defaults to length of input variables.
-        min_coef : float or 1d array, optional, default: None
-            Minimum coefficient.
-            None default to -5
         max_coef : float or 1d array, optional, default: None
             Maximum coefficient.
             None defaults to 5.
-        c0_value : 1d array or float, optional, default: None
-            L0-penalty for all parameters when an integer or for each parameter
-            separately when an array.
-            None defaults to 1e-6.
-        max_abs_offset : float, optional, default: None
-            Maximum absolute value of intercept. This may be specificed as the first value
-            of min_coef and max_coef. However, if min_coef and max_coef are floats, this parameter
-            provides a convenient way to set bounds on the offset.
+        max_size : int, optional, default: None
+            Maximum number of regularized coefficients.
+            None defaults to length of input variables.
         variable_names : list of str, optional, default: None
             Names of each features. Only needed if coefficients is not passed on initalization.
             None defaults to generic variable names.
         outcome_name : str, optional, default: None
             Name of the output class.
+        coef_set: riskslim.coefficient_set.CoefficientSet
+            Contraints (bounds) on coefficients of input variables.
+            If None, this is constructed based on values passed to other initalization kwargs.
+            If not None, other kwargs may be overwritten.
+        c0_value : 1d array or float, optional, default: None
+            L0-penalty for all parameters when an integer or for each parameter
+            separately when an array.
+            None defaults to 1e-6.
         verbose : bool, optional, default: True
             Prints out log information if True, supresses if False.
-        constraints : list of tuples, optional, deafault: None
-            Tuples for adding constraints (name, var_inds, values, sense, rhs).
-            The recommended method for adding constraints is via the super classes
-            .add_constraint method. This kwarg is included for sklearn object cloning.
         settings : dict, optional, default: None
             Settings for warmstart (keys: 'init_*'), cplex (keys: 'cplex_*'), and lattice CPA.
             Use of this explicit kwarg allows cloning via sklearn (e.g. for grid search).
             Settings are combined with kwargs and then parsed. Parameters including in
             in kwargs will not be accessible or set after a clone.
         **kwargs
-            May include key value pairs:
-
-            - "coef_set" : riskslim.coefficient_set.CoefficientSet
-                Contraints (bounds) on coefficients of input variables.
-                If None, this is constructed based on values passed to other initalization kwargs.
-                If not None, other kwargs may be overwritten.
-
-            - "vtype" : str or list of str
-                Variable types for coefficients.
-                Must be either "I" for integers or "C" for floats.
-
             - \*\*settings : unpacked dict
                 Settings for warmstart (keys: \'init\_\'), cplex (keys: \'cplex\_\'), and lattice CPA.
                 Defaults are defined in ``defaults.DEFAULT_LCPA_SETTINGS``.
         """
-        # Pull min_coef/max_coef
-        #   Note: max offset is set in coef_set during .optimize
-        self.min_coef = min_coef
-        self.max_coef = max_coef
-        self.c0_value = c0_value
-        self.min_size = min_size
-        self.max_size = max_size
-        self.max_abs_offset = max_abs_offset
-
-        self.variable_names = variable_names
-        self.outcome_name = outcome_name
         self.verbose = verbose
+        self.fitted = False
+        self.optimizer = None
 
-        # Coefficient set
-        self.coef_set = kwargs.pop("coef_set", None)
-        self.vtype = kwargs.pop("vtype", "I")
+        # default classifier inputs
+        self.classes_ = None
+        self.coef_ = None
+        self.intercept_ = None
 
-        # Settings: verified in super's init call to validate_settings
-        #   Must contain keys defined in defaults.py
-        self.settings = settings
+        # parameters for tuning
+        # todo: check that these are the right type / shape
+        self.max_size = max_size # positive integer-valued
+        self.max_coef = max_coef # positive integer-valued
 
-        if self.settings is None:
-            self.settings = {}
+        # internals
+        self._data = None
+        self._variable_names = variable_names
+        self._outcome_name = outcome_name
+        self._coef_set = None
 
-        self.settings.update(kwargs)
+        # todo: check that this
+        self._settings = kwargs
 
-        self.reporter = None
+        # output
         self.calibrated_estimator = None
-
-        # Cross-validation
         self.cv = None
         self.cv_results = None
         self.cv_calibrated_estimators = None
+        self.reporter = None
 
-        # Custom constraints
-        self.constraints = constraints if constraints is not None else []
-        self.fitted = False
-
-        self.dataset = None
-        self.classes_ = None
-
-        self.optimizer = None
-
-        self.rho = None
-
-        self.coef_ = None
-        self.intercept_ = None
 
     def __repr__(self):
         if self.fitted:
@@ -181,7 +129,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         else:
             return super().__repr__()
 
-    def fit(self, X, y, sample_weights=None):
+    def fit(self, X, y, sample_weights=None, **kwargs):
         """Fit RiskSLIM classifier.
 
         Parameters
@@ -194,181 +142,32 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         sample_weights : 2d array, optional, default: None
             Sample weights with shape (n_features, 1). Must all be positive.
         """
+        self._data = ClassificationDataset(X, y, self._variable_names, self._outcome_name, sample_weights)
+        self.max_size = self._data.d if self.max_size is None else self.max_size
+        self.classes_ = self._data.classes
 
-        _, d = X.shape
-        self.sample_weights = sample_weights
-        self.classes_, _ = np.unique(y, return_inverse=True)
-
-        # Determine variable names
-        if self.variable_names is None:
-
-            # Add a column to X if it doesn't contain intercept
-            if not np.all(X[:, 0] == 1):
-                d += 1
-                X = np.insert(X, 0, np.ones(X.shape[0]), axis=1)
-
-            self.variable_names = default_variable_names(
-                n_variables = d,
-                include_intercept = True
-            )
+        # todo: construct
+        if self._coef_set is None:
+            self._coef_set = CoefficientSet(self._data.variable_names, lb = -self.max_coef, ub = self.max_coef)
+        self.max_coef = self._coef_set.max_coef
 
         # Initialize optimizer
-        self.optimizer = RiskSLIMOptimizer(
-            min_size=self.min_size,
-            max_size=self.max_size,
-            min_coef=self.min_coef,
-            max_coef=self.max_coef,
-            c0_value=self.c0_value,
-            max_abs_offset=self.max_abs_offset,
-            variable_names=self.variable_names,
-            outcome_name=self.outcome_name,
-            verbose=self.verbose,
-            # Captured by **kwargs
-            coef_set=self.coef_set,
-            vtype=self.vtype,
-            constraints=self.constraints,
-            **self.settings
-        )
+        if self.optimizer is None:
+            self.optimizer = RiskSLIMOptimizer(coef_set = self._coef_set, verbose=self.verbose, **self.settings)
 
-        # Fit
-        self.optimizer.optimize(X, y, self.sample_weights)
-
-        # Pass initalize attributes from optimzier to self
-        self.coef_set = self.optimizer.coef_set
-        self.min_coef = self.optimizer.min_coef
-        self.max_coef = self.optimizer.c0_value
-        self.min_size = self.optimizer.min_size
-        self.max_size = self.optimizer.max_size
-        self._variable_types = self.optimizer._variable_types
-
-        # Attributes
-        self.X = X
-        self.y = y
-
-        self.rho = self.optimizer.rho
-        self.coef_ = self.optimizer.rho[1:]
-        self.intercept_ = self.optimizer.rho[0]
-        self.classes_ = np.unique(self.y)
-
+        # fit
+        self.optimizer.optimize(self._data.X, self._data.y, self._data.sample_weights, **kwargs)
         self.fitted = True
 
-        # Create a dataset and report
-        self.dataset = ClassificationDataset(X, y, self.variable_names, self.outcome_name, self.sample_weights)
-        self.reporter = RiskScoreReporter(dataset=self.dataset, estimator=self)
+        # Attributes
+        self.coef_ = self.optimizer.rho[1:]
+        self.intercept_ = self.optimizer.rho[0]
 
-    def fit_cv(
-        self,
-        X,
-        y,
-        sample_weights=None,
-        k=5,
-        scoring="roc_auc",
-        n_jobs=1
-    ):
-        """Train RiskSLIM classifier.
+        # pass initalize attributes from optimzier to self
+        self._variable_types = self.optimizer._variable_types
 
-        Parameters
-        ----------
-        X : 2d-array
-            Observations (rows) and features (columns).
-            With an addtional column of 1s for the intercept.
-        y : 2d-array
-            Class labels (+1, -1) with shape (n_rows, 1).
-        sample_weights : 2d array, optional, default: None
-            Sample weights with shape (n_samples, 1). Must all be positive.
-        k : int, sklearn cross-validation generator or an iterable, default: 5
-            Determines the cross-validation splitting strategy.
-            Possible inputs for k are:
-
-            - None, to use the default 5-fold cross validation,
-            - int, to specify the number of folds in a ``(Stratified)KFold``,
-            - ``CV splitter``,
-            - An iterable yielding (train, test) splits as arrays of indices.
-
-        scoring : str, callable, list, tuple, or dict, default: "roc_auc"
-            Strategy to evaluate the performance of the cross-validated model on
-            the test set.
-
-            - a single string (see sklearn ``scoring_parameter``);
-            - a callable (see sklearn ``scoring``) that returns a single value.
-
-        n_jobs : int, optional, default: 1
-            Number of jobs to run in parallel. -1 defaults to max cores or threads.
-        """
-
-        # Get scorer and cross-validator
-        scoring = check_scoring(self, scoring)
-        self.cv = check_cv(cv=k, y=y)
-
-        # Run cross-validation
-        self.cv_results = cross_validate(
-            self,
-            X=X,
-            y=y,
-            cv=self.cv,
-            return_estimator=True,
-            scoring=scoring,
-            fit_params={"sample_weights": sample_weights},
-            n_jobs=n_jobs
-        )
-
-        # Fit an estimator on the entire dataset and compute scores
-        if self.reporter is None:
-            self.fit(X, y, sample_weights)
-
-
-    def recalibrate(self, X, y, sample_weights=None, method= "sigmoid"):
-        """Fit RiskSLIM classifier via Platt Scaling.
-
-        Parameters
-        ----------
-        X : 2d-array
-            Observations (rows) and features (columns).
-            With an addtional column of 1s for the intercept.
-        y : 2d-array
-            Class labels (+1, -1) with shape (n_rows, 1).
-        sample_weights : 2d array, optional, default: None
-            Sample weights with shape (n_features, 1). Must all be positive.
-        method : {"sigmoid", "isotonic"}
-            Linear classifier used to recalibrate scores.
-        """
-        # todo: call check_data <- rh: check_data has to be called in .fit() prior to this call
-        # todo: add support for kwargs (method = 'sigmoid') should be
-        #     <- rh: i don't think kwargs should be user facing; it leads to issues like unclear signatures
-        #            or passing bad args in (e.g. methdo="sigmoid" typo wouldn't raise an error)
-
-        if not self.fitted:
-            raise ValueError("fit RiskSLIM before calling recalibrate")
-
-        if self.cv_results is not None:
-            # Compute an ensemble (1 per fold) of calibrators
-            self.cv_calibrated_estimators = []
-
-            for train, _ in self.cv.split(X, y.reshape(-1)):
-
-                _X = X[train]
-                _y = y[train]
-
-                clf = CalibratedClassifierCV(
-                    self,
-                    cv="prefit",
-                    method=method
-                )
-
-                clf.fit(_X, _y, sample_weights)
-                self.cv_calibrated_estimators.append(clf)
-
-        # Compute single calibrator if fit_cv was not used
-        self.calibrated_estimator = CalibratedClassifierCV(
-            self,
-            cv="prefit",
-            method=method
-        )
-
-        self.calibrated_estimator.fit(X, y, sample_weights)
-
-        # Create reporter from the calibrated estimator
-        self.reporter = RiskScoreReporter(dataset=self.dataset, estimator=self)
+        # Create a data and report
+        # self.reporter = RiskScoreReporter(dataset=self.data, estimator=self)
 
     def predict(self, X):
         """Predict labels.
@@ -387,7 +186,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         assert self.fitted
         if self.calibrated_estimator is None:
             # Normal case
-            y_pred = np.sign(X.dot(self.coef_))
+            y_pred = np.sign(proba = expit(self.decision_function(X)))
         elif isinstance(self.calibrated_estimator, CalibratedClassifierCV):
             # Calibrator
             y_pred = self.calibrated_estimator.predict(X)
@@ -412,7 +211,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
 
         if self.calibrated_estimator is None:
             # Normal case
-            proba = expit(X.dot(self.rho))
+            proba = expit(self.decision_function(X))
         elif isinstance(self.calibrated_estimator, CalibratedClassifierCV):
             # Calibrator
             proba = self.calibrated_estimator.predict_proba(X)[:, 1]
@@ -455,41 +254,105 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
             binary case, confidence score for ``self.classes_[1]`` where >0 means
             this class would be predicted.
         """
-        return X.dot(self.coef_)
+        return X.dot(self.coef_) + self.intercept_
 
-    def create_report(self, file_name = None, show = False, only_table = False,
-                      overwrite = True, n_bins = 5):
-        """Create a RiskSLIM report using plotly.
+    def recalibrate(self, X, y, sample_weights=None, method= "sigmoid"):
+        """Fit RiskSLIM classifier via Platt Scaling.
 
         Parameters
         ----------
-        file_name : str
-            Name of file and extension to save report to.
-            Supported extensions include ".pdf" and ".html".
-        show : bool, optional, default: False
-            Calls fig.show() if True.
-        replace_table : bool, optional, default: False
-            Removes risk score table if True.
-        only_table : bool, optional, default: False
-            Plots only the risk table when True.
-        template : str
-            Path to html file template that will overwrite default.
-        n_bins : int
-            Number of to use when creating calibration plot.
+        X : 2d-array
+            Observations (rows) and features (columns).
+            With an addtional column of 1s for the intercept.
+        y : 2d-array
+            Class labels (+1, -1) with shape (n_rows, 1).
+        sample_weights : 2d array, optional, default: None
+            Sample weights with shape (n_features, 1). Must all be positive.
+        method : {"sigmoid", "isotonic"}
+            Linear classifier used to recalibrate scores.
         """
-        # overwrite
-        if file_name is None:
-            f = None
-        else:
-            f = Path(file_name)
-            if not overwrite:
-                assert f.exists(), f'file {file_name} exists'
+        # todo: call check_data <- rh: check_data has to be called in .fit() prior to this call
+        # todo: add support for kwargs (method = 'sigmoid') should be
+        #     <- rh: i don't think kwargs should be user facing; it leads to issues like unclear signatures
+        #            or passing bad args in (e.g. methdo="sigmoid" typo wouldn't raise an error)
 
-        self.reporter.create_report(
-            file_name = f,
-            show = show,
-            only_table = only_table,
-            n_bins = n_bins
-        )
+        if not self.fitted:
+            raise ValueError("fit RiskSLIM before calling recalibrate")
 
-        return f
+        # fit recalibrate final model
+        clf = CalibratedClassifierCV(base_estimator = self, cv="prefit", method=method)
+        clf.fit(X = X, y = y, sample_weights = sample_weights)
+        self.calibrated_estimator = clf
+
+        if self.cv_results is not None:
+            # Compute an ensemble (1 per fold) of calibrators / recalibrate cv models
+            cv_calibrated_estimators = []
+            for train, _ in self.cv.split(X, y.reshape(-1)):
+                clf = CalibratedClassifierCV(base_estimator = self, cv="prefit", method=method)
+                if sample_weights is None:
+                    clf.fit(X = X[train], y = y[train])
+                else:
+                    clf.fit(X = X[train], y = y[train], sample_weights = sample_weights[train])
+                cv_calibrated_estimators.append(clf)
+
+            self.cv_calibrated_estimators = cv_calibrated_estimators
+
+    def fit_cv(
+            self,
+            X,
+            y,
+            sample_weights=None,
+            k=5,
+            scoring="roc_auc",
+            n_jobs=1,
+            **kwargs
+            ):
+        """Train RiskSLIM classifier.
+
+        Parameters
+        ----------
+        X : 2d-array
+            Observations (rows) and features (columns).
+            With an addtional column of 1s for the intercept.
+        y : 2d-array
+            Class labels (+1, -1) with shape (n_rows, 1).
+        sample_weights : 2d array, optional, default: None
+            Sample weights with shape (n_samples, 1). Must all be positive.
+        k : int, sklearn cross-validation generator or an iterable, default: 5
+            Determines the cross-validation splitting strategy.
+            Possible inputs for k are:
+
+            - None, to use the default 5-fold cross validation,
+            - int, to specify the number of folds in a ``(Stratified)KFold``,
+            - ``CV splitter``,
+            - An iterable yielding (train, test) splits as arrays of indices.
+
+        scoring : str, callable, list, tuple, or dict, default: "roc_auc"
+            Strategy to evaluate the performance of the cross-validated model on
+            the test set.
+
+            - a single string (see sklearn ``scoring_parameter``);
+            - a callable (see sklearn ``scoring``) that returns a single value.
+
+        n_jobs : int, optional, default: 1
+            Number of jobs to run in parallel. -1 defaults to max cores or threads.
+        """
+
+        # Get scorer and cross-validator
+        scoring = check_scoring(self, scoring)
+        self.cv = check_cv(cv=k, y=y)
+
+        # Run cross-validation
+        fit_params = {"sample_weights": sample_weights}
+        fit_params.update(kwargs)
+
+        self.cv_results = cross_validate(
+                self,
+                X=X,
+                y=y,
+                cv=self.cv,
+                return_estimator=True,
+                scoring=scoring,
+                fit_params= fit_params,
+                n_jobs=n_jobs
+                )

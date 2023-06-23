@@ -36,7 +36,7 @@ from riskslim import RiskSLIMClassifier, load_data_from_csv
 # Load Data
 # ---------
 #
-# The example dataset in this tutorial is used to predict if a breast cancer tumor is beign or
+# The example data in this tutorial is used to predict if a breast cancer tumor is beign or
 # malignant.
 #
 
@@ -70,17 +70,9 @@ settings = {
     "cplex_mipemphasis": 0,
 }
 
-rs_base = RiskSLIMClassifier(
-    min_size=1,
-    max_size=10,
-    min_coef=-5,
-    max_coef=5,
-    max_abs_offset=50,
-    variable_names=variable_names,
-    outcome_name=outcome_name,
-    verbose=False,
-    **settings
-)
+rs_base = RiskSLIMClassifier(max_coef = 5, max_size = 10,
+                             variable_names = variable_names, verbose = False,
+                             outcome_name = outcome_name, **settings)
 
 ###################################################################################################
 # Fit

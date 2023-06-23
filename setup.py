@@ -69,7 +69,7 @@ extensions =[
 
 
 if __name__ == "__main__":
-
+    INSTALL_REQUIRES
     old_path = os.getcwd()
     local_path = os.path.dirname(os.path.abspath(sys.argv[0]))
 
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     sys.path.insert(0, local_path)
 
     with open('requirements.txt') as f:
-        INSTALL_REQUIRES = [l.strip() for l in f.readlines() if l]
+         = [l.strip() for l in f.readlines() if l]
 
     setup(
         name=DISTNAME,

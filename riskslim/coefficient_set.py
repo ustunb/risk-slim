@@ -350,10 +350,14 @@ class _CoefficientElement(object):
             assert value >= 0.0, 'L0 penalty for %s must either be NaN or a finite positive number' % self._name
             self._c0 = float(value)
 
-
     @property
     def penalized(self):
-        return np.isnan(self._c0) or np.greater(self._c0, 0.0)
+        return np.greater(self._c0, 0.0) or np.isnan(self._c0)
+
+    @property
+    def max_coef(self):
+        idx = self.penalized
+        value = np.max(np.abs(self.ub[idx]), np.abs(self.lb[idx])).max()
 
     @property
     def sign(self):

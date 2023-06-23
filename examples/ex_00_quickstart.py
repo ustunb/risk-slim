@@ -1,28 +1,17 @@
 """
 00. Quickstart
 """
-
-from riskslim import RiskSLIMClassifier, load_data_from_csv
+from riskslim import RiskSLIMClassifier
 from riskslim.utils import open_file
-from pathlib import Path
+import pandas as pd
 
 # Load Data
-url = "https://raw.githubusercontent.com/ustunb/risk-slim/master/examples/data/"
-url += "breastcancer_data.csv"
+df = pd.read_csv("https://raw.githubusercontent.com/ustunb/risk-slim/master/examples/data/mushroom_data.csv")
+y, X = df.iloc[:, 0].values, df.iloc[:, 1:].values
 
-data = load_data_from_csv(url)
-
-# Initialize Model
-rs = RiskSLIMClassifier(
-    max_size = 5, # max model size (number of non-zero coefficients)
-    max_coef = 5, # value of largest/smallest coefficient
-    variable_names = data["variable_names"],
-    outcome_name = "poisonous",
-    verbose = False
-)
-
-# Fit
-rs.fit(data["X"], data["y"])
+# fit model
+clf = RiskSLIMClassifier(max_coef = 5, max_size = 5, variable_names = df.columns[1:].tolist(), outcome_name = df.columns[0])
+clf.fit(X, y)
 
 # Create Report
 report_file = rs.create_report(file_name = 'report.html')

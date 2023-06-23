@@ -18,7 +18,7 @@ from plotly.io import show
 # Load Data
 # ---------
 #
-# The example dataset in this tutorial is used to predict if a breast cancer tumor is beign or
+# The example data in this tutorial is used to predict if a breast cancer tumor is beign or
 # malignant.
 #
 
@@ -113,18 +113,10 @@ c0_value = 1e-6
 # features and ``y`` is an array of class labels.
 #
 
-rs = RiskSLIMClassifier(
-    min_size=0,
-    max_size=max_size,
-    min_coef=-max_coefficient,
-    max_coef=max_coefficient,
-    c0_value=c0_value,
-    max_abs_offset=max_offset,
-    variable_names=variable_names,
-    outcome_name=outcome_name,
-    verbose=False,
-    **settings
-)
+rs = RiskSLIMClassifier(max_coef = max_coefficient, max_size = max_size,
+                        variable_names = variable_names, c0_value = c0_value,
+                        verbose = False, outcome_name = outcome_name,
+                        **settings)
 
 rs.fit(X, y)
 

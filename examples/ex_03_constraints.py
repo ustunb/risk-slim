@@ -17,7 +17,7 @@ from riskslim import RiskSLIMClassifier, load_data_from_csv
 # Load Data
 # ---------
 #
-# The example dataset in this tutorial is used to predict if a breast cancer tumor is beign or
+# The example data in this tutorial is used to predict if a breast cancer tumor is beign or
 # malignant.
 #
 
@@ -47,14 +47,9 @@ settings['chained_updates_flag'] = False
 # A base estimator is defined below and used to generate solutions with and without constraints.
 #
 
-rs_base = RiskSLIMClassifier(
-    max_size=5,
-    max_coef=5,
-    max_abs_offset=50,
-    variable_names=data["variable_names"],
-    verbose=False,
-    settings=settings
-)
+rs_base = RiskSLIMClassifier(max_coef = 5, max_size = 5,
+                             variable_names = data["variable_names"],
+                             verbose = False, settings = settings)
 
 # Fit
 rs = clone(rs_base)

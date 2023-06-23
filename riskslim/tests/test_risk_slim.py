@@ -30,8 +30,8 @@ import riskslim
 # data
 data_name = "breastcancer"  # name of the data
 data_dir = os.getcwd() + '/examples/data/'  # directory where datasets are stored
-data_csv_file = data_dir + data_name + '_data.csv'  # csv file for the dataset
-sample_weights_csv_file = None  # csv file of sample weights for the dataset (optional)
+data_csv_file = data_dir + data_name + '_data.csv'  # csv file for the data
+sample_weights_csv_file = None  # csv file of sample weights for the data (optional)
 
 default_settings = {
     #
@@ -97,7 +97,7 @@ default_settings = {
 @pytest.mark.parametrize('max_offset', [0, 50])
 def test_risk_slim(max_coefficient, max_L0_value, max_offset):
 
-    # Load dataset
+    # Load data
     data = riskslim.load_data_from_csv(
         dataset_csv_file=data_csv_file, sample_weights_csv_file=sample_weights_csv_file
     )

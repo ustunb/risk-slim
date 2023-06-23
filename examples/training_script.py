@@ -6,8 +6,8 @@ from riskslim.experimental.fit import RiskSLIM
 # data
 data_name = "breastcancer"                                         # name of the data
 data_dir = Path.cwd() / 'examples' / 'data'                 # directory where datasets are stored
-data_csv_file = data_dir / '{}_data.csv'.format(data_name)  # csv file for the dataset
-sample_weights_csv_file = None                              # csv file of sample weights for the dataset (optional)
+data_csv_file = data_dir / '{}_data.csv'.format(data_name)  # csv file for the data
+sample_weights_csv_file = None                              # csv file of sample weights for the data (optional)
 
 # problem parameters
 max_coefficient = 5                                         # value of largest/smallest coefficient

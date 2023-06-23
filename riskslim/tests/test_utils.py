@@ -7,9 +7,10 @@ import logging
 import pytest
 import numpy as np
 from riskslim.utils import (
-    load_data_from_csv, check_data, print_model, setup_logging, print_log,
+    load_data_from_csv, print_model, setup_logging, print_log,
     validate_settings, is_integer, cast_to_integer
 )
+from riskslim.data import check_data
 
 
 @pytest.mark.parametrize('sample_weights_csv_file',
@@ -23,7 +24,7 @@ def test_load_data_from_csv(sample_weights_csv_file):
     # Data
     data_name = "breastcancer"  # name of the data
     data_dir = os.getcwd() + '/examples/data/'  # directory where datasets are stored
-    data_csv_file = data_dir + data_name + '_data.csv'  # csv file for the dataset
+    data_csv_file = data_dir + data_name + '_data.csv'  # csv file for the data
 
     folds = cycle(list(range(1, 6)))
     folds = [next(folds) for _ in range(683)]

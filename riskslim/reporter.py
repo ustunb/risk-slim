@@ -24,7 +24,7 @@ class RiskScoreReporter:
         Parameters
         ----------
         dataset : risklim.data.ClassificationDataset
-            Binary classification dataset.
+            Binary classification data.
         estimator : riskslim.classifier.RiskSLIMClassifier
             Fitted riskslim estimator. Also accepts scikit-learn estimators.
         """
@@ -72,6 +72,10 @@ class RiskScoreReporter:
             self.proba = estimator.predict_proba(self.X)
         else:
             self.proba = self.estimator.calibrated_estimator.predict_proba(self.X)[:, 1]
+
+    @staticmethod
+    def from_model(estimator):
+        raise NotImplementedError()
 
 
     def __str__(self):
@@ -148,6 +152,7 @@ class RiskScoreReporter:
         n_bins : int
             Number of to use when creating calibration plot.
         """
+
 
         # Determine size of plots and tables
         height = 800
@@ -457,3 +462,32 @@ class RiskScoreReporter:
             fig.show()
 
         return fig
+
+    # def create_report(self, file_name = None, show = False, only_table = False, overwrite = True, n_bins = 5):
+    #     """Create a RiskSLIM report using plotly.
+    #
+    #     Parameters
+    #     ----------
+    #     file_name : str
+    #         Name of file and extension to save report to.
+    #         Supported extensions include ".pdf" and ".html".
+    #     show : bool, optional, default: False
+    #         Calls fig.show() if True.
+    #     replace_table : bool, optional, default: False
+    #         Removes risk score table if True.
+    #     only_table : bool, optional, default: False
+    #         Plots only the risk table when True.
+    #     template : str
+    #         Path to html file template that will overwrite default.
+    #     n_bins : int
+    #         Number of to use when creating calibration plot.
+    #     """
+    #     # overwrite
+    #     if file_name is None:
+    #         f = None
+    #     else:
+    #         f = Path(file_name)
+    #         if not overwrite:
+    #             assert f.exists(), f'file {file_name} exists'
+    #
+    #     return f
