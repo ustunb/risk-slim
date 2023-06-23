@@ -1,4 +1,4 @@
-cplex
+# cplex <- install manually
 numpy
 scipy
 Cython

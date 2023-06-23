@@ -6,6 +6,7 @@ import os
 import sys
 from setuptools import setup, find_packages, dist
 from setuptools.extension import Extension
+import warnings
 
 #resources
 #setuptools http://setuptools.readthedocs.io/en/latest/setuptools.html
@@ -41,6 +42,13 @@ try:
 except ImportError:
     print('Cython is required for installation')
     sys.exit(1)
+
+try:
+    import cplex
+    if cplex.exceptions.error_codes.CPXERR_RESTRICTED_VERSION == 1016:
+        warnings.warn("Community CPLEX edition limits problem size.")
+except ImportError:
+    warnings.warn("CPLEX is required for solving RiskSLIM.")
 
 #fast log loss
 extensions =[
