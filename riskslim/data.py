@@ -47,6 +47,7 @@ class ClassificationDataset:
         self._sample_weights = sample_weights
         assert self.__check_rep__()
 
+        self._Z = (self._X * self._y).astype(np.float64)
 
         # Infer variable types
         self._variable_types = np.zeros(self.X.shape[1], dtype="str")
@@ -55,8 +56,6 @@ class ClassificationDataset:
         self._variable_types[np.all(self.X == np.require(self.X, dtype=np.bool_), axis=0)] = "B"
         self._integer_data = not np.any(self._variable_types == "C")
 
-        # warnings
-
     @property
     def X(self):
         return self._X
@@ -64,6 +63,10 @@ class ClassificationDataset:
     @property
     def y(self):
         return self._y
+
+    @property
+    def Z(self):
+        return self._Z
 
     @property
     def classes(self):
@@ -88,6 +91,10 @@ class ClassificationDataset:
     @property
     def d(self):
         return self._X.shape[1]
+
+    @property
+    def variable_types(self):
+        return self._variable_types
 
     @property
     def df(self):
