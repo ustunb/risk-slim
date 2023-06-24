@@ -47,6 +47,7 @@ class ClassificationDataset:
         self._sample_weights = sample_weights
         assert self.__check_rep__()
 
+        self._Z = (self._X * self._y).astype(np.float64)
 
         # Infer variable types
         self._variable_types = np.zeros(self.X.shape[1], dtype="str")
@@ -63,6 +64,10 @@ class ClassificationDataset:
     @property
     def y(self):
         return self._y
+
+    @property
+    def Z(self):
+        return self._Z
 
     @property
     def classes(self):
@@ -87,6 +92,10 @@ class ClassificationDataset:
     @property
     def d(self):
         return self._X.shape[1]
+
+    @property
+    def variable_types(self):
+        return self._variable_types
 
     @property
     def df(self):
