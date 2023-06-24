@@ -129,6 +129,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         else:
             return super().__repr__()
 
+
     def fit(self, X, y, sample_weights=None, **kwargs):
         """Fit RiskSLIM classifier.
 
@@ -166,8 +167,11 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
         # pass initalize attributes from optimzier to self
         self._variable_types = self.optimizer._variable_types
 
-        # Create a data and report
-        # self.reporter = RiskScoreReporter(dataset=self.data, estimator=self)
+        # Inialize a reporter
+        self.reporter = RiskScoreReporter.from_model(estimator=self)
+
+        return self.__repr__()
+
 
     def predict(self, X):
         """Predict labels.
