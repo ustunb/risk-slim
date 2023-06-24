@@ -55,7 +55,6 @@ class ClassificationDataset:
         self._variable_types[np.all(self.X == np.require(self.X, dtype=np.bool_), axis=0)] = "B"
         self._integer_data = not np.any(self._variable_types == "C")
 
-        # warnings
 
     @property
     def X(self):
