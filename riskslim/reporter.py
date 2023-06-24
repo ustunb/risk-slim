@@ -75,8 +75,8 @@ class RiskScoreReporter:
 
     @staticmethod
     def from_model(estimator):
-        raise NotImplementedError()
-
+        reporter = RiskScoreReporter(estimator._data, estimator)
+        return reporter
 
     def __str__(self):
         """Scores string."""
@@ -133,7 +133,7 @@ class RiskScoreReporter:
 
 
     def create_report(self, file_name=None, show=False, replace_table=False,
-                      only_table=False, template=None, n_bins=5):
+                      only_table=False, template=None, n_bins=5, overwrite=True):
         """Create a RiskSLIM report using plotly.
 
         Parameters
@@ -152,7 +152,11 @@ class RiskScoreReporter:
         n_bins : int
             Number of to use when creating calibration plot.
         """
-
+        # Overwrite
+        if file_name is not None:
+            file_name = Path(file_name)
+            if not overwrite:
+                assert file_name.exists(), f'File: {file_name} exists.'
 
         # Determine size of plots and tables
         height = 800
@@ -462,32 +466,3 @@ class RiskScoreReporter:
             fig.show()
 
         return fig
-
-    # def create_report(self, file_name = None, show = False, only_table = False, overwrite = True, n_bins = 5):
-    #     """Create a RiskSLIM report using plotly.
-    #
-    #     Parameters
-    #     ----------
-    #     file_name : str
-    #         Name of file and extension to save report to.
-    #         Supported extensions include ".pdf" and ".html".
-    #     show : bool, optional, default: False
-    #         Calls fig.show() if True.
-    #     replace_table : bool, optional, default: False
-    #         Removes risk score table if True.
-    #     only_table : bool, optional, default: False
-    #         Plots only the risk table when True.
-    #     template : str
-    #         Path to html file template that will overwrite default.
-    #     n_bins : int
-    #         Number of to use when creating calibration plot.
-    #     """
-    #     # overwrite
-    #     if file_name is None:
-    #         f = None
-    #     else:
-    #         f = Path(file_name)
-    #         if not overwrite:
-    #             assert f.exists(), f'file {file_name} exists'
-    #
-    #     return f
