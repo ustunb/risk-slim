@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from riskslim.data import ClassificationDataset
 from riskslim.utils import Stats
-from riskslim.bound_tightening import Bounds
+from riskslim.bounds import Bounds
 
 
 def test_ClassificationDataset():

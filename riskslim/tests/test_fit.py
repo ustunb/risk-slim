@@ -7,7 +7,7 @@ from scipy import sparse
 from cplex import Cplex
 from riskslim.coefficient_set import CoefficientSet
 from riskslim.utils import Stats
-from riskslim.bound_tightening import Bounds
+from riskslim.bounds import Bounds
 from riskslim.fit import RiskSLIM
 
 

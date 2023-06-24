@@ -2,7 +2,7 @@ import time
 import numpy as np
 from cplex import Cplex, SparsePair, infinity as CPX_INFINITY
 from riskslim.solution_pool import SolutionPool
-from riskslim.bound_tightening import Bounds, chained_updates, \
+from riskslim.bounds import Bounds, chained_updates, \
     chained_updates_for_lp
 from riskslim.heuristics import discrete_descent, sequential_rounding
 from riskslim.defaults import DEFAULT_CPA_SETTINGS

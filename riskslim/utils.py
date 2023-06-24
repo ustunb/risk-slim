@@ -7,7 +7,7 @@ import time
 import numpy as np
 import pandas as pd
 import prettytable as pt
-from .bound_tightening import Bounds
+from .bounds import Bounds
 from .defaults import INTERCEPT_NAME
 
 

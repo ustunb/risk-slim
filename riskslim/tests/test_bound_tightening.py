@@ -2,7 +2,7 @@
 
 import pytest
 import numpy as np
-from riskslim.bound_tightening import Bounds, chained_updates, \
+from riskslim.bounds import Bounds, chained_updates, \
     chained_updates_for_lp
 
 

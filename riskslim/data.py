@@ -47,7 +47,7 @@ class ClassificationDataset:
         self._sample_weights = sample_weights
         assert self.__check_rep__()
 
-        self._Z = (self._X * self._y).astype(np.float64)
+        self._Z = (self._X * self._y[:, None]).astype(np.float64)
 
         # Infer variable types
         self._variable_types = np.zeros(self.X.shape[1], dtype="str")

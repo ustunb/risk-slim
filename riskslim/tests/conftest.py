@@ -5,7 +5,7 @@ import pytest
 
 import numpy as np
 
-from riskslim.coefficient_set import get_score_bounds
+from riskslim.bounds import get_score_bounds
 import riskslim.loss_functions.lookup_log_loss as lookup
 
 from .utils import generate_random_normal

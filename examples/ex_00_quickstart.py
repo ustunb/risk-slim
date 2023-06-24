@@ -9,6 +9,7 @@ import pandas as pd
 df = pd.read_csv("https://raw.githubusercontent.com/ustunb/risk-slim/master/examples/data/mushroom_data.csv")
 y, X = df.iloc[:, 0].values, df.iloc[:, 1:].values
 
+
 # fit model
 clf = RiskSLIMClassifier(max_coef = 5, max_size = 5, variable_names = df.columns[1:].tolist(), outcome_name = df.columns[0])
 clf.fit(X, y)

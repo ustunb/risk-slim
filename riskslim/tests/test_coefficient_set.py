@@ -2,7 +2,8 @@
 
 import pytest
 import numpy as np
-from riskslim.coefficient_set import CoefficientSet, _CoefficientElement, get_score_bounds
+from riskslim.coefficient_set import CoefficientSet, _CoefficientElement
+from riskslim.bounds import get_score_bounds
 
 
 @pytest.mark.parametrize('lb', [-5, [-5]*11])

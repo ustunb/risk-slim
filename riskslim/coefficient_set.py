@@ -1,8 +1,8 @@
 import numpy as np
 import warnings
 from prettytable import PrettyTable
+from .bounds import get_score_bounds
 from .defaults import INTERCEPT_NAME
-
 
 class CoefficientSet:
     """
@@ -71,7 +71,7 @@ class CoefficientSet:
 
         """
         if INTERCEPT_NAME not in self._coef_elements:
-            raise ValueError("coef_set must contain a variable for the offset called %s" % INTERCEPT_NAME)
+            raise ValueError(f"coef_set must contain a variable for the offset called {INTERCEPT_NAME}")
 
         e = self._coef_elements[INTERCEPT_NAME]
 
@@ -92,12 +92,12 @@ class CoefficientSet:
             max_L0_value = min(trivial_max_size, max_L0_value)
 
         # update intercept bounds
-        Z = X * y
+        Z = X * y[:, None]
         Z_min = np.min(Z, axis = 0)
         Z_max = np.max(Z, axis = 0)
 
         # get regularized indices
-        L0_reg_ind = np.isnan(self.C_0j)[variable_idx]
+        L0_reg_ind = self.penalized_indices()
 
         # get smallest / largest score
         s_min, s_max = get_score_bounds(Z_min = Z_min[variable_idx],
@@ -107,9 +107,12 @@ class CoefficientSet:
                                         L0_reg_ind = L0_reg_ind,
                                         max_size = max_L0_value)
 
-        # get max # of non-zero coefficients given model size limit
+        # set intercept
         conservative_offset = max(abs(s_min), abs(s_max)) + 1
-        max_offset = min(max_offset, conservative_offset)
+        if max_offset is None:
+            max_offset = conservative_offset
+        else:
+            max_offset = np.min(max_offset, conservative_offset)
         e.ub = max_offset
         e.lb = -max_offset
 
@@ -412,22 +415,3 @@ class _CoefficientElement(object):
         return t
 
 
-def get_score_bounds(Z_min, Z_max, rho_lb, rho_ub, L0_reg_ind = None, max_size = None):
-
-    edge_values = np.vstack([Z_min * rho_lb, Z_max * rho_lb, Z_min * rho_ub, Z_max * rho_ub])
-
-    if (max_size is None) or (L0_reg_ind is None) or (max_size == Z_min.shape[0]):
-        s_min = np.sum(np.min(edge_values, axis=0))
-        s_max = np.sum(np.max(edge_values, axis=0))
-    else:
-        min_values = np.min(edge_values, axis=0)
-        s_min_reg = np.sum(np.sort(min_values[L0_reg_ind])[0:max_size])
-        s_min_no_reg = np.sum(min_values[~L0_reg_ind])
-        s_min = s_min_reg + s_min_no_reg
-
-        max_values = np.max(edge_values, axis=0)
-        s_max_reg = np.sum(-np.sort(-max_values[L0_reg_ind])[0:max_size])
-        s_max_no_reg = np.sum(max_values[~L0_reg_ind])
-        s_max = s_max_reg + s_max_no_reg
-
-    return s_min, s_max

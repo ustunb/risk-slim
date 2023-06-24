@@ -21,7 +21,7 @@ def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_a
 
     Parameters
     ----------
-    bounds : riskslim.bound_tightening.Bounds
+    bounds : riskslim.bounds.Bounds
         Parameters bounds.
     C_0_nnz : 1d array
         Regularized coefficients.
@@ -34,7 +34,7 @@ def chained_updates(bounds, C_0_nnz, new_objval_at_feasible = None, new_objval_a
 
     Returns
     -------
-    new_bounds : riskslim.bound_tightening.Bounds
+    new_bounds : riskslim.bounds.Bounds
         Updated parameter bounds.
     """
     new_bounds = Bounds(**bounds.asdict().copy())
@@ -116,7 +116,7 @@ def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_o
 
     Parameters
     ----------
-    bounds : riskslim.bound_tightening.Bounds
+    bounds : riskslim.bounds.Bounds
         Parameters bounds.
     C_0_nnz : 1d array
         Regularized coefficients.
@@ -129,7 +129,7 @@ def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_o
 
     Returns
     -------
-    new_bounds : riskslim.bound_tightening.Bounds
+    new_bounds : riskslim.bounds.Bounds
         Updated parameter bounds.
     """
     new_bounds = Bounds(**bounds.asdict().copy())
@@ -209,3 +209,82 @@ def chained_updates_for_lp(bounds, C_0_nnz, new_objval_at_feasible = None, new_o
     return new_bounds
 
 
+def compute_loss_bounds(data, coef_set, max_size):
+
+    # min value of loss = log(1+exp(-score)) occurs at max score for each point
+    # max value of loss = loss(1+exp(-score)) occurs at min score for each point
+
+    # get maximum number of regularized coefficients
+    num_max_reg_coefs = max_size
+
+    # get coefficients
+    L0_reg_ind = coef_set.penalized_indices()
+
+    # calculate the smallest and largest score that can be attained by each point
+    scores_at_lb = data.Z * coef_set.lb
+    scores_at_ub = data.Z * coef_set.ub
+    max_scores_matrix = np.maximum(scores_at_ub, scores_at_lb)
+    min_scores_matrix = np.minimum(scores_at_ub, scores_at_lb)
+    assert np.all(max_scores_matrix >= min_scores_matrix)
+
+    # for each example, compute max sum of scores from top reg coefficients
+    max_scores_reg = max_scores_matrix[:, L0_reg_ind]
+    max_scores_reg = -np.sort(-max_scores_reg, axis=1)
+    max_scores_reg = max_scores_reg[:, 0:num_max_reg_coefs]
+    max_score_reg = np.sum(max_scores_reg, axis=1)
+
+    # for each example, compute max sum of scores from no reg coefficients
+    max_scores_no_reg = max_scores_matrix[:, ~L0_reg_ind]
+    max_score_no_reg = np.sum(max_scores_no_reg, axis=1)
+
+    # max score for each example
+    max_score = max_score_reg + max_score_no_reg
+
+    # for each example, compute min sum of scores from top reg coefficients
+    min_scores_reg = min_scores_matrix[:, L0_reg_ind]
+    min_scores_reg = np.sort(min_scores_reg, axis=1)
+    min_scores_reg = min_scores_reg[:, 0:num_max_reg_coefs]
+    min_score_reg = np.sum(min_scores_reg, axis=1)
+
+    # for each example, compute min sum of scores from no reg coefficients
+    min_scores_no_reg = min_scores_matrix[:, ~L0_reg_ind]
+    min_score_no_reg = np.sum(min_scores_no_reg, axis=1)
+    min_score = min_score_reg + min_score_no_reg
+    assert np.all(max_score >= min_score)
+
+    # compute min loss
+    idx = max_score > 0
+    min_loss = np.empty_like(max_score)
+    min_loss[idx] = np.log1p(np.exp(-max_score[idx]))
+    min_loss[~idx] = np.log1p(np.exp(max_score[~idx])) - max_score[~idx]
+    min_loss = min_loss.mean()
+
+    # compute max loss
+    idx = min_score > 0
+    max_loss = np.empty_like(min_score)
+    max_loss[idx] = np.log1p(np.exp(-min_score[idx]))
+    max_loss[~idx] = np.log1p(np.exp(min_score[~idx])) - min_score[~idx]
+    max_loss = max_loss.mean()
+
+    return min_loss, max_loss
+
+
+def get_score_bounds(Z_min, Z_max, rho_lb, rho_ub, L0_reg_ind = None, max_size = None):
+
+    edge_values = np.vstack([Z_min * rho_lb, Z_max * rho_lb, Z_min * rho_ub, Z_max * rho_ub])
+
+    if (max_size is None) or (L0_reg_ind is None) or (max_size == Z_min.shape[0]):
+        s_min = np.sum(np.min(edge_values, axis=0))
+        s_max = np.sum(np.max(edge_values, axis=0))
+    else:
+        min_values = np.min(edge_values, axis=0)
+        s_min_reg = np.sum(np.sort(min_values[L0_reg_ind])[0:max_size])
+        s_min_no_reg = np.sum(min_values[~L0_reg_ind])
+        s_min = s_min_reg + s_min_no_reg
+
+        max_values = np.max(edge_values, axis=0)
+        s_max_reg = np.sum(-np.sort(-max_values[L0_reg_ind])[0:max_size])
+        s_max_no_reg = np.sum(max_values[~L0_reg_ind])
+        s_max = s_max_reg + s_max_no_reg
+
+    return s_min, s_max
