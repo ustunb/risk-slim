@@ -153,7 +153,7 @@ class RiskSLIMClassifier(BaseEstimator, ClassifierMixin):
 
         # Initialize optimizer
         if self.optimizer is None:
-            self.optimizer = RiskSLIMOptimizer(coef_set = self._coef_set, verbose=self.verbose, **self.settings)
+            self.optimizer = RiskSLIMOptimizer(data = self.data, coef_set = self._coef_set, verbose=self.verbose, **kwargs)
 
         # fit
         self.optimizer.optimize(self._data.X, self._data.y, self._data.sample_weights, **kwargs)
