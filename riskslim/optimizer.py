@@ -50,33 +50,10 @@ class RiskSLIMOptimizer:
         Whether model has be fit.
     """
 
-    def __init__(
-        self,
-        min_size=None,
-        max_size=None,
-        min_coef=-5.0,
-        max_coef=5.0,
-        c0_value=1e-6,
-        max_abs_offset=None,
-        variable_names=None,
-        outcome_name=None,
-        verbose=True,
-        constraints=None,
-        **kwargs
-    ):
+    def __init__(self, data, coef_set, max_size, c0_value=1e-6, max_abs_offset=None, verbose=True, **kwargs):
         """
         Parameters
         ----------
-        min_size : int, optional, default: None
-            Minimum number of regularized coefficients.
-            None defaults to zero.
-        max_size : int, optional, default: None
-            Maximum number of regularized coefficients.
-            None defaults to length of input variables.
-        min_coef : float or 1d array, optional, default: -5.
-            Minimum coefficient.
-        max_coef : float or 1d array, optional, default: 5.
-            Maximum coefficient.
         c0_value : 1d array or float, optional, default: 1e-6
             L0-penalty for all parameters when an integer or for each parameter
             separately when an array.
@@ -109,82 +86,39 @@ class RiskSLIMOptimizer:
 
         """
         # Empty fields
+        self._default_print_flag = False
         self.fitted = False
         self.has_warmstart = False
-        self._default_print_flag = False
         self.initial_cuts = None
 
         # Handle kwargs
-        self.coef_set = kwargs.pop("coef_set", None)
+        self.data = data
+        self.coef_set = coef_set
+        self.max_size = max_size
+        # set these here
+        self.coef_set.update_intercept_bounds(X=self.X, y=self.y, max_offset=max_abs_offset)
 
-        # initialize coef_set
-        self.vtype = self.coef_set.vtype
+        # update this bound
         settings = kwargs
-
-        # Parse settings
-        if "display_cplex_progress" not in settings.keys():
-            settings["display_cplex_progress"] = verbose
-
+        settings["display_cplex_progress"] = verbose
         self.settings, self.cplex_settings, self.warmstart_settings = self._parse_settings(settings, defaults = DEFAULT_LCPA_SETTINGS)
         self.loss_computation = self.settings["loss_computation"]
         self.verbose = verbose
         self.log = lambda msg: print_log(msg, print_flag=self.verbose)
 
         # Coefficient constraints
-        self.min_size = min_size
-        self.max_size = max_size
-        self.min_coef = min_coef
-        self.max_coef = max_coef
-        self.rho = None
         self.c0_value = c0_value
-        self.max_abs_offset = max_abs_offset
-        self.constraints = constraints if constraints is not None else []
+        self.L0_reg_ind = None
+        self.C_0 = None
+        self.C_0_nnz = None
+        self.variable_names = None
 
-        if self.coef_set is not None:
-            self._init_coeffs()
-        else:
-            self.L0_reg_ind = None
-            self.C_0 = None
-            self.C_0_nnz = None
-            self.variable_names = None
-
-        # Features and labels
-        self.X = None
-        self.y = None
-
-        self.variable_names = variable_names
-        self.outcome_name = outcome_name
-
-
-    def optimize(self, X, y, sample_weights=None):
-        """Optimize RiskSLIM.
-
-        Parameters
-        ----------
-        X : 2d-array
-            Observations (rows) and features (columns).
-            With an addtional column of 1s for the intercept.
-        y : 2d-array
-            Class labels (+1, -1) with shape (n_rows, 1).
-        sample_weights : 2d array, optional, default: None
-            Sample weights with shape (n_features, 1). Must all be positive.
-        """
-        # Set data attributes
-        self.X = X
-        self.y = y
-        self.sample_weights = np.ones(X.shape[0]) if sample_weights is None else sample_weights
-
-        # Check data attributes
-        self._check_data()
+        # initialize solution queues
+        self.cut_queue = FastSolutionPool(self.n_variables)
+        self.polish_queue = FastSolutionPool(self.n_variables)
 
         # Initalize fitting procedure
         self._init_fit()
-
-        if self.max_abs_offset is not None:
-            # Set offset bounds
-            self.coef_set.update_intercept_bounds(
-                    X=self.X, y=self.y, max_offset=self.max_abs_offset
-                    )
 
         # Initalize MIP
         self._init_mip()
@@ -207,30 +141,14 @@ class RiskSLIMOptimizer:
                     rhs=[rhs]
                     )
 
+        self._init_callbacks()
+
         # Run warmstart procedure if it has not been run yet
-        if self.settings["initialization_flag"] and not self.has_warmstart:
+        if self.settings["initialization_flag"] :
             self.warmstart()
 
-        # Set cplex parameters and runtime
-        cpx = self.mip
-        cpx = set_cplex_mip_parameters(
-                cpx,
-                self.cplex_settings,
-                display_cplex_progress=self.settings["display_cplex_progress"],
-                )
-        cpx.parameters.timelimit.set(self.settings["max_runtime"])
-
-        # Initialize solution queues
-        self.cut_queue = FastSolutionPool(self.n_variables)
-        self.polish_queue = FastSolutionPool(self.n_variables)
-
-        if not self.fitted:
-            self._init_callbacks()
-
-        # Initialize solution pool
+            # Initialize solution pool
         if len(self.pool) > 0:
-            # Initialize using the polish_queue when possible to avoid bugs with
-            #   the CPLEX MIPStart interface
             if self.settings["polish_flag"]:
                 self.polish_queue.add(self.pool.objvals[0], self.pool.solutions[0])
             else:
@@ -243,13 +161,6 @@ class RiskSLIMOptimizer:
 
             if self.settings["add_cuts_at_heuristic_solutions"] and len(self.pool) > 1:
                 self.cut_queue.add(self.pool.objvals[1:], self.pool.solutions[1:])
-
-        # Solve riskslim optimization problem
-        start_time = time.time()
-        cpx.solve()
-        self.stats.total_run_time = time.time() - start_time
-        self.fitted = True
-        self.rho = self.solution_info["solution"]
 
     def warmstart(self, warmstart_settings=None):
         """Run an initialization routine to speed up RiskSLIM.
@@ -279,6 +190,7 @@ class RiskSLIMOptimizer:
                 self.cplex_settings,
                 display_cplex_progress=settings["display_cplex_progress"],
                 )
+
 
         # Solve RiskSLIM LP using standard CPA
         stats, cuts, pool = run_standard_cpa(
@@ -406,6 +318,26 @@ class RiskSLIMOptimizer:
         self.bounds = copy(bounds)
         self.has_warmstart = True
 
+    def optimize(self, X, y, sample_weights=None, max_runtime = 60.0):
+        """Optimize RiskSLIM.
+
+        Parameters
+        ----------
+        X : 2d-array
+            Observations (rows) and features (columns).
+            With an addtional column of 1s for the intercept.
+        y : 2d-array
+            Class labels (+1, -1) with shape (n_rows, 1).
+        sample_weights : 2d array, optional, default: None
+            Sample weights with shape (n_features, 1). Must all be positive.
+        """
+
+        # Set cplex parameters and runtime
+        self.mip = set_cplex_mip_parameters(self.mip, self.cplex_settings, display_cplex_progress=self.settings["display_cplex_progress"])
+        cpx.parameters.timelimit.set(self.settings["max_runtime"])
+        cpx.solve()
+        self.fitted = True
+
     def add_constraint(self, var_names, var_type, values, rhs, sense, name=None):
         """Add a constraint to the MIP.
 
@@ -444,7 +376,7 @@ class RiskSLIMOptimizer:
             raise ValueError("var_name and values must be the same length.")
 
         # Anon funcs to get name and index set in mip object (e.g. rho_i, alpha_i)
-        get_name = lambda var_name: var_type + '_' + str(self.variable_names.index(var_name))
+        get_name = lambda var_name: var_type + '_' + str(self._data.variable_names.index(var_name))
         get_ind = lambda var_names: [get_name(v) for v in var_names]
 
         # Add constraint to a queue - it is added to the mip solver add fit time
@@ -552,7 +484,6 @@ class RiskSLIMOptimizer:
 
         return info
 
-
     ### initialization ####
     def _parse_settings(self, settings, defaults):
         """Parse settings and separete into warmstart, lcpa, cplex."""
@@ -571,109 +502,6 @@ class RiskSLIMOptimizer:
             if not k.startswith(("init_", "cplex_"))
             }
         return lcpa_settings, cplex_settings, warmstart_settings
-
-    def _init_loss_computation(self):
-        """Initalize loss functions."""
-        # todo: check if fast/lookup loss is installed
-        # todo: refactor loss computation logic to factory functions below
-        assert self.loss_computation in ("normal", "weighted", "fast", "lookup")
-
-        use_lookup_table = (
-                isinstance(self.coef_set, CoefficientSet) and self._integer_data
-        )
-
-        sample_weights = self.sample_weights
-        use_weighted = not np.equal(sample_weights, 1.0).all()
-
-        if use_weighted:
-            final_loss_computation = "weighted"
-        elif use_lookup_table and self.loss_computation == "lookup":
-            final_loss_computation = "lookup"
-        elif self.loss_computation == "normal":
-            final_loss_computation = "normal"
-        else:
-            final_loss_computation = "fast"
-
-        if final_loss_computation != self.loss_computation:
-            warn(f"switching loss computation from {self.loss_computation} to {final_loss_computation}")
-
-        self.loss_computation = final_loss_computation
-
-        if final_loss_computation == "normal":
-            import riskslim.loss_functions.log_loss as lf
-            self.Z = np.require(self.Z, requirements=["C"])
-            self.compute_loss = lambda rho: lf.log_loss_value(self.Z, rho)
-            self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(self.Z, rho)
-            self.compute_loss_from_scores = (lambda scores: lf.log_loss_value_from_scores(scores))
-
-        elif final_loss_computation == "fast":
-            import riskslim.loss_functions.fast_log_loss as lf
-            self.Z = np.require(self.Z, requirements=["F"])
-            self.compute_loss = lambda rho: lf.log_loss_value(self.Z, np.asfortranarray(rho))
-            self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(self.Z, np.asfortranarray(rho))
-            self.compute_loss_from_scores = (lambda scores: lf.log_loss_value_from_scores(scores))
-
-        elif final_loss_computation == "weighted":
-            import riskslim.loss_functions.log_loss_weighted as lf
-            self.Z = np.require(self.Z, requirements=["C"])
-            total_sample_weights = np.sum(sample_weights)
-            self.compute_loss = lambda rho: lf.log_loss_value(self.Z, sample_weights, total_sample_weights, rho)
-            self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(
-                    self.Z, sample_weights, total_sample_weights, rho
-                    )
-            self.compute_loss_from_scores = (
-                lambda scores: lf.log_loss_value_from_scores(
-                        sample_weights, total_sample_weights, scores
-                        )
-            )
-        elif final_loss_computation == "lookup":
-            import riskslim.loss_functions.lookup_log_loss as lf
-
-            self.Z = np.require(self.Z, requirements=["F"], dtype=np.float64)
-
-            s_min, s_max = get_score_bounds(
-                    Z_min=np.min(self.Z, axis=0),
-                    Z_max=np.max(self.Z, axis=0),
-                    rho_lb=self.coef_set.lb,
-                    rho_ub=self.coef_set.ub,
-                    L0_reg_ind=np.array(self.coef_set.c0) == 0.0,
-                    max_size=self.max_size,
-                    )
-
-            self.log("%d rows in lookup table" % (s_max - s_min + 1))
-            (
-                loss_value_tbl,
-                prob_value_tbl,
-                tbl_offset,
-                ) = lf.get_loss_value_and_prob_tables(s_min, s_max)
-            self.compute_loss = lambda rho: lf.log_loss_value(
-                    self.Z, rho, loss_value_tbl, tbl_offset
-                    )
-            self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(
-                    self.Z, rho, loss_value_tbl, prob_value_tbl, tbl_offset
-                    )
-            self.compute_loss_from_scores = (
-                lambda scores: lf.log_loss_value_from_scores(
-                        scores, loss_value_tbl, tbl_offset
-                        )
-            )
-
-        # real loss functions
-        if final_loss_computation == "lookup":
-            import riskslim.loss_functions.fast_log_loss as lfr
-
-            self.compute_loss_real = lambda rho: lfr.log_loss_value(self.Z, rho)
-            self.compute_loss_cut_real = lambda rho: lfr.log_loss_value_and_slope(
-                    self.Z, rho
-                    )
-            self.compute_loss_from_scores_real = (
-                lambda scores: lfr.log_loss_value_from_scores(scores)
-            )
-
-        else:
-            self.compute_loss_real = self.compute_loss
-            self.compute_loss_cut_real = self.compute_loss_cut
-            self.compute_loss_from_scores_real = self.compute_loss_from_scores
 
     def _init_coeffs(self):
         """Initialize coefficient constraints.
@@ -708,61 +536,6 @@ class RiskSLIMOptimizer:
 
         # Variable names
         self.variable_names = self.coef_set.variable_names
-
-
-    def _check_data(self):
-        """Check data types and shapes."""
-        # Check shape and normalize values of y to {-1, 1}
-        if self.y.ndim == 1:
-            self.y = self.y.reshape(-1, 1)
-
-        inds = np.less_equal(self.y, 0)
-        if len(inds) > 0:
-            self.y[inds] = -1
-
-        # Default variable names
-        if self.variable_names is None:
-
-            include_intercept = False
-            if np.all(self.X[:, 0] == 1):
-                include_intercept = True
-
-            self.variable_names = default_variable_names(
-                n_variables = self.X.shape[1],
-                include_intercept = include_intercept
-            )
-
-        # Add intercept column to X
-        if self.variable_names[0] != "(Intercept)":
-            self.X = np.insert(self.X, 0, np.ones(self.X.shape[0]), axis=1)
-            self.variable_names.insert(0, "(Intercept)")
-
-        # Check shape compatibility between arrays
-        check_data(
-            self.X, self.y, self.variable_names, self.outcome_name, self.sample_weights
-        )
-
-        # Infer variable types
-        self._variable_types = np.zeros(self.X.shape[1], dtype="str")
-        self._variable_types[:] = "C"
-        self._variable_types[np.all(self.X == np.require(self.X, dtype=np.int_), axis=0)] = "I"
-        self._variable_types[np.all(self.X == np.require(self.X, dtype=np.bool_), axis=0)] = "B"
-        self._integer_data = not np.any(self._variable_types == "C")
-
-        # Extra warnings
-        if self.verbose:
-
-            # Binary warning
-            if np.all(self._variable_types[1:] == "B"):
-                warn("X is recommended to be all binary.")
-
-            # Constant warning
-            constant_variables = np.array(self.variable_names)[np.all(self.X == self.X[0], axis=0)]
-            if (len(constant_variables) > 1) or not (
-                len(constant_variables) == 1 and constant_variables[0] == "(Intercept)"
-            ):
-                warn("Constant variable other than intercept found in X.")
-
 
     def _init_fit(self):
         """Pre-fit initialization routine."""
@@ -966,3 +739,109 @@ class RiskSLIMOptimizer:
         max_loss = max_loss.mean()
 
         return min_loss, max_loss
+
+
+
+def initialize_loss_computation_handles(loss_computation, data):
+    """Initalize loss functions."""
+    # todo: check if fast/lookup loss is installed
+    # todo: refactor loss computation logic to factory functions below
+    assert loss_computation in ("normal", "weighted", "fast", "lookup")
+
+    use_lookup_table = (
+            isinstance(self.coef_set, CoefficientSet) and self._integer_data
+    )
+
+    sample_weights = self.sample_weights
+    use_weighted = not np.equal(sample_weights, 1.0).all()
+
+    if use_weighted:
+        final_loss_computation = "weighted"
+    elif use_lookup_table and self.loss_computation == "lookup":
+        final_loss_computation = "lookup"
+    elif self.loss_computation == "normal":
+        final_loss_computation = "normal"
+    else:
+        final_loss_computation = "fast"
+
+    if final_loss_computation != self.loss_computation:
+        warn(f"switching loss computation from {self.loss_computation} to {final_loss_computation}")
+
+    self.loss_computation = final_loss_computation
+
+    if final_loss_computation == "normal":
+        import riskslim.loss_functions.log_loss as lf
+        self.Z = np.require(self.Z, requirements=["C"])
+        self.compute_loss = lambda rho: lf.log_loss_value(self.Z, rho)
+        self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(self.Z, rho)
+        self.compute_loss_from_scores = (lambda scores: lf.log_loss_value_from_scores(scores))
+
+    elif final_loss_computation == "fast":
+        import riskslim.loss_functions.fast_log_loss as lf
+        self.Z = np.require(self.Z, requirements=["F"])
+        self.compute_loss = lambda rho: lf.log_loss_value(self.Z, np.asfortranarray(rho))
+        self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(self.Z, np.asfortranarray(rho))
+        self.compute_loss_from_scores = (lambda scores: lf.log_loss_value_from_scores(scores))
+
+    elif final_loss_computation == "weighted":
+        import riskslim.loss_functions.log_loss_weighted as lf
+        self.Z = np.require(self.Z, requirements=["C"])
+        total_sample_weights = np.sum(sample_weights)
+        self.compute_loss = lambda rho: lf.log_loss_value(self.Z, sample_weights, total_sample_weights, rho)
+        self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(
+                self.Z, sample_weights, total_sample_weights, rho
+                )
+        self.compute_loss_from_scores = (
+            lambda scores: lf.log_loss_value_from_scores(
+                    sample_weights, total_sample_weights, scores
+                    )
+        )
+    elif final_loss_computation == "lookup":
+        import riskslim.loss_functions.lookup_log_loss as lf
+
+        self.Z = np.require(self.Z, requirements=["F"], dtype=np.float64)
+
+        s_min, s_max = get_score_bounds(
+                Z_min=np.min(self.Z, axis=0),
+                Z_max=np.max(self.Z, axis=0),
+                rho_lb=self.coef_set.lb,
+                rho_ub=self.coef_set.ub,
+                L0_reg_ind=np.array(self.coef_set.c0) == 0.0,
+                max_size=self.max_size,
+                )
+
+        self.log("%d rows in lookup table" % (s_max - s_min + 1))
+        (
+            loss_value_tbl,
+            prob_value_tbl,
+            tbl_offset,
+            ) = lf.get_loss_value_and_prob_tables(s_min, s_max)
+        self.compute_loss = lambda rho: lf.log_loss_value(
+                self.Z, rho, loss_value_tbl, tbl_offset
+                )
+        self.compute_loss_cut = lambda rho: lf.log_loss_value_and_slope(
+                self.Z, rho, loss_value_tbl, prob_value_tbl, tbl_offset
+                )
+        self.compute_loss_from_scores = (
+            lambda scores: lf.log_loss_value_from_scores(
+                    scores, loss_value_tbl, tbl_offset
+                    )
+        )
+
+    # real loss functions
+    if final_loss_computation == "lookup":
+        import riskslim.loss_functions.fast_log_loss as lfr
+
+        self.compute_loss_real = lambda rho: lfr.log_loss_value(self.Z, rho)
+        self.compute_loss_cut_real = lambda rho: lfr.log_loss_value_and_slope(
+                self.Z, rho
+                )
+        self.compute_loss_from_scores_real = (
+            lambda scores: lfr.log_loss_value_from_scores(scores)
+        )
+
+    else:
+        self.compute_loss_real = self.compute_loss
+        self.compute_loss_cut_real = self.compute_loss_cut
+        self.compute_loss_from_scores_real = self.compute_loss_from_scores
+

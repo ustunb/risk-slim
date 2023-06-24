@@ -1,5 +1,6 @@
 import numpy as np
 
+OUTCOME_NAME = 'y'
 INTERCEPT_NAME = '(Intercept)'
 
 DEFAULT_LCPA_SETTINGS = {

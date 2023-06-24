@@ -158,6 +158,11 @@ class CoefficientSet:
     def print_flag(self, flag):
         self._default_print_flag = bool(flag)
 
+    @property
+    def max_coef(self):
+        idx = [j for j, n in enumerate(self.variable_names) if n != INTERCEPT_NAME]
+        value = np.maximum(np.abs(self.ub[idx]), np.abs(self.lb[idx])).max()
+        return value
 
     #### coefficient element access ####
     def __getattr__(self, name):
@@ -354,10 +359,6 @@ class _CoefficientElement(object):
     def penalized(self):
         return np.greater(self._c0, 0.0) or np.isnan(self._c0)
 
-    @property
-    def max_coef(self):
-        idx = self.penalized
-        value = np.max(np.abs(self.ub[idx]), np.abs(self.lb[idx])).max()
 
     @property
     def sign(self):
